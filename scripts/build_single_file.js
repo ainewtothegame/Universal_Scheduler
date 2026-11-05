@@ -1,16 +1,34 @@
 /**
  * build_single_file.js
- * Inlines all styles, scripts, and SheetJS into a single portable index.html file.
+ * Inlines all styles, scripts, SheetJS, and domain logic into a 100% self-contained index.html.
+ * Zero external file dependencies - only index.html is needed!
  */
 
 import fs from 'fs';
-import path from 'path';
 
-console.log('Building standalone index.html...');
+console.log('Building 100% self-contained index.html (zero external dependencies)...');
 
 const sheetJsCode = fs.readFileSync('xlsx.full.min.js', 'utf8');
 
-// Build the HTML template
+function cleanModuleCode(filePath) {
+  let code = fs.readFileSync(filePath, 'utf8');
+  // Strip import statements
+  code = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
+  // Replace export function / export const / export class
+  code = code.replace(/export\s+function\s+/g, 'function ');
+  code = code.replace(/export\s+const\s+/g, 'const ');
+  code = code.replace(/export\s+let\s+/g, 'let ');
+  code = code.replace(/export\s+class\s+/g, 'class ');
+  return code;
+}
+
+const domainDataCode = cleanModuleCode('src/domain_data.js');
+const cspSolverCode = cleanModuleCode('src/csp_solver.js');
+const conflictEngineCode = cleanModuleCode('src/conflict_engine.js');
+const excelEngineCode = cleanModuleCode('src/excel_engine.js');
+const storageAdapterCode = cleanModuleCode('src/storage_adapter.js');
+
+// HTML shell
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -674,15 +692,24 @@ const htmlContent = `<!DOCTYPE html>
     ${sheetJsCode}
   </script>
 
-  <!-- Core Application Scripts -->
-  <script type="module">
-    import { DEFAULT_2027_ROSTER, HISTORICAL_MEMBERS, DEFAULT_2027_HOLIDAYS, DEFAULT_2027_BLACKOUTS, createInitialAppState, formatDate, parseDate, addDays, getDayOfWeek } from './src/domain_data.js';
-    import { solveSchedule, identifyWeekends } from './src/csp_solver.js';
-    import { evaluateScheduleConflicts } from './src/conflict_engine.js';
-    import { generateExcelWorkbook, parseSpreadsheet, buildBarracksCalendarGrid } from './src/excel_engine.js';
-    import { StorageAdapter } from './src/storage_adapter.js';
+  <!-- Inlined Domain & Architecture Modules -->
+  <script>
+    // --- domain_data.js ---
+    ${domainDataCode}
 
-    // Initialize Storage & State
+    // --- csp_solver.js ---
+    ${cspSolverCode}
+
+    // --- conflict_engine.js ---
+    ${conflictEngineCode}
+
+    // --- excel_engine.js ---
+    ${excelEngineCode}
+
+    // --- storage_adapter.js ---
+    ${storageAdapterCode}
+
+    // --- UI Controller & Application Bootstrap ---
     const storage = new StorageAdapter();
     window.appState = storage.state;
 
@@ -771,7 +798,6 @@ const htmlContent = `<!DOCTYPE html>
       // Evaluate Conflicts
       const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.assignments);
 
-      // Check exemption note
       let hasExemption = false;
 
       // Find first day of month and build grid
@@ -944,7 +970,7 @@ const htmlContent = `<!DOCTYPE html>
       cycle.updatedAt = Date.now();
       storage.saveState();
       renderApp();
-      alert('Schedule automatically generated! All fatigue and quota rules applied.');
+      alert('Schedule automatically generated! All fatigue, rest, and quota rules applied.');
     });
 
     // Undo / Redo
@@ -1279,4 +1305,4 @@ const htmlContent = `<!DOCTYPE html>
 `;
 
 fs.writeFileSync('index.html', htmlContent, 'utf8');
-console.log('Successfully generated index.html!');
+console.log('Successfully generated 100% self-contained index.html!');

@@ -685,15 +685,1202 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   </script>
 
-  <!-- Core Application Scripts -->
-  <script type="module">
-    import { DEFAULT_2027_ROSTER, HISTORICAL_MEMBERS, DEFAULT_2027_HOLIDAYS, DEFAULT_2027_BLACKOUTS, createInitialAppState, formatDate, parseDate, addDays, getDayOfWeek } from './src/domain_data.js';
-    import { solveSchedule, identifyWeekends } from './src/csp_solver.js';
-    import { evaluateScheduleConflicts } from './src/conflict_engine.js';
-    import { generateExcelWorkbook, parseSpreadsheet, buildBarracksCalendarGrid } from './src/excel_engine.js';
-    import { StorageAdapter } from './src/storage_adapter.js';
+  <!-- Inlined Domain & Architecture Modules -->
+  <script>
+    // --- domain_data.js ---
+    /**
+ * domain_data.js
+ * Default domain data and date utilities for Pennsylvania State Police (PSP) Fire Marshal Scheduling.
+ */
 
-    // Initialize Storage & State
+// Helper: Format date as 'YYYY-MM-DD'
+function formatDate(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper: Parse 'YYYY-MM-DD' to Date at local midnight
+function parseDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+// Helper: Add days
+function addDays(dateOrStr, days) {
+  const d = typeof dateOrStr === 'string' ? parseDate(dateOrStr) : new Date(dateOrStr.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+// Helper: Day of week (0=Sun, 1=Mon, ..., 6=Sat)
+function getDayOfWeek(dateOrStr) {
+  const d = typeof dateOrStr === 'string' ? parseDate(dateOrStr) : dateOrStr;
+  return d.getDay();
+}
+
+// Default 2027 Roster
+const DEFAULT_2027_ROSTER = [
+  {
+    id: 'polcha',
+    name: 'POLCHA',
+    role: 'FT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: 1, // Monday
+    color: '#1e3a8a'    // Deep Blue
+  },
+  {
+    id: 'terek',
+    name: 'TEREK',
+    role: 'FT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: 4, // Thursday
+    color: '#047857'    // Emerald Green
+  },
+  {
+    id: 'wolfe',
+    name: 'WOLFE',
+    role: 'FT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: 3, // Wednesday
+    color: '#b45309'    // Amber Brown
+  },
+  {
+    id: 'kemerer',
+    name: 'KEMERER',
+    role: 'FT',
+    activeStart: '2027-01-01',
+    activeEnd: '2027-02-28', // Transfers end of Feb 2027
+    baselineWeekday: 2,     // Tuesday (Phase 1)
+    color: '#0f766e'        // Teal
+  },
+  {
+    id: 'chester',
+    name: 'CHESTER',
+    role: 'ALT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: null,
+    color: '#6d28d9'        // Purple
+  },
+  {
+    id: 'zeiders',
+    name: 'ZEIDERS',
+    role: 'ALT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: null,
+    color: '#be185d'        // Pink/Rose
+  },
+  {
+    id: 'reed',
+    name: 'REED',
+    role: 'ALT',
+    activeStart: '2027-01-01',
+    activeEnd: null,
+    baselineWeekday: null,
+    color: '#c2410c'        // Orange
+  }
+];
+
+// Historical Inactive Members (for alias reconciliation)
+const HISTORICAL_MEMBERS = [
+  {
+    id: 'keebaugh',
+    name: 'KEEBAUGH',
+    role: 'FT',
+    activeStart: '2026-01-01',
+    activeEnd: '2027-01-03',
+    baselineWeekday: null,
+    color: '#64748b'
+  },
+  {
+    id: 'riley',
+    name: 'RILEY',
+    role: 'FT',
+    activeStart: '2027-05-31',
+    activeEnd: '2027-05-31',
+    baselineWeekday: null,
+    color: '#475569'
+  }
+];
+
+// Official 2027 Enlisted Holidays
+const DEFAULT_2027_HOLIDAYS = [
+  { date: '2027-01-01', year: 2027, name: "New Year's Day", type: 'attached_fri' },
+  { date: '2027-01-18', year: 2027, name: 'Martin Luther King Day', type: 'attached_mon' },
+  { date: '2027-02-15', year: 2027, name: "Presidents' Day", type: 'attached_mon' },
+  { date: '2027-03-26', year: 2027, name: 'Good Friday', type: 'attached_fri' },
+  { date: '2027-05-31', year: 2027, name: 'Memorial Day', type: 'attached_mon' },
+  { date: '2027-06-19', year: 2027, name: 'Juneteenth', type: 'weekend' },
+  { date: '2027-07-04', year: 2027, name: 'Independence Day', type: 'weekend' },
+  { date: '2027-07-05', year: 2027, name: 'Independence Day (Observed)', type: 'attached_mon' },
+  { date: '2027-09-06', year: 2027, name: 'Labor Day', type: 'attached_mon' },
+  { date: '2027-10-11', year: 2027, name: 'Columbus Day', type: 'attached_mon' },
+  { date: '2027-11-02', year: 2027, name: 'General Election Day', type: 'midweek' },
+  { date: '2027-11-11', year: 2027, name: 'Veterans Day', type: 'midweek' },
+  { date: '2027-11-25', year: 2027, name: 'Thanksgiving Day', type: 'midweek' },
+  { date: '2027-12-25', year: 2027, name: 'Christmas Day', type: 'weekend' }
+];
+
+// Baseline 2027 Blackouts from Specification
+const DEFAULT_2027_BLACKOUTS = [
+  // Polcha
+  { id: 'b_polcha_1', memberId: 'polcha', startDate: '2027-01-16', endDate: '2027-01-17', notes: 'Weekend leave' },
+  { id: 'b_polcha_2', memberId: 'polcha', startDate: '2027-01-30', endDate: '2027-01-31', notes: 'Weekend leave' },
+  { id: 'b_polcha_3', memberId: 'polcha', startDate: '2027-02-11', endDate: '2027-02-15', notes: 'Presidents Day weekend' },
+  { id: 'b_polcha_4', memberId: 'polcha', startDate: '2027-02-27', endDate: '2027-02-28', notes: 'Weekend leave' },
+  { id: 'b_polcha_5', memberId: 'polcha', startDate: '2027-12-24', endDate: '2027-12-27', notes: 'Christmas weekend' },
+
+  // Wolfe
+  { id: 'b_wolfe_1', memberId: 'wolfe', startDate: '2027-02-22', endDate: '2027-02-26', notes: 'Full week vacation' },
+  { id: 'b_wolfe_2', memberId: 'wolfe', startDate: '2027-05-10', endDate: '2027-05-14', notes: 'Full week vacation' },
+
+  // Terek
+  { id: 'b_terek_1', memberId: 'terek', startDate: '2027-03-26', endDate: '2027-03-27', notes: 'Good Friday / Easter' },
+  { id: 'b_terek_2', memberId: 'terek', startDate: '2027-05-28', endDate: '2027-05-28', notes: 'Memorial Day weekend' },
+  { id: 'b_terek_3', memberId: 'terek', startDate: '2027-06-26', endDate: '2027-07-03', notes: 'Summer vacation' }
+];
+
+// Initial AppState factory
+function createInitialAppState() {
+  return {
+    version: 1,
+    roster: [...DEFAULT_2027_ROSTER],
+    blackouts: [...DEFAULT_2027_BLACKOUTS],
+    holidays: [...DEFAULT_2027_HOLIDAYS],
+    cycles: {
+      '2027-H1': {
+        id: '2027-H1',
+        year: 2027,
+        blockType: 'H1',
+        startDate: '2027-01-01',
+        endDate: '2027-06-30',
+        rosterSnapshot: [...DEFAULT_2027_ROSTER],
+        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        assignments: {},
+        manualOverrides: {},
+        solverDiagnostics: {},
+        updatedAt: Date.now()
+      },
+      '2027-H2': {
+        id: '2027-H2',
+        year: 2027,
+        blockType: 'H2',
+        startDate: '2027-07-01',
+        endDate: '2027-12-31',
+        rosterSnapshot: [...DEFAULT_2027_ROSTER],
+        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        assignments: {},
+        manualOverrides: {},
+        solverDiagnostics: {},
+        updatedAt: Date.now()
+      },
+      '2027-FULL': {
+        id: '2027-FULL',
+        year: 2027,
+        blockType: 'FULL',
+        startDate: '2027-01-01',
+        endDate: '2027-12-31',
+        rosterSnapshot: [...DEFAULT_2027_ROSTER],
+        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        assignments: {},
+        manualOverrides: {},
+        solverDiagnostics: {},
+        updatedAt: Date.now()
+      }
+    },
+    activeCycleId: '2027-H1',
+    savedSnapshots: {}
+  };
+}
+
+
+    // --- csp_solver.js ---
+    /**
+ * csp_solver.js
+ * 5-Stage Stratified Constraint Satisfaction Problem (CSP) Solver for PSP Fire Marshal On-Call Scheduling.
+ */
+
+
+
+/**
+ * Checks if a member has an approved blackout on a given date string ('YYYY-MM-DD').
+ */
+function isMemberBlackedOut(memberId, dateStr, blackouts) {
+  return blackouts.some(b => {
+    if (b.memberId !== memberId) return false;
+    return dateStr >= b.startDate && dateStr <= b.endDate;
+  });
+}
+
+/**
+ * Checks if a member is active on a given date string ('YYYY-MM-DD').
+ */
+function isMemberActive(member, dateStr) {
+  if (dateStr < member.activeStart) return false;
+  if (member.activeEnd && dateStr > member.activeEnd) return false;
+  return true;
+}
+
+/**
+ * Identifies all weekend objects within a date range.
+ */
+function identifyWeekends(startDateStr, endDateStr, holidays) {
+  const weekends = [];
+  let curr = parseDate(startDateStr);
+  const end = parseDate(endDateStr);
+
+  // Walk backwards if starting mid-weekend to find Friday, or walk forwards to first Friday
+  // We want all Fridays that define weekends in this range
+  while (curr <= end) {
+    if (curr.getDay() === 5) { // Friday
+      const fri = formatDate(curr);
+      const sat = formatDate(addDays(curr, 1));
+      const sun = formatDate(addDays(curr, 2));
+      const mon = formatDate(addDays(curr, 3));
+      const thu = formatDate(addDays(curr, -1));
+
+      // Check attached holidays
+      const friHoliday = holidays.find(h => h.date === fri && h.type === 'attached_fri');
+      const monHoliday = holidays.find(h => h.date === mon && h.type === 'attached_mon');
+
+      // Phase calculation: Phase 1 if before 2027-03-01, Phase 2 from 2027-03-01 onwards
+      const phase = fri < '2027-03-01' ? 1 : 2;
+
+      weekends.push({
+        index: weekends.length,
+        friday: fri,
+        saturday: sat,
+        sunday: sun,
+        monday: mon,
+        attachedFriday: friHoliday ? friHoliday.date : null,
+        attachedMonday: monHoliday ? monHoliday.date : null,
+        phase,
+        // All dates belonging to this weekend block
+        dates: [fri, sat, sun]
+      });
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  return weekends;
+}
+
+/**
+ * Master 5-Stage Stratified CSP Solver
+ */
+function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}) {
+  const assignments = { ...manualOverrides };
+  const diagnostics = {};
+  const activeFTs = roster.filter(m => m.role === 'FT');
+  const activeALTs = roster.filter(m => m.role === 'ALT');
+
+  const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
+  const altQuotaConsumed = {};
+  activeALTs.forEach(a => { altQuotaConsumed[a.id] = 0; });
+
+  const weekendAssignments = {}; // weekend.index -> memberId
+
+  // Pre-seed already manually locked weekends
+  weekends.forEach(w => {
+    if (assignments[w.saturday]) {
+      const assignedId = assignments[w.saturday];
+      weekendAssignments[w.index] = assignedId;
+      const mem = roster.find(m => m.id === assignedId);
+      if (mem && mem.role === 'ALT') {
+        altQuotaConsumed[assignedId] = (altQuotaConsumed[assignedId] || 0) + 1;
+      }
+    }
+  });
+
+  // =========================================================================
+  // STAGE 1: Lock Manuals & Phase 2 Proactive Leave Lookaheads
+  // =========================================================================
+  // Detect any active FT member with leave covering >= 3 consecutive mid-week days or full week in Phase 2
+  weekends.forEach(w => {
+    // Only apply in Phase 2 (or if active FT count < 4)
+    if (w.phase === 2 && !weekendAssignments[w.index]) {
+      // The week following weekend w is week W. The weekdays are Mon w.monday through Thu
+      const midWeekDays = [w.monday, formatDate(addDays(w.monday, 1)), formatDate(addDays(w.monday, 2)), formatDate(addDays(w.monday, 3))];
+      
+      // Check if any active FT has >= 3 blackout days in this mid-week window
+      const ftOnLeave = activeFTs.find(ft => {
+        if (!isMemberActive(ft, w.monday)) return false;
+        const blackedDays = midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts));
+        return blackedDays.length >= 3;
+      });
+
+      if (ftOnLeave) {
+        // Must place an eligible Alternate on weekend w (the weekend preceding ftOnLeave's vacation)
+        // Find candidate Alternate
+        const prevWeekendWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
+        const candidateAlt = activeALTs.find(alt => {
+          if (!isMemberActive(alt, w.friday)) return false;
+          // Check quota: max 3 per half-year block
+          if (altQuotaConsumed[alt.id] >= 3) return false;
+          // Check non-consecutive
+          if (prevWeekendWorker === alt.id) return false;
+          // Check blackouts for Fri, Sat, Sun, and attached Monday if applicable
+          const checkDates = [w.friday, w.saturday, w.sunday];
+          if (w.attachedMonday) checkDates.push(w.attachedMonday);
+          const hasBlackout = checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts));
+          return !hasBlackout;
+        });
+
+        if (candidateAlt) {
+          weekendAssignments[w.index] = candidateAlt.id;
+          altQuotaConsumed[candidateAlt.id] = (altQuotaConsumed[candidateAlt.id] || 0) + 1;
+        } else {
+          diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
+        }
+      }
+    }
+  });
+
+  // =========================================================================
+  // STAGE 2: Alternate Weekend Quota Allocation (CSP via MRV)
+  // =========================================================================
+  // Each Alternate gets exactly 3 weekends in H1 and 3 in H2 (quota = 3 per half)
+  const targetQuota = cycle.blockType === 'FULL' ? 6 : 3;
+
+  // Find remaining unassigned weekends
+  const unassignedWeekends = weekends.filter(w => !weekendAssignments[w.index]);
+
+  // Backtracking search to assign remaining Alternate quotas
+  function solveAlternateWeekends(altIndex, currentAssignments, currentQuotas) {
+    // Check if all alternates have met target quota
+    const allQuotasMet = activeALTs.every(a => currentQuotas[a.id] >= targetQuota);
+    if (allQuotasMet) return true;
+
+    // Pick the most constrained Alternate using MRV (Minimum Remaining Values)
+    // Most constrained = fewest available legal weekends relative to remaining quota needed
+    const unmetAlts = activeALTs
+      .filter(a => currentQuotas[a.id] < targetQuota)
+      .map(alt => {
+        const eligibleWeekends = unassignedWeekends.filter(w => {
+          if (currentAssignments[w.index]) return false;
+          if (!isMemberActive(alt, w.friday)) return false;
+          // Non-consecutive check
+          if (w.index > 0 && currentAssignments[w.index - 1] === alt.id) return false;
+          if (w.index < weekends.length - 1 && currentAssignments[w.index + 1] === alt.id) return false;
+          // Blackout check
+          const datesToCheck = [w.friday, w.saturday, w.sunday];
+          if (w.attachedMonday) datesToCheck.push(w.attachedMonday);
+          if (w.attachedFriday) datesToCheck.push(w.attachedFriday);
+          return !datesToCheck.some(d => isMemberBlackedOut(alt.id, d, blackouts));
+        });
+        return { alt, remaining: targetQuota - currentQuotas[alt.id], eligibleCount: eligibleWeekends.length, eligibleWeekends };
+      })
+      .sort((a, b) => (a.eligibleCount - a.remaining) - (b.eligibleCount - b.remaining));
+
+    if (unmetAlts.length === 0) return true;
+    const { alt, eligibleWeekends } = unmetAlts[0];
+
+    // If an alternate has remaining quota but 0 eligible weekends, backtrack
+    if (eligibleWeekends.length === 0) return false;
+
+    // Prefer weekends spaced out across the 6 months (prefer weekends not immediately adjacent to another Alternate)
+    eligibleWeekends.sort((wA, wB) => {
+      const prevAIsAlt = wA.index > 0 && currentAssignments[wA.index - 1] && roster.find(m => m.id === currentAssignments[wA.index - 1])?.role === 'ALT';
+      const nextAIsAlt = wA.index < weekends.length - 1 && currentAssignments[wA.index + 1] && roster.find(m => m.id === currentAssignments[wA.index + 1])?.role === 'ALT';
+      const penaltyA = (prevAIsAlt ? 1 : 0) + (nextAIsAlt ? 1 : 0);
+
+      const prevBIsAlt = wB.index > 0 && currentAssignments[wB.index - 1] && roster.find(m => m.id === currentAssignments[wB.index - 1])?.role === 'ALT';
+      const nextBIsAlt = wB.index < weekends.length - 1 && currentAssignments[wB.index + 1] && roster.find(m => m.id === currentAssignments[wB.index + 1])?.role === 'ALT';
+      const penaltyB = (prevBIsAlt ? 1 : 0) + (nextBIsAlt ? 1 : 0);
+
+      if (penaltyA !== penaltyB) return penaltyA - penaltyB;
+      return wA.index - wB.index;
+    });
+
+    for (const w of eligibleWeekends) {
+      currentAssignments[w.index] = alt.id;
+      currentQuotas[alt.id]++;
+
+      if (solveAlternateWeekends(altIndex + 1, currentAssignments, currentQuotas)) {
+        return true;
+      }
+
+      // Backtrack
+      delete currentAssignments[w.index];
+      currentQuotas[alt.id]--;
+    }
+
+    return false;
+  }
+
+  // Execute Stage 2 Alternate solver
+  solveAlternateWeekends(0, weekendAssignments, altQuotaConsumed);
+
+  // =========================================================================
+  // STAGE 3: Full-Time Weekend Allocation
+  // =========================================================================
+  const ftWeekendCounts = {};
+  activeFTs.forEach(ft => { ftWeekendCounts[ft.id] = 0; });
+  // Count already assigned weekends
+  Object.values(weekendAssignments).forEach(mId => {
+    if (ftWeekendCounts[mId] !== undefined) ftWeekendCounts[mId]++;
+  });
+
+  weekends.forEach(w => {
+    if (!weekendAssignments[w.index]) {
+      // Find candidate active FT members
+      const prevWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
+      const nextWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+
+      const candidates = activeFTs.filter(ft => {
+        if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
+        // Non-consecutive rule
+        if (prevWorker === ft.id || nextWorker === ft.id) return false;
+        // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
+        const checkDates = [w.friday, w.saturday, w.sunday];
+        if (w.attachedMonday) checkDates.push(w.attachedMonday);
+        if (w.phase === 2) checkDates.push(w.monday);
+        const hasBlackout = checkDates.some(d => isMemberBlackedOut(ft.id, d, blackouts));
+        return !hasBlackout;
+      });
+
+      // Sort candidates by lowest weekend count for equity
+      candidates.sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+
+      if (candidates.length > 0) {
+        const chosen = candidates[0];
+        weekendAssignments[w.index] = chosen.id;
+        ftWeekendCounts[chosen.id]++;
+      } else {
+        diagnostics[w.friday] = `Stage 3 Deadlock: No eligible, non-consecutive Full-Time member available for weekend of ${w.friday}.`;
+      }
+    }
+  });
+
+  // Commit weekend assignments to daily assignments
+  weekends.forEach(w => {
+    const workerId = weekendAssignments[w.index];
+    if (workerId) {
+      if (!assignments[w.friday]) assignments[w.friday] = workerId;
+      if (!assignments[w.saturday]) assignments[w.saturday] = workerId;
+      if (!assignments[w.sunday]) assignments[w.sunday] = workerId;
+    }
+  });
+
+  // =========================================================================
+  // STAGE 4: Attached Holiday (Fri/Mon) & Monday Shift Settlement
+  // =========================================================================
+  const weekdayCounts = {};
+  activeFTs.forEach(ft => { weekdayCounts[ft.id] = 0; });
+
+  weekends.forEach(w => {
+    const workerId = weekendAssignments[w.index];
+    const worker = roster.find(m => m.id === workerId);
+
+    // Attached Friday Holiday (New Year's Day, Good Friday)
+    if (w.attachedFriday && !assignments[w.attachedFriday]) {
+      assignments[w.attachedFriday] = workerId;
+    }
+
+    // Attached Monday Holiday (MLK, Presidents', Memorial, Labor, Columbus, Jul 5)
+    if (w.attachedMonday && !assignments[w.attachedMonday]) {
+      assignments[w.attachedMonday] = workerId;
+    }
+
+    // Standard Monday in Phase 2
+    if (w.phase === 2 && !w.attachedMonday && !assignments[w.monday]) {
+      if (worker && worker.role === 'FT') {
+        // FT Weekend Worker covers Monday (4-day shift)
+        assignments[w.monday] = workerId;
+      } else {
+        // ALT worked weekend: Non-holiday Monday covered by active, rested FT member via round-robin
+        const eligibleFTs = activeFTs.filter(ft => {
+          if (!isMemberActive(ft, w.monday)) return false;
+          if (isMemberBlackedOut(ft.id, w.monday, blackouts)) return false;
+          return true;
+        });
+        eligibleFTs.sort((a, b) => (weekdayCounts[a.id] || 0) - (weekdayCounts[b.id] || 0));
+        if (eligibleFTs.length > 0) {
+          assignments[w.monday] = eligibleFTs[0].id;
+          weekdayCounts[eligibleFTs[0].id] = (weekdayCounts[eligibleFTs[0].id] || 0) + 1;
+        } else {
+          diagnostics[w.monday] = `Stage 4 Warning: No FT member available for Monday ${w.monday}.`;
+        }
+      }
+    }
+  });
+
+  // =========================================================================
+  // STAGE 5: Mid-Week Allocation (Phase 1 Baseline vs. Phase 2 Dynamic Equity)
+  // =========================================================================
+  // Collect all dates from start to end
+  let walker = parseDate(cycle.startDate);
+  const cycleEnd = parseDate(cycle.endDate);
+  const allDays = [];
+  while (walker <= cycleEnd) {
+    allDays.push(formatDate(walker));
+    walker.setDate(walker.getDate() + 1);
+  }
+
+  // Iterate by calendar week
+  // A week's mid-week days are Monday (if unassigned), Tuesday, Wednesday, Thursday
+  allDays.forEach(dateStr => {
+    const dow = getDayOfWeek(dateStr); // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 0=Sun
+    if (dow >= 1 && dow <= 4 && !assignments[dateStr]) {
+      // Find the preceding weekend that ended before or on this week's start
+      // Preceding weekend Friday date:
+      const daysSinceFriday = (dow + 2) % 7; // Mon(1)->3 days, Tue(2)->4, Wed(3)->5, Thu(4)->6
+      const prevFri = formatDate(addDays(dateStr, -daysSinceFriday));
+      const prevWeekend = weekends.find(w => w.friday === prevFri);
+      const prevWorkerId = prevWeekend ? weekendAssignments[prevWeekend.index] : null;
+      const prevWorker = prevWorkerId ? roster.find(m => m.id === prevWorkerId) : null;
+
+      const isPhase1 = dateStr < '2027-03-01';
+
+      // Post-Weekend Rest Rule:
+      // If an FT member worked the preceding weekend, they CANNOT work Wednesday (dow 3) or Thursday (dow 4)
+      const restBlockedMemberId = (prevWorker && prevWorker.role === 'FT') ? prevWorker.id : null;
+
+      if (isPhase1) {
+        // Phase 1 Baseline allocation: Mon=Polcha, Tue=Kemerer, Wed=Wolfe, Thu=Terek
+        const baselineMap = { 1: 'polcha', 2: 'kemerer', 3: 'wolfe', 4: 'terek' };
+        let candidateId = baselineMap[dow];
+
+        // Check feasibility of candidate
+        const candidate = roster.find(m => m.id === candidateId);
+        const isRestBlocked = (dow === 3 || dow === 4) && candidateId === restBlockedMemberId;
+        const isBlackedOut = isMemberBlackedOut(candidateId, dateStr, blackouts);
+        const isActive = candidate && isMemberActive(candidate, dateStr);
+
+        if (!isRestBlocked && !isBlackedOut && isActive) {
+          assignments[dateStr] = candidateId;
+          weekdayCounts[candidateId] = (weekdayCounts[candidateId] || 0) + 1;
+        } else {
+          // Swap with an eligible active rested FT member
+          const eligibleSwaps = activeFTs.filter(ft => {
+            if (!isMemberActive(ft, dateStr)) return false;
+            if (isMemberBlackedOut(ft.id, dateStr, blackouts)) return false;
+            if ((dow === 3 || dow === 4) && ft.id === restBlockedMemberId) return false;
+            return true;
+          });
+          eligibleSwaps.sort((a, b) => (weekdayCounts[a.id] || 0) - (weekdayCounts[b.id] || 0));
+
+          if (eligibleSwaps.length > 0) {
+            assignments[dateStr] = eligibleSwaps[0].id;
+            weekdayCounts[eligibleSwaps[0].id] = (weekdayCounts[eligibleSwaps[0].id] || 0) + 1;
+          } else {
+            diagnostics[dateStr] = `Stage 5 Conflict: Zero FT members available for ${dateStr} due to rest rule and blackouts.`;
+          }
+        }
+      } else {
+        // Phase 2 Dynamic Equity Allocation across Polcha, Terek, Wolfe
+        const eligibleFTs = activeFTs.filter(ft => {
+          if (!isMemberActive(ft, dateStr)) return false;
+          if (isMemberBlackedOut(ft.id, dateStr, blackouts)) return false;
+          // Post-weekend rest: FT who worked weekend cannot work Wed or Thu
+          if ((dow === 3 || dow === 4) && ft.id === restBlockedMemberId) return false;
+          return true;
+        });
+
+        // Dynamic balance: pick member with lowest weekday shift load
+        eligibleFTs.sort((a, b) => (weekdayCounts[a.id] || 0) - (weekdayCounts[b.id] || 0));
+
+        if (eligibleFTs.length > 0) {
+          assignments[dateStr] = eligibleFTs[0].id;
+          weekdayCounts[eligibleFTs[0].id] = (weekdayCounts[eligibleFTs[0].id] || 0) + 1;
+        } else {
+          diagnostics[dateStr] = `Stage 5 Conflict: Zero FT members available for ${dateStr} due to rest rule and blackouts.`;
+        }
+      }
+    }
+  });
+
+  return {
+    assignments,
+    diagnostics,
+    weekends
+  };
+}
+
+
+    // --- conflict_engine.js ---
+    /**
+ * conflict_engine.js
+ * Real-time constraint, fatigue, and contractual rule evaluator.
+ */
+
+
+
+
+function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, assignments) {
+  const conflicts = {}; // dateStr -> Array of { type: 'ERROR'|'WARNING'|'ATTENTION', code, message }
+  const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
+
+  function addConflict(dateStr, type, code, message) {
+    if (!conflicts[dateStr]) conflicts[dateStr] = [];
+    conflicts[dateStr].push({ type, code, message });
+  }
+
+  // 1. Blackout Clashes & Tenure Boundary Violations
+  Object.entries(assignments).forEach(([dateStr, memberId]) => {
+    if (!memberId) return;
+    const member = roster.find(m => m.id === memberId);
+    if (!member) {
+      addConflict(dateStr, 'WARNING', 'UNKNOWN_MEMBER', `Assigned member ID '${memberId}' is not found in roster.`);
+      return;
+    }
+
+    // Check tenure boundary
+    if (!isMemberActive(member, dateStr)) {
+      addConflict(
+        dateStr,
+        'ERROR',
+        'TENURE_BOUNDARY_VIOLATION',
+        `${member.name} is not active on ${dateStr} (active: ${member.activeStart} to ${member.activeEnd || 'present'}).`
+      );
+    }
+
+    // Check blackout clash
+    if (isMemberBlackedOut(memberId, dateStr, blackouts)) {
+      addConflict(
+        dateStr,
+        'ERROR',
+        'BLACKOUT_CLASH',
+        `${member.name} has an approved blackout on ${dateStr}.`
+      );
+    }
+
+    // Check Alternate Weekday Assignment (Mon–Thu outside attached holiday)
+    const dow = getDayOfWeek(dateStr);
+    if (member.role === 'ALT' && dow >= 1 && dow <= 4) {
+      const isAttachedMon = holidays.some(h => h.date === dateStr && h.type === 'attached_mon');
+      if (!isAttachedMon) {
+        addConflict(
+          dateStr,
+          'ERROR',
+          'ALT_WEEKDAY_VIOLATION',
+          `Alternate ${member.name} cannot be assigned to regular weekday ${dateStr} without administrative exemption.`
+        );
+      }
+    }
+  });
+
+  // 2. Post-Weekend Compensatory Rest Invariants
+  weekends.forEach(w => {
+    const workerId = assignments[w.saturday];
+    const worker = roster.find(m => m.id === workerId);
+    if (worker && worker.role === 'FT') {
+      const wedStr = formatDate(addDays(w.friday, 5));
+      const thuStr = formatDate(addDays(w.friday, 6));
+
+      if (assignments[wedStr] === worker.id) {
+        addConflict(
+          wedStr,
+          'ERROR',
+          'REST_VIOLATION',
+          `Post-Weekend Rest Violation: ${worker.name} worked weekend ${w.friday} and is prohibited on Wednesday ${wedStr}.`
+        );
+      }
+      if (assignments[thuStr] === worker.id) {
+        addConflict(
+          thuStr,
+          'ERROR',
+          'REST_VIOLATION',
+          `Post-Weekend Rest Violation: ${worker.name} worked weekend ${w.friday} and is prohibited on Thursday ${thuStr}.`
+        );
+      }
+    }
+  });
+
+  // 3. Consecutive Weekend Violations
+  for (let i = 0; i < weekends.length - 1; i++) {
+    const w1 = weekends[i];
+    const w2 = weekends[i + 1];
+    const worker1 = assignments[w1.saturday];
+    const worker2 = assignments[w2.saturday];
+
+    if (worker1 && worker2 && worker1 === worker2) {
+      const mem = roster.find(m => m.id === worker1);
+      const name = mem?.name || worker1;
+      addConflict(
+        w2.friday,
+        'WARNING',
+        'CONSECUTIVE_WEEKEND',
+        `${name} is assigned to consecutive weekends (${w1.friday} and ${w2.friday}).`
+      );
+    }
+  }
+
+  // 4. Alternate Quota Over-Allocation
+  const altCounts = {};
+  roster.filter(m => m.role === 'ALT').forEach(a => { altCounts[a.id] = 0; });
+  weekends.forEach(w => {
+    const workerId = assignments[w.saturday];
+    if (altCounts[workerId] !== undefined) {
+      altCounts[workerId]++;
+      const maxAllowed = cycle.blockType === 'FULL' ? 6 : 3;
+      if (altCounts[workerId] > maxAllowed) {
+        const mem = roster.find(m => m.id === workerId);
+        addConflict(
+          w.friday,
+          'WARNING',
+          'ALT_QUOTA_EXCEEDED',
+          `Alternate ${mem?.name} exceeds weekend quota (${altCounts[workerId]}/${maxAllowed}).`
+        );
+      }
+    }
+  });
+
+  // 5. Multi-Shift Weekday Coverage (Attention Badge)
+  // Group days into calendar weeks
+  let walker = parseDate(cycle.startDate);
+  const end = parseDate(cycle.endDate);
+  const weekMap = {}; // weekKey -> Array of { dateStr, memberId }
+
+  while (walker <= end) {
+    const dateStr = formatDate(walker);
+    const dow = walker.getDay();
+    // Weekdays Mon(1) to Thu(4)
+    if (dow >= 1 && dow <= 4) {
+      // Find Monday of this week
+      const monStr = formatDate(addDays(walker, -(dow - 1)));
+      if (!weekMap[monStr]) weekMap[monStr] = [];
+      if (assignments[dateStr]) {
+        weekMap[monStr].push({ dateStr, memberId: assignments[dateStr] });
+      }
+    }
+    walker.setDate(walker.getDate() + 1);
+  }
+
+  Object.values(weekMap).forEach(dayList => {
+    const ftCounts = {};
+    dayList.forEach(({ memberId }) => {
+      const mem = roster.find(m => m.id === memberId);
+      if (mem && mem.role === 'FT') {
+        ftCounts[memberId] = (ftCounts[memberId] || 0) + 1;
+      }
+    });
+
+    Object.entries(ftCounts).forEach(([memberId, count]) => {
+      if (count >= 2) {
+        const mem = roster.find(m => m.id === memberId);
+        dayList.filter(d => d.memberId === memberId).forEach(({ dateStr }) => {
+          addConflict(
+            dateStr,
+            'ATTENTION',
+            'MULTI_SHIFT_FT',
+            `${mem?.name} is covering ${count} mid-week shifts during this week.`
+          );
+        });
+      }
+    });
+  });
+
+  return conflicts;
+}
+
+
+    // --- excel_engine.js ---
+    /**
+ * excel_engine.js
+ * Excel / CSV 
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Builds a 7-column barracks monthly grid structure for export.
+ */
+function buildBarracksCalendarGrid(cycle, roster, assignments) {
+  const start = parseDate(cycle.startDate);
+  const end = parseDate(cycle.endDate);
+  const months = [];
+
+  // Group by year and month
+  let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+  const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+
+  while (curr <= lastMonth) {
+    const year = curr.getFullYear();
+    const monthIdx = curr.getMonth();
+    const monthName = MONTH_NAMES[monthIdx];
+
+    // Find all calendar weeks for this month (Monday through Sunday)
+    // First day of month
+    const firstDayOfMonth = new Date(year, monthIdx, 1);
+    const lastDayOfMonth = new Date(year, monthIdx + 1, 0);
+
+    // Find the Monday of the first week (could be in preceding month)
+    const firstDow = firstDayOfMonth.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const mondayOffset = firstDow === 0 ? -6 : (1 - firstDow);
+    let weekMonday = addDays(firstDayOfMonth, mondayOffset);
+
+    const weeks = [];
+    while (weekMonday <= lastDayOfMonth) {
+      const dates = [];
+      const names = [];
+
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(weekMonday, i);
+        const dStr = formatDate(d);
+        dates.push(dStr);
+
+        const assignedId = assignments[dStr];
+        const mem = roster.find(m => m.id === assignedId);
+        names.push(mem ? mem.name : (assignedId || ''));
+      }
+
+      weeks.push({ dates, names });
+      weekMonday = addDays(weekMonday, 7);
+    }
+
+    months.push({
+      year,
+      monthName,
+      monthIdx,
+      weeks
+    });
+
+    curr = new Date(year, monthIdx + 1, 1);
+  }
+
+  return months;
+}
+
+/**
+ * Generates an .xlsx workbook using SheetJS (XLSX).
+ */
+function generateExcelWorkbook(XLSX, cycle, roster, assignments) {
+  const wb = XLSX.utils.book_new();
+  const months = buildBarracksCalendarGrid(cycle, roster, assignments);
+
+  // Build rows for single master worksheet (or individual month sheets)
+  const rows = [];
+
+  months.forEach(m => {
+    // Row 1: Year, MonthName
+    rows.push(['', String(m.year), m.monthName, '', '', '', '', '']);
+    // Row 2: Days of week
+    rows.push(['', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']);
+
+    // Weeks
+    m.weeks.forEach(w => {
+      rows.push(['', ...w.dates]);
+      rows.push(['', ...w.names]);
+    });
+
+    // Operational Notes
+    rows.push(['', '', 'Notes:', '', '', '', '', '']);
+    rows.push(['', '', 'On call starts PM that day (after scheduled shift) and into the next morning (0600hrs).', '', '', '', '', '']);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 4 },  // Column A (spacer)
+    { wch: 14 }, // Mon
+    { wch: 14 }, // Tue
+    { wch: 14 }, // Wed
+    { wch: 14 }, // Thu
+    { wch: 14 }, // Fri
+    { wch: 14 }, // Sat
+    { wch: 14 }  // Sun
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, `${cycle.year}_Schedule`);
+  return wb;
+}
+
+/**
+ * Parses any incoming spreadsheet (CSV text or SheetJS Workbook) into daily assignments.
+ */
+function parseSpreadsheet(XLSX, fileData, isRawCsv = false) {
+  let sheetData = [];
+
+  if (isRawCsv) {
+    // Parse CSV lines
+    sheetData = fileData.split(/\r?\n/).map(line => {
+      // Split by comma preserving quotes if needed
+      return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+    });
+  } else {
+    // Read via SheetJS
+    const wb = XLSX.read(fileData, { type: 'binary', cellDates: true });
+    const firstSheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[firstSheetName];
+    sheetData = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'YYYY-MM-DD' });
+  }
+
+  const parsedShifts = []; // Array of { dateStr, rawName }
+  const rawNamesFound = new Set();
+
+  // Heuristic 1: Detect 7-Column Grid Format by searching for 'MONDAY'
+  let mondayRowIdx = -1;
+  let mondayColIdx = -1;
+
+  for (let r = 0; r < Math.min(sheetData.length, 25); r++) {
+    const row = sheetData[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const val = String(row[c] || '').toUpperCase().trim();
+      if (val === 'MONDAY') {
+        mondayRowIdx = r;
+        mondayColIdx = c;
+        break;
+      }
+    }
+    if (mondayRowIdx !== -1) break;
+  }
+
+  if (mondayRowIdx !== -1) {
+    // 7-Column Grid detected!
+    // Scan all rows. When we find a row of ISO dates (YYYY-MM-DD), the immediate next row is names
+    for (let r = 0; r < sheetData.length - 1; r++) {
+      const row = sheetData[r] || [];
+      const nextRow = sheetData[r + 1] || [];
+
+      // Check if this row has at least one date string matching /^\d{4}-\d{2}-\d{2}$/
+      let isDateRow = false;
+      for (let c = mondayColIdx; c < mondayColIdx + 7; c++) {
+        const cell = String(row[c] || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(cell)) {
+          isDateRow = true;
+          break;
+        }
+      }
+
+      if (isDateRow) {
+        for (let c = mondayColIdx; c < mondayColIdx + 7; c++) {
+          const dateStr = String(row[c] || '').trim();
+          const rawName = String(nextRow[c] || '').trim().toUpperCase();
+
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            parsedShifts.push({ dateStr, rawName });
+            if (rawName && rawName !== 'NOTES:' && rawName !== '') {
+              rawNamesFound.add(rawName);
+            }
+          }
+        }
+        r++; // Skip nextRow since it was parsed as names
+      }
+    }
+  } else {
+    // Heuristic 2: Tabular 2-Column Format (Date, Member)
+    let dateCol = 0;
+    let nameCol = 1;
+
+    // Search header row
+    for (let r = 0; r < Math.min(sheetData.length, 10); r++) {
+      const row = sheetData[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        const val = String(row[c] || '').toLowerCase();
+        if (val.includes('date')) dateCol = c;
+        if (val.includes('name') || val.includes('member') || val.includes('person') || val.includes('officer')) nameCol = c;
+      }
+    }
+
+    for (let r = 0; r < sheetData.length; r++) {
+      const row = sheetData[r] || [];
+      const rawDate = String(row[dateCol] || '').trim();
+      const rawName = String(row[nameCol] || '').trim().toUpperCase();
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        parsedShifts.push({ dateStr: rawDate, rawName });
+        if (rawName) rawNamesFound.add(rawName);
+      }
+    }
+  }
+
+  return {
+    parsedShifts,
+    rawNames: Array.from(rawNamesFound)
+  };
+}
+
+
+    // --- storage_adapter.js ---
+    /**
+ * storage_adapter.js
+ * Unified document persistence adapter with in-memory undo/redo and JSON backup/restore.
+ */
+
+
+
+const STORAGE_KEY = 'psp_fire_marshal_schedule_v1';
+const MAX_UNDO_STACK = 50;
+
+class StorageAdapter {
+  constructor() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.state = this.loadState();
+  }
+
+  /**
+   * Loads state from localStorage or initializes default.
+   */
+  loadState() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.version === 1) {
+            return parsed;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read from localStorage, using initial state:', e);
+    }
+    return createInitialAppState();
+  }
+
+  /**
+   * Persists state atomically to storage.
+   */
+  saveState() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      }
+    } catch (e) {
+      console.error('Failed to save state to localStorage:', e);
+    }
+  }
+
+  /**
+   * Pushes current state onto undo stack before a mutation.
+   */
+  pushUndo() {
+    // Deep copy current active cycle assignments
+    const activeCycle = this.state.cycles[this.state.activeCycleId];
+    if (activeCycle) {
+      this.undoStack.push({
+        cycleId: this.state.activeCycleId,
+        assignments: { ...activeCycle.assignments },
+        manualOverrides: { ...activeCycle.manualOverrides }
+      });
+      if (this.undoStack.length > MAX_UNDO_STACK) {
+        this.undoStack.shift();
+      }
+      this.redoStack = []; // Clear redo stack on new action
+    }
+  }
+
+  /**
+   * Performs undo.
+   */
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    const activeCycle = this.state.cycles[this.state.activeCycleId];
+    if (!activeCycle) return false;
+
+    // Push current to redo
+    this.redoStack.push({
+      cycleId: this.state.activeCycleId,
+      assignments: { ...activeCycle.assignments },
+      manualOverrides: { ...activeCycle.manualOverrides }
+    });
+
+    const previous = this.undoStack.pop();
+    activeCycle.assignments = { ...previous.assignments };
+    activeCycle.manualOverrides = { ...previous.manualOverrides };
+    activeCycle.updatedAt = Date.now();
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Performs redo.
+   */
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    const activeCycle = this.state.cycles[this.state.activeCycleId];
+    if (!activeCycle) return false;
+
+    this.undoStack.push({
+      cycleId: this.state.activeCycleId,
+      assignments: { ...activeCycle.assignments },
+      manualOverrides: { ...activeCycle.manualOverrides }
+    });
+
+    const next = this.redoStack.pop();
+    activeCycle.assignments = { ...next.assignments };
+    activeCycle.manualOverrides = { ...next.manualOverrides };
+    activeCycle.updatedAt = Date.now();
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Saves a user-named snapshot.
+   */
+  createNamedSnapshot(label) {
+    const activeCycle = this.state.cycles[this.state.activeCycleId];
+    if (!activeCycle) return null;
+
+    const id = `snap_${Date.now()}`;
+    const snapshot = {
+      id,
+      scheduleId: this.state.activeCycleId,
+      label,
+      timestamp: Date.now(),
+      payload: JSON.parse(JSON.stringify(activeCycle))
+    };
+
+    if (!this.state.savedSnapshots) this.state.savedSnapshots = {};
+    this.state.savedSnapshots[id] = snapshot;
+    this.saveState();
+    return snapshot;
+  }
+
+  /**
+   * Restores a named snapshot.
+   */
+  restoreNamedSnapshot(id) {
+    const snap = this.state.savedSnapshots ? this.state.savedSnapshots[id] : null;
+    if (!snap) return false;
+
+    this.pushUndo();
+    this.state.cycles[snap.scheduleId] = JSON.parse(JSON.stringify(snap.payload));
+    this.state.activeCycleId = snap.scheduleId;
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Exports full AppState as JSON string.
+   */
+  exportBackupJSON() {
+    return JSON.stringify(this.state, null, 2);
+  }
+
+  /**
+   * Imports and restores full AppState from JSON string.
+   */
+  importBackupJSON(jsonStr) {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (parsed && parsed.version === 1 && parsed.roster && parsed.cycles) {
+        this.state = parsed;
+        this.undoStack = [];
+        this.redoStack = [];
+        this.saveState();
+        return true;
+      }
+    } catch (e) {
+      console.error('Invalid backup JSON:', e);
+    }
+    return false;
+  }
+}
+
+
+    // --- UI Controller & Application Bootstrap ---
     const storage = new StorageAdapter();
     window.appState = storage.state;
 
@@ -782,7 +1969,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       // Evaluate Conflicts
       const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.assignments);
 
-      // Check exemption note
       let hasExemption = false;
 
       // Find first day of month and build grid
@@ -955,7 +2141,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       cycle.updatedAt = Date.now();
       storage.saveState();
       renderApp();
-      alert('Schedule automatically generated! All fatigue and quota rules applied.');
+      alert('Schedule automatically generated! All fatigue, rest, and quota rules applied.');
     });
 
     // Undo / Redo
