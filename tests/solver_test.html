@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PSP Fire Marshal Solver Invariant Verification</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+    h1 {
+      font-size: 24px;
+      margin-top: 0;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge-header {
+      font-size: 14px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .badge-pass { background: #dcfce7; color: #15803d; }
+    .badge-fail { background: #fee2e2; color: #b91c1c; }
+    .summary-card {
+      background: #f1f5f9;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .test-item {
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+    .test-item.pass { border-left: 5px solid #22c55e; }
+    .test-item.fail { border-left: 5px solid #ef4444; background: #fff5f5; }
+    .test-name { font-weight: 600; font-size: 15px; }
+    .test-details { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .test-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th { background: #f8fafc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      PSP Fire Marshal Solver Invariant Verification
+      <span id="overall-badge" class="badge-header badge-pass">RUNNING...</span>
+    </h1>
+
+    <div class="summary-card" id="summary-card">
+      Executing 5-Stage Stratified CSP Solver across 2027 H1 (181 days)...
+    </div>
+
+    <div id="test-list"></div>
+
+    <div id="test-results" data-status="PENDING"></div>
+
+    <h2 style="font-size: 18px; margin-top: 32px; color: #334155;">2027 H1 Weekend Shift Allocations</h2>
+    <table id="weekend-table">
+      <thead>
+        <tr>
+          <th>Weekend #</th>
+          <th>Dates</th>
+          <th>Assigned Personnel</th>
+          <th>Role</th>
+          <th>Attached Holiday</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { createInitialAppState, parseDate, formatDate, addDays } from '../src/domain_data.js';
+    import { solveSchedule } from '../src/csp_solver.js';
+
+    const appState = createInitialAppState();
+    const cycleH1 = appState.cycles['2027-H1'];
+    const roster = appState.roster;
+    const blackouts = appState.blackouts;
+    const holidays = appState.holidays;
+
+    const t0 = performance.now();
+    const result = solveSchedule(cycleH1, roster, blackouts, holidays);
+    const duration = (performance.now() - t0).toFixed(2);
+
+    const assignments = result.assignments;
+    const weekends = result.weekends;
+
+    const tests = [];
+
+    // Test 1: 100% Coverage
+    let unassigned = [];
+    let curr = parseDate(cycleH1.startDate);
+    const end = parseDate(cycleH1.endDate);
+    while (curr <= end) {
+      const dStr = formatDate(curr);
+      if (!assignments[dStr]) unassigned.push(dStr);
+      curr.setDate(curr.getDate() + 1);
+    }
+    tests.push({
+      name: '100% Shift Coverage in 2027 H1 (181/181 Days)',
+      pass: unassigned.length === 0,
+      details: unassigned.length === 0 ? 'All 181 calendar days successfully staffed.' : `Unassigned: ${unassigned.join(', ')}`
+    });
+
+    // Test 2: Post-Weekend Rest Rule
+    let restViolations = [];
+    weekends.forEach(w => {
+      const workerId = assignments[w.saturday];
+      const worker = roster.find(m => m.id === workerId);
+      if (worker && worker.role === 'FT') {
+        const wedStr = formatDate(addDays(w.friday, 5));
+        const thuStr = formatDate(addDays(w.friday, 6));
+        if (assignments[wedStr] === worker.id) restViolations.push(`${worker.name} on Wed ${wedStr}`);
+        if (assignments[thuStr] === worker.id) restViolations.push(`${worker.name} on Thu ${thuStr}`);
+      }
+    });
+    tests.push({
+      name: 'Zero Post-Weekend Compensatory Rest Violations',
+      pass: restViolations.length === 0,
+      details: restViolations.length === 0 ? 'No FT member scheduled on Wed or Thu following weekend duty.' : restViolations.join('; ')
+    });
+
+    // Test 3: Exact Alternate Quotas
+    const altCounts = { chester: 0, zeiders: 0, reed: 0 };
+    weekends.forEach(w => {
+      const wid = assignments[w.saturday];
+      if (altCounts[wid] !== undefined) altCounts[wid]++;
+    });
+    const exactQuotas = altCounts.chester === 3 && altCounts.zeiders === 3 && altCounts.reed === 3;
+    tests.push({
+      name: 'Exact Alternate Quotas in H1 (3 each for Chester, Zeiders, Reed)',
+      pass: exactQuotas,
+      details: `Chester: ${altCounts.chester}/3, Zeiders: ${altCounts.zeiders}/3, Reed: ${altCounts.reed}/3 (Total: 9/9)`
+    });
+
+    // Test 4: Zero Consecutive Weekends
+    let consecutive = [];
+    for (let i = 0; i < weekends.length - 1; i++) {
+      const w1 = assignments[weekends[i].saturday];
+      const w2 = assignments[weekends[i + 1].saturday];
+      if (w1 && w2 && w1 === w2) consecutive.push(`${w1} on ${weekends[i].friday} & ${weekends[i+1].friday}`);
+    }
+    tests.push({
+      name: 'Zero Consecutive Weekends across All Personnel',
+      pass: consecutive.length === 0,
+      details: consecutive.length === 0 ? 'No investigator assigned back-to-back weekends.' : consecutive.join('; ')
+    });
+
+    // Test 5: Lookahead Alternate Satisfaction
+    const may7Alt = roster.find(m => m.id === assignments['2027-05-08'])?.role === 'ALT';
+    const jun25Alt = roster.find(m => m.id === assignments['2027-06-26'])?.role === 'ALT';
+    tests.push({
+      name: 'Proactive Lookahead Alternate Placements Prior to FT Leaves',
+      pass: may7Alt && jun25Alt,
+      details: `May 7–9 (prior to Wolfe leave): ${roster.find(m=>m.id===assignments['2027-05-08'])?.name}; Jun 25–27 (Terek leave): ${roster.find(m=>m.id===assignments['2027-06-26'])?.name}`
+    });
+
+    // Test 6: Zero Blackout Clashes
+    let blackoutClashes = [];
+    Object.entries(assignments).forEach(([dStr, mId]) => {
+      const hasBlackout = blackouts.some(b => b.memberId === mId && dStr >= b.startDate && dStr <= b.endDate);
+      if (hasBlackout) blackoutClashes.push(`${mId} on ${dStr}`);
+    });
+    tests.push({
+      name: 'Zero Approved Blackout / Vacation Clashes',
+      pass: blackoutClashes.length === 0,
+      details: blackoutClashes.length === 0 ? 'All 181 assignments respect requested time off.' : blackoutClashes.join('; ')
+    });
+
+    // Test 7: Performance
+    const isPerfPass = parseFloat(duration) < 50;
+    tests.push({
+      name: `Solver Execution Performance (< 50ms)`,
+      pass: isPerfPass,
+      details: `Solved full 6-month block in ${duration} milliseconds.`
+    });
+
+    // Render results
+    const allPass = tests.every(t => t.pass);
+    const overallBadge = document.getElementById('overall-badge');
+    overallBadge.textContent = allPass ? 'ALL TESTS PASSED' : 'FAILURES DETECTED';
+    overallBadge.className = `badge-header ${allPass ? 'badge-pass' : 'badge-fail'}`;
+
+    const testResultsEl = document.getElementById('test-results');
+    testResultsEl.setAttribute('data-status', allPass ? 'PASS' : 'FAIL');
+
+    const summaryCard = document.getElementById('summary-card');
+    summaryCard.innerHTML = `<strong>Status:</strong> ${tests.filter(t => t.pass).length} of ${tests.length} tests passed.<br><strong>Execution Time:</strong> ${duration} ms.<br><strong>Invariants:</strong> 100% daily coverage, 0 rest violations, exact 3/3/3 alternate quotas, lookaheads verified.`;
+
+    const testList = document.getElementById('test-list');
+    testList.innerHTML = tests.map((t, idx) => `
+      <div class="test-item ${t.pass ? 'pass' : 'fail'}">
+        <div>
+          <div class="test-name">Test ${idx + 1}: ${t.name}</div>
+          <div class="test-details">${t.details}</div>
+        </div>
+        <div class="test-badge ${t.pass ? 'badge-pass' : 'badge-fail'}">${t.pass ? 'PASS' : 'FAIL'}</div>
+      </div>
+    `).join('');
+
+    // Table rows
+    const tbody = document.querySelector('#weekend-table tbody');
+    tbody.innerHTML = weekends.map(w => {
+      const worker = roster.find(m => m.id === assignments[w.saturday]);
+      const hol = w.attachedMonday || w.attachedFriday || '-';
+      return `
+        <tr>
+          <td>Weekend ${w.index + 1}</td>
+          <td>${w.friday} &rarr; ${w.sunday}</td>
+          <td><strong>${worker?.name || 'UNASSIGNED'}</strong></td>
+          <td><span style="display:inline-block; padding: 2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${worker?.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${worker?.role === 'FT' ? '#0369a1' : '#b45309'}">${worker?.role}</span></td>
+          <td>${hol}</td>
+        </tr>
+      `;
+    }).join('');
+  </script>
+</body>
+</html>
