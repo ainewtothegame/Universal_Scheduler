@@ -14,6 +14,7 @@
       --text-main: #0f172a;
       --text-muted: #64748b;
       --danger: #dc2626;
+      --danger-hover: #b91c1c;
       --warning: #d97706;
       --success: #16a34a;
       --info: #0284c7;
@@ -42,6 +43,8 @@
       position: sticky;
       top: 0;
       z-index: 50;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .brand {
@@ -59,7 +62,7 @@
     .brand-badge {
       font-size: 11px;
       background: rgba(255,255,255,0.2);
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 9999px;
       text-transform: uppercase;
       font-weight: 600;
@@ -69,19 +72,20 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
     .cycle-select {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #ffffff;
-      padding: 6px 12px;
+      background: #ffffff;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 7px 12px;
       border-radius: 6px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      outline: none;
     }
-    .cycle-select option { color: var(--text-main); background: #ffffff; }
 
     .btn {
       display: inline-flex;
@@ -92,23 +96,19 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      border: none;
-      transition: background 0.15s ease, transform 0.05s ease;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
     }
+
     .btn:active { transform: scale(0.98); }
 
     .btn-light {
       background: #ffffff;
       color: var(--primary);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     .btn-light:hover { background: #f1f5f9; }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.4);
-      color: #ffffff;
-    }
-    .btn-outline:hover { background: rgba(255,255,255,0.1); }
 
     .btn-primary {
       background: var(--primary);
@@ -116,93 +116,115 @@
     }
     .btn-primary:hover { background: var(--primary-hover); }
 
+    .btn-success {
+      background: var(--success);
+      color: #ffffff;
+    }
+    .btn-success:hover { background: #15803d; }
+
     .btn-danger {
       background: var(--danger);
       color: #ffffff;
     }
-    .btn-danger:hover { background: #b91c1c; }
+    .btn-danger:hover { background: var(--danger-hover); }
 
-    .btn-warning {
-      background: var(--warning);
+    .btn-outline {
+      background: transparent;
+      border-color: rgba(255,255,255,0.4);
       color: #ffffff;
     }
-    .btn-warning:hover { background: #b45309; }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); }
+
+    .btn-outline-dark {
+      background: #ffffff;
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-outline-dark:hover { background: #f1f5f9; }
 
     /* Action Ribbon */
     .ribbon {
       background: #ffffff;
       border-bottom: 1px solid var(--border-color);
-      padding: 8px 24px;
+      padding: 10px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .tab-group {
       display: flex;
-      gap: 4px;
       background: #f1f5f9;
       padding: 3px;
       border-radius: 8px;
+      gap: 2px;
     }
+
     .tab-btn {
       padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 600;
       border: none;
-      border-radius: 6px;
       background: transparent;
       color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 6px;
       cursor: pointer;
+      transition: all 0.15s;
     }
+
     .tab-btn.active {
       background: #ffffff;
       color: var(--primary);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .ribbon-actions {
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
-    /* Month Selector Tabs */
+    /* Month Navigation Tabs */
     .month-tabs {
-      display: flex;
-      gap: 6px;
-      padding: 12px 24px;
-      overflow-x: auto;
-      background: #f8fafc;
+      background: #ffffff;
       border-bottom: 1px solid var(--border-color);
+      padding: 0 24px;
+      display: flex;
+      overflow-x: auto;
+      gap: 4px;
     }
+
     .month-tab {
-      padding: 6px 16px;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
       font-size: 13px;
       font-weight: 600;
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 9999px;
       cursor: pointer;
-      color: var(--text-muted);
+      border-bottom: 3px solid transparent;
       white-space: nowrap;
     }
+
+    .month-tab:hover { color: var(--text-main); }
     .month-tab.active {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
+      color: var(--primary);
+      border-bottom-color: var(--primary);
     }
 
     /* Main Container */
     main {
       flex: 1;
-      padding: 20px 24px;
-      max-width: 1400px;
+      padding: 24px;
+      max-width: 1440px;
       margin: 0 auto;
       width: 100%;
     }
 
-    /* Calendar Grid View */
+    /* Calendar Grid */
     .calendar-container {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
@@ -212,13 +234,14 @@
     }
 
     .calendar-header {
-      padding: 14px 20px;
-      background: #f8fafc;
+      padding: 16px 20px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: #f8fafc;
     }
+
     .calendar-title {
       font-size: 18px;
       font-weight: 700;
@@ -226,65 +249,72 @@
 
     .calendar-grid {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      border-collapse: collapse;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border-bottom: 1px solid var(--border-color);
     }
 
     .dow-header {
-      background: #f1f5f9;
       padding: 10px;
+      text-align: center;
       font-size: 12px;
       font-weight: 700;
-      text-align: center;
+      background: #f1f5f9;
       color: var(--text-muted);
-      border-bottom: 1px solid var(--border-color);
       border-right: 1px solid var(--border-color);
       text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .dow-header:last-child { border-right: none; }
 
     .day-cell {
       min-height: 110px;
-      padding: 8px;
       border-right: 1px solid var(--border-color);
       border-bottom: 1px solid var(--border-color);
+      padding: 8px;
       background: #ffffff;
       display: flex;
       flex-direction: column;
       position: relative;
       cursor: pointer;
-      transition: background 0.1s ease;
+      transition: background 0.1s;
     }
-    .day-cell:nth-child(7n) { border-right: none; }
+
     .day-cell:hover { background: #f8fafc; }
-    .day-cell.other-month { background: #fbfcfe; opacity: 0.6; }
-    .day-cell.weekend-col { background: #fdfdfd; }
-    .day-cell.resting-rdo {
-      background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px);
+    .day-cell:nth-child(7n) { border-right: none; }
+
+    .day-cell.other-month {
+      background: #fbfcfe;
+      opacity: 0.45;
+    }
+
+    .day-cell.weekend-col {
+      background: #fafbfe;
     }
 
     .day-top {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       margin-bottom: 6px;
     }
+
     .day-num {
       font-size: 13px;
       font-weight: 700;
       color: var(--text-main);
     }
+
     .holiday-pill {
-      font-size: 10px;
-      background: #fee2e2;
-      color: #991b1b;
-      padding: 2px 6px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
       border-radius: 4px;
-      font-weight: 600;
+      background: #fee2e2;
+      color: #b91c1c;
       white-space: nowrap;
+      max-width: 90px;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100px;
     }
 
     .assignment-chip {
@@ -293,25 +323,29 @@
       border-radius: 6px;
       font-size: 12px;
       font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
+
     .unassigned-chip {
-      background: #e2e8f0;
-      color: #64748b;
-      border: 1px dashed #cbd5e1;
+      background: #f1f5f9;
+      color: var(--danger);
+      border: 1px dashed var(--danger);
       box-shadow: none;
-      font-weight: 600;
+      font-size: 11px;
     }
 
     .conflict-badges {
+      position: absolute;
+      top: 6px;
+      right: 6px;
       display: flex;
-      gap: 4px;
-      margin-top: 4px;
+      gap: 3px;
     }
+
     .conflict-dot {
       width: 8px;
       height: 8px;
@@ -319,107 +353,53 @@
     }
     .dot-error { background: var(--danger); }
     .dot-warning { background: var(--warning); }
-    .dot-attention { background: #3b82f6; }
+    .dot-attention { background: var(--info); }
 
-    /* Operational Footnote */
     .calendar-footer {
       padding: 12px 20px;
-      background: #f8fafc;
-      border-top: 1px solid var(--border-color);
       font-size: 12px;
       color: var(--text-muted);
+      background: #f8fafc;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    /* Drawers & Modals */
-    .drawer-overlay {
+    /* Modals & Dialogs */
+    .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(15, 23, 42, 0.65);
       z-index: 100;
       display: none;
-    }
-    .drawer-overlay.open { display: block; }
-
-    .drawer {
-      position: fixed;
-      top: 0; right: -480px; bottom: 0;
-      width: 480px;
-      background: #ffffff;
-      z-index: 101;
-      box-shadow: -4px 0 16px rgba(0,0,0,0.15);
-      display: flex;
-      flex-direction: column;
-      transition: right 0.25s ease;
-    }
-    .drawer.open { right: 0; }
-
-    .drawer-header {
-      padding: 16px 20px;
-      background: var(--primary);
-      color: #ffffff;
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-    }
-    .drawer-title { font-size: 16px; font-weight: 700; }
-    .drawer-close {
-      background: none; border: none; color: #ffffff; font-size: 20px; cursor: pointer;
-    }
-
-    .drawer-body {
-      flex: 1;
+      justify-content: center;
       padding: 20px;
-      overflow-y: auto;
     }
+    .modal-overlay.open { display: flex; }
 
-    .form-group {
-      margin-bottom: 16px;
-    }
-    .form-label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-    .form-input, .form-select {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      font-size: 13px;
-    }
-
-    .item-card {
-      background: #f8fafc;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Modal Center */
     .modal {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
       background: #ffffff;
-      width: 540px;
       border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
-      z-index: 102;
-      display: none;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+      max-width: 650px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
       flex-direction: column;
       overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
     }
-    .modal.open { display: flex; }
+
+    .modal-wide { max-width: 800px; }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
     .modal-header {
       padding: 16px 20px;
       background: var(--primary);
@@ -427,9 +407,20 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: 700;
     }
-    .modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; font-size: 14px; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close {
+      background: none; border: none; color: #ffffff; font-size: 22px; cursor: pointer;
+      line-height: 1; padding: 0 4px;
+    }
+    .modal-close:hover { opacity: 0.8; }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
     .modal-footer {
       padding: 12px 20px;
       background: #f8fafc;
@@ -439,7 +430,64 @@
       gap: 10px;
     }
 
-    /* Overview Matrix Table */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(30,58,138,0.15);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .item-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .color-picker-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .color-swatch.selected {
+      border-color: #0f172a;
+      transform: scale(1.1);
+    }
+
+    /* Matrix Table */
     .matrix-table {
       width: 100%;
       border-collapse: collapse;
@@ -447,14 +495,32 @@
     }
     .matrix-table th, .matrix-table td {
       border: 1px solid var(--border-color);
-      padding: 8px 12px;
+      padding: 10px 12px;
       text-align: left;
     }
     .matrix-table th { background: #f1f5f9; font-weight: 700; }
 
+    /* Alert Banner */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+
     /* Print Stylesheet */
     @media print {
-      header, .ribbon, .month-tabs, .btn, .drawer-overlay, .drawer, .modal {
+      header, .ribbon, .month-tabs, .btn, .modal-overlay {
         display: none !important;
       }
       body { background: #ffffff !important; }
@@ -485,11 +551,9 @@
       <div class="brand-badge">Fire Marshal On-Call Scheduler</div>
     </div>
     <div class="header-controls">
-      <select id="cycle-select" class="cycle-select">
-        <option value="2027-H1">2027 H1 (Jan 1 – Jun 30)</option>
-        <option value="2027-H2">2027 H2 (Jul 1 – Dec 31)</option>
-        <option value="2027-FULL">2027 Full Year</option>
-      </select>
+      <label style="font-size:12px; font-weight:600; opacity:0.9;">Cycle:</label>
+      <select id="cycle-select" class="cycle-select"></select>
+      <button id="btn-open-add-cycle" class="btn btn-outline" title="Add New Year or Schedule Block">+ Add Year / Block</button>
       <button id="btn-undo" class="btn btn-outline" title="Undo (Ctrl+Z)">&#8630; Undo</button>
       <button id="btn-redo" class="btn btn-outline" title="Redo (Ctrl+Y)">&#8631; Redo</button>
       <button id="btn-solve" class="btn btn-light">&#9881; Auto-Generate Schedule</button>
@@ -503,11 +567,11 @@
       <button id="tab-matrix-view" class="tab-btn">Matrix Overview</button>
     </div>
     <div class="ribbon-actions">
-      <button id="btn-open-roster" class="btn btn-outline" style="color:var(--text-main); border-color:var(--border-color);">&#128101; Roster (<span id="roster-count">7</span>)</button>
-      <button id="btn-open-blackouts" class="btn btn-outline" style="color:var(--text-main); border-color:var(--border-color);">&#128197; Blackouts (<span id="blackout-count">0</span>)</button>
-      <button id="btn-open-import" class="btn btn-outline" style="color:var(--text-main); border-color:var(--border-color);">&#128196; Import</button>
+      <button id="btn-open-roster" class="btn btn-outline-dark">&#128101; Personnel Roster (<span id="roster-count">7</span>)</button>
+      <button id="btn-open-blackouts" class="btn btn-outline-dark">&#128197; Blackouts & Leave (<span id="blackout-count">0</span>)</button>
+      <button id="btn-open-import" class="btn btn-outline-dark">&#128196; Import Schedule</button>
       <button id="btn-export-excel" class="btn btn-primary">&#128229; Export to Excel</button>
-      <button id="btn-print" class="btn btn-outline" style="color:var(--text-main); border-color:var(--border-color);">&#128424; Print</button>
+      <button id="btn-print" class="btn btn-outline-dark">&#128424; Print</button>
     </div>
   </div>
 
@@ -533,7 +597,7 @@
         </div>
         <div id="calendar-days-grid" class="calendar-grid"></div>
         <div class="calendar-footer">
-          <div><strong>Notes:</strong> On call starts PM that day (after scheduled shift) and into the next morning (0600hrs).</div>
+          <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. Click any date cell to manually adjust shift assignment.</div>
           <div id="exemption-note" style="color:var(--danger); font-weight:600; display:none;">* Administrative Exemption: Manual Alternate Weekday Assignment</div>
         </div>
       </div>
@@ -548,113 +612,207 @@
     </div>
   </main>
 
-  <!-- Drawer Overlay Backdrop -->
-  <div id="drawer-overlay" class="drawer-overlay"></div>
+  <!-- Modal Backdrop Overlay -->
+  <div id="modal-overlay" class="modal-overlay">
 
-  <!-- Roster Drawer -->
-  <div id="drawer-roster" class="drawer">
-    <div class="drawer-header">
-      <div class="drawer-title">Manage Personnel Roster</div>
-      <button id="close-roster" class="drawer-close">&times;</button>
-    </div>
-    <div class="drawer-body">
-      <div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:13px; color:var(--text-muted);">Active Fire Marshals & Alternates</span>
-        <button id="btn-add-member" class="btn btn-primary" style="padding:4px 10px; font-size:12px;">+ Add Member</button>
+    <!-- 1. Personnel Roster Modal -->
+    <div id="modal-roster" class="modal modal-wide" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">&#128101; Personnel Roster Manager</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
       </div>
-      <div id="roster-list"></div>
-    </div>
-  </div>
-
-  <!-- Blackout / Vacation Drawer -->
-  <div id="drawer-blackouts" class="drawer">
-    <div class="drawer-header">
-      <div class="drawer-title">Vacations & Blackout Booking</div>
-      <button id="close-blackouts" class="drawer-close">&times;</button>
-    </div>
-    <div class="drawer-body">
-      <div style="background:#f1f5f9; padding:12px; border-radius:8px; margin-bottom:16px;">
-        <div style="font-weight:700; font-size:13px; margin-bottom:10px;">Book New Leave / Blackout Range</div>
-        <div class="form-group">
-          <label class="form-label">Member</label>
-          <select id="book-member" class="form-select"></select>
+      <div class="modal-body">
+        <!-- Add Member Form -->
+        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Investigator Last Name *</label>
+              <input type="text" id="member-name-input" class="form-input" placeholder="e.g. SMITH">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role Classification *</label>
+              <select id="member-role-input" class="form-select">
+                <option value="FT">Full-Time Fire Marshal (FT)</option>
+                <option value="ALT">Alternate Fire Marshal (ALT)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Baseline Preferred Weekday</label>
+              <select id="member-weekday-input" class="form-select">
+                <option value="">None / Alternate Rotational</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Badge Color</label>
+              <input type="color" id="member-color-input" class="form-input" value="#1e3a8a" style="height:38px; padding:2px;">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Active Start Date</label>
+              <input type="date" id="member-start-input" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Active End Date (Optional)</label>
+              <input type="date" id="member-end-input" class="form-input" placeholder="Leave blank if indefinite">
+            </div>
+          </div>
+          <button id="btn-save-new-member" class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;">+ Add Investigator to Active Roster</button>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Active Roster (<span id="modal-roster-count">0</span> Members)</div>
+        <div id="roster-items-container"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+
+    <!-- 2. Blackouts & Vacations Modal -->
+    <div id="modal-blackouts" class="modal modal-wide" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">&#128197; Vacations & Blackouts Booking</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Book New Leave / Blackout Range</div>
           <div class="form-group">
-            <label class="form-label">Start Date</label>
-            <input type="date" id="book-start" class="form-input">
+            <label class="form-label">Investigator *</label>
+            <select id="book-member-select" class="form-select"></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Start Date *</label>
+              <input type="date" id="book-start-input" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date *</label>
+              <input type="date" id="book-end-input" class="form-input">
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">End Date</label>
-            <input type="date" id="book-end" class="form-input">
+            <label class="form-label">Leave Notes / Reason</label>
+            <input type="text" id="book-notes-input" class="form-input" placeholder="e.g. Summer Vacation, Hunting, Training, Military Leave">
           </div>
+          <button id="btn-save-new-blackout" class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;">Book Blackout Range</button>
+        </div>
+
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Approved Blackouts (<span id="modal-blackouts-count">0</span>)</div>
+        <div id="blackouts-items-container"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+
+    <!-- 3. Add Year / Schedule Block Modal -->
+    <div id="modal-add-cycle" class="modal" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">&#128197; Add Year / Schedule Block</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:16px; color:var(--text-muted);">
+          Create a new on-call schedule block for any future year (e.g. 2028, 2029). Pennsylvania State Police official holidays will be calculated automatically.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Calendar Year *</label>
+          <input type="number" id="new-cycle-year" class="form-input" value="2028" min="2025" max="2050">
         </div>
         <div class="form-group">
-          <label class="form-label">Reason / Notes</label>
-          <input type="text" id="book-notes" class="form-input" placeholder="e.g. Summer Vacation, Military Leave">
+          <label class="form-label">Schedule Block Type *</label>
+          <select id="new-cycle-block" class="form-select">
+            <option value="FULL">Full Calendar Year (Jan 1 – Dec 31)</option>
+            <option value="H1">First Half / H1 (Jan 1 – Jun 30)</option>
+            <option value="H2">Second Half / H2 (Jul 1 – Dec 31)</option>
+          </select>
         </div>
-        <button id="btn-save-blackout" class="btn btn-primary" style="width:100%; justify-content:center;">Book Blackout Range</button>
+        <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:14px;">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+            <input type="checkbox" id="new-cycle-carry-roster" checked>
+            Carry forward current active personnel roster
+          </label>
+        </div>
       </div>
-
-      <div style="font-weight:700; font-size:13px; margin-bottom:10px;">Approved Blackouts (<span id="blackout-list-count">0</span>)</div>
-      <div id="blackouts-list"></div>
-    </div>
-  </div>
-
-  <!-- Import Drawer -->
-  <div id="drawer-import" class="drawer">
-    <div class="drawer-header">
-      <div class="drawer-title">Import Barracks Schedule</div>
-      <button id="close-import" class="drawer-close">&times;</button>
-    </div>
-    <div class="drawer-body">
-      <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:#f8fafc; cursor:pointer;" id="drop-zone">
-        <div style="font-size:32px; margin-bottom:10px;">&#128194;</div>
-        <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Drag & Drop Excel or CSV here</div>
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Supports 7-Column Barracks Calendars & 2-Column Date Lists</div>
-        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none;">
-        <button type="button" class="btn btn-outline" style="color:var(--primary); border-color:var(--primary);" onclick="document.getElementById('file-input').click()">Browse Files</button>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
+        <button id="btn-confirm-add-cycle" class="btn btn-primary">Create Schedule Block</button>
       </div>
-      <div id="import-preview" style="margin-top:20px; font-size:13px; display:none;"></div>
     </div>
-  </div>
 
-  <!-- Unmatched Name Resolution Modal -->
-  <div id="modal-alias" class="modal">
-    <div class="modal-header">
-      <div>Reconcile Unmatched Personnel Names</div>
-      <button id="close-modal-alias" class="drawer-close">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p style="margin-bottom:16px; color:var(--text-muted);">
-        The imported file contains names not found in your active roster. Please map each alias to an existing member or register as a historical record:
-      </p>
-      <div id="alias-mapping-list"></div>
-    </div>
-    <div class="modal-footer">
-      <button id="btn-cancel-alias" class="btn btn-outline" style="color:var(--text-main); border-color:var(--border-color);">Cancel</button>
-      <button id="btn-confirm-alias" class="btn btn-primary">Apply Reconciled Schedule</button>
-    </div>
-  </div>
-
-  <!-- Reassign Popover Modal -->
-  <div id="modal-reassign" class="modal" style="width:380px;">
-    <div class="modal-header">
-      <div id="reassign-date-title">Reassign Shift</div>
-      <button id="close-modal-reassign" class="drawer-close">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Assign Investigator</label>
-        <select id="reassign-member-select" class="form-select"></select>
+    <!-- 4. Reassign Shift Modal -->
+    <div id="modal-reassign" class="modal" style="width:400px; display:none;">
+      <div class="modal-header">
+        <div id="reassign-date-title" class="modal-title">Reassign Shift</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
       </div>
-      <div id="reassign-conflict-preview" style="margin-top:10px; font-size:12px;"></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Assign Duty Investigator</label>
+          <select id="reassign-member-select" class="form-select"></select>
+        </div>
+        <div id="reassign-conflict-preview" style="padding:10px; border-radius:6px; background:#f8fafc; font-size:12px; min-height:40px;">
+          Select an investigator to evaluate fatigue rest rules.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-clear-shift" class="btn btn-danger" style="margin-right:auto;">Clear Shift</button>
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
+        <button id="btn-save-shift" class="btn btn-primary">Save Assignment</button>
+      </div>
     </div>
-    <div class="modal-footer">
-      <button id="btn-clear-shift" class="btn btn-danger" style="margin-right:auto;">Clear Shift</button>
-      <button id="btn-save-shift" class="btn btn-primary">Save Assignment</button>
+
+    <!-- 5. Import Modal -->
+    <div id="modal-import" class="modal modal-wide" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">&#128196; Import Barracks Schedule</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:#f8fafc; cursor:pointer;" id="drop-zone">
+          <div style="font-size:36px; margin-bottom:8px;">&#128194;</div>
+          <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Drag & Drop Excel (.xlsx) or CSV Schedule</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Supports standard 7-Column Barracks Calendars and 2-Column Date Lists</div>
+          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none;">
+          <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">Browse Computer Files</button>
+        </div>
+        <div id="import-preview-box" style="margin-top:16px; display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
+      </div>
     </div>
+
+    <!-- 6. Unmatched Alias Reconcile Modal -->
+    <div id="modal-alias" class="modal modal-wide" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">Reconcile Imported Personnel Names</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:14px; color:var(--text-muted);">
+          The imported schedule contains names not matched in your active roster. Map each alias to an existing investigator or create a historical record:
+        </p>
+        <div id="alias-mapping-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
+        <button id="btn-confirm-alias" class="btn btn-primary">Apply Reconciled Schedule</button>
+      </div>
+    </div>
+
   </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast"></div>
 
   <!-- Inlined SheetJS Library -->
   <script>
@@ -1880,6 +2038,116 @@ class StorageAdapter {
 }
 
 
+    // --- Algorithmic Holiday Generator for Any Year ---
+    function getNthWeekdayOfMonth(year, monthIndex, weekday, n) {
+      let count = 0;
+      for (let d = 1; d <= 31; d++) {
+        const dt = new Date(year, monthIndex, d);
+        if (dt.getMonth() !== monthIndex) break;
+        if (dt.getDay() === weekday) {
+          count++;
+          if (count === n) return dt;
+        }
+      }
+      return null;
+    }
+
+    function getLastWeekdayOfMonth(year, monthIndex, weekday) {
+      let last = null;
+      for (let d = 1; d <= 31; d++) {
+        const dt = new Date(year, monthIndex, d);
+        if (dt.getMonth() !== monthIndex) break;
+        if (dt.getDay() === weekday) last = dt;
+      }
+      return last;
+    }
+
+    function getEasterSunday(year) {
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const month = Math.floor((h + l - 7 * m + 114) / 31);
+      const day = ((h + l - 7 * m + 114) % 31) + 1;
+      return new Date(year, month - 1, day);
+    }
+
+    function generateOfficialPSPHolidays(year) {
+      const holidays = [];
+      function addHol(dt, name, type) {
+        if (!dt) return;
+        holidays.push({ date: formatDate(dt), year, name, type });
+      }
+
+      // New Year's Day: Jan 1
+      const ny = new Date(year, 0, 1);
+      const nyDow = ny.getDay();
+      addHol(ny, "New Year's Day", nyDow === 5 ? 'attached_fri' : (nyDow === 1 ? 'attached_mon' : (nyDow === 0 || nyDow === 6 ? 'weekend' : 'midweek')));
+
+      // Martin Luther King Day: 3rd Monday in Jan
+      addHol(getNthWeekdayOfMonth(year, 0, 1, 3), "Martin Luther King Day", 'attached_mon');
+
+      // Presidents' Day: 3rd Monday in Feb
+      addHol(getNthWeekdayOfMonth(year, 1, 1, 3), "Presidents' Day", 'attached_mon');
+
+      // Good Friday: 2 days before Easter Sunday
+      const easter = getEasterSunday(year);
+      const goodFriday = new Date(easter.getTime() - 2 * 24 * 60 * 60 * 1000);
+      addHol(goodFriday, 'Good Friday', 'attached_fri');
+
+      // Memorial Day: Last Monday in May
+      addHol(getLastWeekdayOfMonth(year, 4, 1), 'Memorial Day', 'attached_mon');
+
+      // Juneteenth: June 19
+      const june19 = new Date(year, 5, 19);
+      const jDow = june19.getDay();
+      addHol(june19, 'Juneteenth', jDow === 5 ? 'attached_fri' : (jDow === 1 ? 'attached_mon' : (jDow === 0 || jDow === 6 ? 'weekend' : 'midweek')));
+
+      // Independence Day: July 4
+      const jul4 = new Date(year, 6, 4);
+      const julDow = jul4.getDay();
+      addHol(jul4, 'Independence Day', julDow === 5 ? 'attached_fri' : (julDow === 1 ? 'attached_mon' : (julDow === 0 || julDow === 6 ? 'weekend' : 'midweek')));
+      if (julDow === 0) {
+        addHol(new Date(year, 6, 5), 'Independence Day (Observed)', 'attached_mon');
+      } else if (julDow === 6) {
+        addHol(new Date(year, 6, 3), 'Independence Day (Observed)', 'attached_fri');
+      }
+
+      // Labor Day: 1st Monday in Sept
+      addHol(getNthWeekdayOfMonth(year, 8, 1, 1), 'Labor Day', 'attached_mon');
+
+      // Columbus Day: 2nd Monday in Oct
+      addHol(getNthWeekdayOfMonth(year, 9, 1, 2), 'Columbus Day', 'attached_mon');
+
+      // General Election Day: Tuesday after 1st Monday in Nov
+      const firstMonNov = getNthWeekdayOfMonth(year, 10, 1, 1);
+      const electionDay = new Date(firstMonNov.getTime() + 24 * 60 * 60 * 1000);
+      addHol(electionDay, 'General Election Day', 'midweek');
+
+      // Veterans Day: Nov 11
+      const vetDay = new Date(year, 10, 11);
+      const vetDow = vetDay.getDay();
+      addHol(vetDay, 'Veterans Day', vetDow === 5 ? 'attached_fri' : (vetDow === 1 ? 'attached_mon' : (vetDow === 0 || vetDow === 6 ? 'weekend' : 'midweek')));
+
+      // Thanksgiving Day: 4th Thursday in Nov
+      addHol(getNthWeekdayOfMonth(year, 10, 4, 4), 'Thanksgiving Day', 'midweek');
+
+      // Christmas Day: Dec 25
+      const xmas = new Date(year, 11, 25);
+      const xDow = xmas.getDay();
+      addHol(xmas, 'Christmas Day', xDow === 5 ? 'attached_fri' : (xDow === 1 ? 'attached_mon' : (xDow === 0 || xDow === 6 ? 'weekend' : 'midweek')));
+
+      return holidays;
+    }
+
     // --- UI Controller & Application Bootstrap ---
     const storage = new StorageAdapter();
     window.appState = storage.state;
@@ -1887,6 +2155,14 @@ class StorageAdapter {
     let activeMonthIdx = 0; // 0=Jan
     let selectedDateForReassign = null;
     let pendingImportShifts = null;
+
+    // Toast notification helper
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => { toast.style.display = 'none'; }, 3200);
+    }
 
     // DOM Elements
     const cycleSelect = document.getElementById('cycle-select');
@@ -1897,7 +2173,6 @@ class StorageAdapter {
     const exemptionNote = document.getElementById('exemption-note');
     const rosterCount = document.getElementById('roster-count');
     const blackoutCount = document.getElementById('blackout-count');
-    const blackoutListCount = document.getElementById('blackout-list-count');
 
     // Tab buttons
     const tabCalendarView = document.getElementById('tab-calendar-view');
@@ -1905,24 +2180,54 @@ class StorageAdapter {
     const viewCalendarWrapper = document.getElementById('view-calendar-wrapper');
     const viewMatrixWrapper = document.getElementById('view-matrix-wrapper');
 
-    // Drawers
-    const drawerOverlay = document.getElementById('drawer-overlay');
-    const drawerRoster = document.getElementById('drawer-roster');
-    const drawerBlackouts = document.getElementById('drawer-blackouts');
-    const drawerImport = document.getElementById('drawer-import');
-    const modalAlias = document.getElementById('modal-alias');
+    // Modals
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalRoster = document.getElementById('modal-roster');
+    const modalBlackouts = document.getElementById('modal-blackouts');
+    const modalAddCycle = document.getElementById('modal-add-cycle');
     const modalReassign = document.getElementById('modal-reassign');
+    const modalImport = document.getElementById('modal-import');
+    const modalAlias = document.getElementById('modal-alias');
+
+    function closeAllModals() {
+      modalOverlay.classList.remove('open');
+      modalRoster.style.display = 'none';
+      modalBlackouts.style.display = 'none';
+      modalAddCycle.style.display = 'none';
+      modalReassign.style.display = 'none';
+      modalImport.style.display = 'none';
+      modalAlias.style.display = 'none';
+    }
+
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeAllModals();
+    });
 
     function getActiveCycle() {
+      if (!window.appState.cycles[window.appState.activeCycleId]) {
+        // Fallback to first available cycle
+        const keys = Object.keys(window.appState.cycles);
+        if (keys.length > 0) window.appState.activeCycleId = keys[0];
+      }
       return window.appState.cycles[window.appState.activeCycleId];
+    }
+
+    // Refresh Cycle Selector Options
+    function refreshCycleDropdown() {
+      const cycleKeys = Object.keys(window.appState.cycles);
+      cycleSelect.innerHTML = cycleKeys.map(k => {
+        const c = window.appState.cycles[k];
+        const label = c.blockType === 'FULL' ? `${c.year} Full Year` : `${c.year} ${c.blockType} (${c.startDate} to ${c.endDate})`;
+        return `<option value="${c.id}" ${c.id === window.appState.activeCycleId ? 'selected' : ''}>${label}</option>`;
+      }).join('');
     }
 
     // Refresh UI
     function renderApp() {
+      refreshCycleDropdown();
       const cycle = getActiveCycle();
       rosterCount.textContent = window.appState.roster.length;
       blackoutCount.textContent = window.appState.blackouts.length;
-      blackoutListCount.textContent = window.appState.blackouts.length;
 
       renderMonthTabs();
       renderCalendar();
@@ -1943,6 +2248,12 @@ class StorageAdapter {
       while (curr <= last) {
         months.push({ name: monthNames[curr.getMonth()], idx: curr.getMonth(), year: curr.getFullYear() });
         curr.setMonth(curr.getMonth() + 1);
+      }
+
+      // If activeMonthIdx is outside the cycle's months, reset it
+      const validIndices = months.map(m => m.idx);
+      if (!validIndices.includes(activeMonthIdx)) {
+        activeMonthIdx = validIndices[0];
       }
 
       monthTabsBar.innerHTML = months.map(m => `
@@ -2013,7 +2324,7 @@ class StorageAdapter {
             chipHtml = `
               <div class="assignment-chip" style="background:${member.color};">
                 <span>${member.name}</span>
-                <span style="font-size:10px; opacity:0.8;">${member.role}</span>
+                <span style="font-size:10px; opacity:0.85;">${member.role}</span>
               </div>
             `;
           } else {
@@ -2023,7 +2334,7 @@ class StorageAdapter {
           let dotsHtml = '';
           if (hasError || hasWarning || hasAttention) {
             dotsHtml = '<div class="conflict-badges">';
-            if (hasError) dotsHtml += '<div class="conflict-dot dot-error" title="Rest or Blackout Violation"></div>';
+            if (hasError) dotsHtml += '<div class="conflict-dot dot-error" title="Contractual Fatigue / Blackout Conflict"></div>';
             if (hasWarning) dotsHtml += '<div class="conflict-dot dot-warning" title="Warning / Quota Breach"></div>';
             if (hasAttention) dotsHtml += '<div class="conflict-dot dot-attention" title="Multi-Shift Coverage"></div>';
             dotsHtml += '</div>';
@@ -2095,24 +2406,6 @@ class StorageAdapter {
       `;
     }
 
-    // Drawer management
-    function closeDrawers() {
-      drawerOverlay.classList.remove('open');
-      drawerRoster.classList.remove('open');
-      drawerBlackouts.classList.remove('open');
-      drawerImport.classList.remove('open');
-      modalAlias.classList.remove('open');
-      modalReassign.classList.remove('open');
-    }
-
-    drawerOverlay.addEventListener('click', closeDrawers);
-    document.getElementById('close-roster').addEventListener('click', closeDrawers);
-    document.getElementById('close-blackouts').addEventListener('click', closeDrawers);
-    document.getElementById('close-import').addEventListener('click', closeDrawers);
-    document.getElementById('close-modal-alias').addEventListener('click', closeDrawers);
-    document.getElementById('close-modal-reassign').addEventListener('click', closeDrawers);
-    document.getElementById('btn-cancel-alias').addEventListener('click', closeDrawers);
-
     // Tab view switching
     tabCalendarView.addEventListener('click', () => {
       tabCalendarView.classList.add('active');
@@ -2141,103 +2434,173 @@ class StorageAdapter {
       cycle.updatedAt = Date.now();
       storage.saveState();
       renderApp();
-      alert('Schedule automatically generated! All fatigue, rest, and quota rules applied.');
+      showToast('Schedule successfully generated! All fatigue, rest, and quota rules applied.');
     });
 
     // Undo / Redo
     document.getElementById('btn-undo').addEventListener('click', () => {
-      if (storage.undo()) renderApp();
+      if (storage.undo()) {
+        renderApp();
+        showToast('Undo performed.');
+      }
     });
     document.getElementById('btn-redo').addEventListener('click', () => {
-      if (storage.redo()) renderApp();
+      if (storage.redo()) {
+        renderApp();
+        showToast('Redo performed.');
+      }
     });
 
-    // Open Roster Drawer
-    document.getElementById('btn-open-roster').addEventListener('click', () => {
-      renderRosterList();
-      drawerOverlay.classList.add('open');
-      drawerRoster.classList.add('open');
+    // Cycle Change
+    cycleSelect.addEventListener('change', (e) => {
+      window.appState.activeCycleId = e.target.value;
+      storage.saveState();
+      const c = getActiveCycle();
+      const start = parseDate(c.startDate);
+      activeMonthIdx = start.getMonth();
+      renderApp();
     });
+
+    // -------------------------------------------------------------
+    // 1. Roster Manager Handlers
+    // -------------------------------------------------------------
+    document.getElementById('btn-open-roster').addEventListener('click', () => {
+      openRosterModal();
+    });
+
+    function openRosterModal() {
+      const cycle = getActiveCycle();
+      document.getElementById('member-start-input').value = cycle.startDate;
+      renderRosterList();
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalRoster.style.display = 'flex';
+    }
 
     function renderRosterList() {
-      const list = document.getElementById('roster-list');
+      const list = document.getElementById('roster-items-container');
+      document.getElementById('modal-roster-count').textContent = window.appState.roster.length;
+      document.getElementById('roster-count').textContent = window.appState.roster.length;
+
+      const weekdayNames = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday' };
+
       list.innerHTML = window.appState.roster.map(m => `
         <div class="item-card">
-          <div>
-            <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:50%; background:${m.color}; display:inline-block;"></span>
-              ${m.name}
-              <span style="font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'}">${m.role}</span>
-            </div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
-              Active: ${m.activeStart} ${m.activeEnd ? `to ${m.activeEnd}` : '(Indefinite)'}
-              ${m.baselineWeekday ? `| Preferred: Day ${m.baselineWeekday}` : ''}
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="width:16px; height:16px; border-radius:50%; background:${m.color}; display:inline-block; flex-shrink:0;"></span>
+            <div>
+              <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
+                ${m.name}
+                <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'}">${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                Active: ${m.activeStart} ${m.activeEnd ? `to ${m.activeEnd}` : '(Indefinite)'}
+                ${m.baselineWeekday ? ` &bull; Baseline: ${weekdayNames[m.baselineWeekday]}` : ''}
+              </div>
             </div>
           </div>
-          <button class="btn btn-outline btn-delete-member" data-id="${m.id}" style="color:var(--danger); border-color:var(--danger); padding:4px 8px; font-size:11px;">Remove</button>
+          <button class="btn btn-outline-dark btn-remove-member" data-id="${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
         </div>
       `).join('');
 
-      list.querySelectorAll('.btn-delete-member').forEach(btn => {
+      list.querySelectorAll('.btn-remove-member').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
-          if (confirm('Remove member from roster?')) {
+          const mem = window.appState.roster.find(m => m.id === id);
+          if (confirm(`Remove ${mem ? mem.name : 'this investigator'} from the roster?`)) {
             window.appState.roster = window.appState.roster.filter(m => m.id !== id);
             storage.saveState();
             renderRosterList();
             renderApp();
+            showToast('Investigator removed from roster.');
           }
         });
       });
     }
 
-    // Add Member
-    document.getElementById('btn-add-member').addEventListener('click', () => {
-      const name = prompt('Enter investigator uppercase last name (e.g. SMITH):');
-      if (!name) return;
-      const role = confirm('Is this member Full-Time (OK) or Alternate (Cancel)?') ? 'FT' : 'ALT';
-      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    document.getElementById('btn-save-new-member').addEventListener('click', () => {
+      const nameInput = document.getElementById('member-name-input');
+      const name = nameInput.value.trim().toUpperCase();
+      if (!name) {
+        alert('Please enter the investigator\'s last name.');
+        return;
+      }
+
+      const role = document.getElementById('member-role-input').value;
+      const weekdayVal = document.getElementById('member-weekday-input').value;
+      const baselineWeekday = weekdayVal ? parseInt(weekdayVal) : null;
+      const color = document.getElementById('member-color-input').value;
+      const activeStart = document.getElementById('member-start-input').value || '2027-01-01';
+      const activeEnd = document.getElementById('member-end-input').value || null;
+
+      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString().slice(-4);
 
       window.appState.roster.push({
         id,
-        name: name.toUpperCase(),
+        name,
         role,
-        activeStart: '2027-01-01',
-        activeEnd: null,
-        baselineWeekday: role === 'FT' ? 1 : null,
-        color: role === 'FT' ? '#0284c7' : '#9333ea'
+        activeStart,
+        activeEnd,
+        baselineWeekday,
+        color
       });
+
       storage.saveState();
+      nameInput.value = '';
+      document.getElementById('member-end-input').value = '';
       renderRosterList();
       renderApp();
+      showToast(`${name} added to roster successfully.`);
     });
 
-    // Open Blackouts Drawer
+    // -------------------------------------------------------------
+    // 2. Blackouts & Leave Handlers
+    // -------------------------------------------------------------
     document.getElementById('btn-open-blackouts').addEventListener('click', () => {
-      renderBlackoutInputs();
-      renderBlackoutsList();
-      drawerOverlay.classList.add('open');
-      drawerBlackouts.classList.add('open');
+      openBlackoutsModal();
     });
 
-    function renderBlackoutInputs() {
-      const select = document.getElementById('book-member');
-      select.innerHTML = window.appState.roster.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+    function openBlackoutsModal() {
+      const select = document.getElementById('book-member-select');
+      select.innerHTML = window.appState.roster.map(m => `
+        <option value="${m.id}">${m.name} (${m.role})</option>
+      `).join('');
+
+      const cycle = getActiveCycle();
+      document.getElementById('book-start-input').value = cycle.startDate;
+      document.getElementById('book-end-input').value = cycle.startDate;
+
+      renderBlackoutsList();
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalBlackouts.style.display = 'flex';
     }
 
     function renderBlackoutsList() {
-      const list = document.getElementById('blackouts-list');
+      const list = document.getElementById('blackouts-items-container');
+      document.getElementById('modal-blackouts-count').textContent = window.appState.blackouts.length;
+      document.getElementById('blackout-count').textContent = window.appState.blackouts.length;
+
+      if (window.appState.blackouts.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No blackout ranges booked yet.</div>';
+        return;
+      }
+
       list.innerHTML = window.appState.blackouts.map(b => {
         const mem = window.appState.roster.find(m => m.id === b.memberId);
         return `
           <div class="item-card">
             <div>
-              <div style="font-weight:700; font-size:13px;">${mem?.name || b.memberId}</div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
-                ${b.startDate} &rarr; ${b.endDate} ${b.notes ? `(${b.notes})` : ''}
+              <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
+                ${mem?.color ? `<span style="width:10px; height:10px; border-radius:50%; background:${mem.color};"></span>` : ''}
+                ${mem?.name || b.memberId}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${b.notes ? `(${b.notes})` : ''}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                ${b.startDate} &rarr; ${b.endDate}
               </div>
             </div>
-            <button class="btn btn-outline btn-delete-blackout" data-id="${b.id}" style="color:var(--danger); border-color:var(--danger); padding:4px 8px; font-size:11px;">Delete</button>
+            <button class="btn btn-outline-dark btn-delete-blackout" data-id="${b.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
           </div>
         `;
       }).join('');
@@ -2249,18 +2612,23 @@ class StorageAdapter {
           storage.saveState();
           renderBlackoutsList();
           renderApp();
+          showToast('Blackout range removed.');
         });
       });
     }
 
-    document.getElementById('btn-save-blackout').addEventListener('click', () => {
-      const memberId = document.getElementById('book-member').value;
-      const startDate = document.getElementById('book-start').value;
-      const endDate = document.getElementById('book-end').value;
-      const notes = document.getElementById('book-notes').value;
+    document.getElementById('btn-save-new-blackout').addEventListener('click', () => {
+      const memberId = document.getElementById('book-member-select').value;
+      const startDate = document.getElementById('book-start-input').value;
+      const endDate = document.getElementById('book-end-input').value;
+      const notes = document.getElementById('book-notes-input').value.trim();
 
+      if (!memberId) {
+        alert('Please select an investigator.');
+        return;
+      }
       if (!startDate || !endDate) {
-        alert('Please select both start and end dates.');
+        alert('Please choose both start and end dates.');
         return;
       }
       if (startDate > endDate) {
@@ -2273,23 +2641,98 @@ class StorageAdapter {
         memberId,
         startDate,
         endDate,
-        notes: notes || 'Time off'
+        notes: notes || 'Vacation / Leave'
       });
+
       storage.saveState();
       renderBlackoutsList();
       renderApp();
-      document.getElementById('book-start').value = '';
-      document.getElementById('book-end').value = '';
-      document.getElementById('book-notes').value = '';
+      document.getElementById('book-notes-input').value = '';
+      showToast('Blackout booked successfully.');
     });
 
-    // Reassign Shift Modal
+    // -------------------------------------------------------------
+    // 3. Add Year / Schedule Block Handlers
+    // -------------------------------------------------------------
+    document.getElementById('btn-open-add-cycle').addEventListener('click', () => {
+      const currentCycle = getActiveCycle();
+      document.getElementById('new-cycle-year').value = currentCycle ? (currentCycle.year + 1) : 2028;
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalAddCycle.style.display = 'flex';
+    });
+
+    document.getElementById('btn-confirm-add-cycle').addEventListener('click', () => {
+      const year = parseInt(document.getElementById('new-cycle-year').value);
+      const blockType = document.getElementById('new-cycle-block').value;
+      const carryRoster = document.getElementById('new-cycle-carry-roster').checked;
+
+      if (!year || year < 2020 || year > 2060) {
+        alert('Please enter a valid 4-digit calendar year.');
+        return;
+      }
+
+      const cycleId = `${year}-${blockType}`;
+
+      if (window.appState.cycles[cycleId]) {
+        if (!confirm(`Schedule block "${cycleId}" already exists. Overwrite it?`)) {
+          return;
+        }
+      }
+
+      let startDate = `${year}-01-01`;
+      let endDate = `${year}-12-31`;
+      if (blockType === 'H1') {
+        startDate = `${year}-01-01`;
+        endDate = `${year}-06-30`;
+      } else if (blockType === 'H2') {
+        startDate = `${year}-07-01`;
+        endDate = `${year}-12-31`;
+      }
+
+      // Generate holidays for the year and merge
+      const generatedHols = generateOfficialPSPHolidays(year);
+      const existingHolDates = new Set(window.appState.holidays.map(h => h.date));
+      generatedHols.forEach(h => {
+        if (!existingHolDates.has(h.date)) {
+          window.appState.holidays.push(h);
+        }
+      });
+
+      // Create new cycle entry
+      window.appState.cycles[cycleId] = {
+        id: cycleId,
+        year,
+        blockType,
+        startDate,
+        endDate,
+        rosterSnapshot: carryRoster ? [...window.appState.roster] : [],
+        blackoutsSnapshot: [],
+        assignments: {},
+        manualOverrides: {},
+        solverDiagnostics: {},
+        updatedAt: Date.now()
+      };
+
+      // Set as active
+      window.appState.activeCycleId = cycleId;
+      storage.saveState();
+
+      activeMonthIdx = blockType === 'H2' ? 6 : 0;
+      closeAllModals();
+      renderApp();
+      showToast(`Schedule block "${cycleId}" created successfully! Click "Auto-Generate Schedule" to staff.`);
+    });
+
+    // -------------------------------------------------------------
+    // 4. Shift Reassign Handlers
+    // -------------------------------------------------------------
     function openReassignModal(dateStr) {
       selectedDateForReassign = dateStr;
       const cycle = getActiveCycle();
       const currentAssigned = cycle.assignments[dateStr];
 
-      document.getElementById('reassign-date-title').textContent = `Shift Assignment for ${dateStr}`;
+      document.getElementById('reassign-date-title').textContent = `Duty Assignment: ${dateStr}`;
       const select = document.getElementById('reassign-member-select');
       select.innerHTML = '<option value="">-- UNASSIGNED --</option>' +
         window.appState.roster.map(m => `
@@ -2298,8 +2741,30 @@ class StorageAdapter {
           </option>
         `).join('');
 
-      drawerOverlay.classList.add('open');
-      modalReassign.classList.add('open');
+      function updatePreview() {
+        const preview = document.getElementById('reassign-conflict-preview');
+        const selectedId = select.value;
+        if (!selectedId) {
+          preview.innerHTML = '<span style="color:var(--text-muted)">Shift will be marked Unassigned.</span>';
+          return;
+        }
+        const mem = window.appState.roster.find(m => m.id === selectedId);
+        const dayBlackout = window.appState.blackouts.find(b => b.memberId === selectedId && dateStr >= b.startDate && dateStr <= b.endDate);
+        if (dayBlackout) {
+          preview.innerHTML = `<span style="color:var(--danger); font-weight:700;">&#9888; Blackout Conflict: ${mem?.name} is on booked leave (${dayBlackout.notes})</span>`;
+        } else if (mem?.role === 'ALT' && getDayOfWeek(dateStr) >= 1 && getDayOfWeek(dateStr) <= 4) {
+          preview.innerHTML = `<span style="color:var(--warning); font-weight:700;">&#9888; Quota Warning: Alternate assigned to mid-week shift. Will trigger administrative exemption badge.</span>`;
+        } else {
+          preview.innerHTML = `<span style="color:var(--success); font-weight:600;">&#10003; No blackout conflicts for ${mem?.name}.</span>`;
+        }
+      }
+
+      select.onchange = updatePreview;
+      updatePreview();
+
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalReassign.style.display = 'flex';
     }
 
     document.getElementById('btn-save-shift').addEventListener('click', () => {
@@ -2317,8 +2782,9 @@ class StorageAdapter {
       }
       cycle.updatedAt = Date.now();
       storage.saveState();
-      closeDrawers();
+      closeAllModals();
       renderApp();
+      showToast(`Shift for ${selectedDateForReassign} updated.`);
     });
 
     document.getElementById('btn-clear-shift').addEventListener('click', () => {
@@ -2329,14 +2795,18 @@ class StorageAdapter {
       delete cycle.manualOverrides[selectedDateForReassign];
       cycle.updatedAt = Date.now();
       storage.saveState();
-      closeDrawers();
+      closeAllModals();
       renderApp();
+      showToast(`Shift for ${selectedDateForReassign} cleared.`);
     });
 
-    // Import Handling
+    // -------------------------------------------------------------
+    // 5. Import Handlers
+    // -------------------------------------------------------------
     document.getElementById('btn-open-import').addEventListener('click', () => {
-      drawerOverlay.classList.add('open');
-      drawerImport.classList.add('open');
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalImport.style.display = 'flex';
     });
 
     const fileInput = document.getElementById('file-input');
@@ -2396,9 +2866,9 @@ class StorageAdapter {
         </div>
       `).join('');
 
-      closeDrawers();
-      drawerOverlay.classList.add('open');
-      modalAlias.classList.add('open');
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalAlias.style.display = 'flex';
     }
 
     document.getElementById('btn-confirm-alias').addEventListener('click', () => {
@@ -2422,7 +2892,7 @@ class StorageAdapter {
         }
       });
 
-      closeDrawers();
+      closeAllModals();
       commitImport(aliasMap);
     });
 
@@ -2443,8 +2913,9 @@ class StorageAdapter {
 
       cycle.updatedAt = Date.now();
       storage.saveState();
+      closeAllModals();
       renderApp();
-      alert(`Import successful! ${pendingImportShifts.length} date shifts processed.`);
+      showToast(`Import complete! ${pendingImportShifts.length} shifts loaded.`);
       pendingImportShifts = null;
     }
 
@@ -2453,19 +2924,12 @@ class StorageAdapter {
       const cycle = getActiveCycle();
       const wb = generateExcelWorkbook(window.XLSX, cycle, window.appState.roster, cycle.assignments);
       window.XLSX.writeFile(wb, `${cycle.year}_${cycle.blockType}_Fire_Marshal_OnCall_Schedule.xlsx`);
+      showToast('Excel workbook exported.');
     });
 
     // Print
     document.getElementById('btn-print').addEventListener('click', () => {
       window.print();
-    });
-
-    // Cycle Change
-    cycleSelect.addEventListener('change', (e) => {
-      window.appState.activeCycleId = e.target.value;
-      storage.saveState();
-      activeMonthIdx = window.appState.activeCycleId === '2027-H2' ? 6 : 0;
-      renderApp();
     });
 
     // Initial render
