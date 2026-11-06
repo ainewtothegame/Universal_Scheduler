@@ -656,7 +656,7 @@ const htmlContent = `<!DOCTYPE html>
       <div class="modal-body">
         <!-- Add Member Form -->
         <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
+          <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Investigator Last Name *</label>
@@ -696,7 +696,21 @@ const htmlContent = `<!DOCTYPE html>
               <input type="date" id="member-end-input" class="form-input" placeholder="Leave blank if indefinite">
             </div>
           </div>
-          <button id="btn-save-new-member" class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;">+ Add Investigator to Active Roster</button>
+          <div class="form-group" id="member-prefday-group" style="display:none;">
+            <label class="form-label">Preferred Day If Available (rotational members only)</label>
+            <select id="member-prefday-input" class="form-select">
+              <option value="">No preference (pure rotation)</option>
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+            </select>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Used only when it keeps shift counts fair and rest/blackout rules allow it.</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="btn-save-new-member" class="btn btn-primary" style="flex:1; justify-content:center; padding:9px;">+ Add Investigator to Active Roster</button>
+            <button id="btn-cancel-edit" class="btn btn-outline-dark" style="display:none; padding:9px;">Cancel Edit</button>
+          </div>
         </div>
 
         <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Active Roster (<span id="modal-roster-count">0</span> Members)</div>
@@ -1342,7 +1356,7 @@ const htmlContent = `<!DOCTYPE html>
 
     function openRosterModal() {
       const cycle = getActiveCycle();
-      document.getElementById('member-start-input').value = cycle.startDate;
+      resetMemberForm();
       renderRosterList();
       closeAllModals();
       modalOverlay.classList.add('open');
@@ -1367,13 +1381,21 @@ const htmlContent = `<!DOCTYPE html>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
                 Active: \${m.activeStart} \${m.activeEnd ? \`to \${m.activeEnd}\` : '(Indefinite)'}
-                \${m.baselineWeekday ? \` &bull; Baseline: \${weekdayNames[m.baselineWeekday]}\` : ''}
+                \${m.baselineWeekday ? \` &bull; Baseline: \${weekdayNames[m.baselineWeekday]}\` : (m.role === 'FT' ? ' &bull; Rotational' : '')}
+                \${(!m.baselineWeekday && m.preferredWeekday) ? \` (prefers \${weekdayNames[m.preferredWeekday]} if available)\` : ''}
               </div>
             </div>
           </div>
-          <button class="btn btn-outline-dark btn-remove-member" data-id="\${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-outline-dark btn-edit-member" data-id="\${m.id}" style="color:var(--primary); border-color:var(--primary); padding:4px 10px; font-size:12px;">Edit</button>
+            <button class="btn btn-outline-dark btn-remove-member" data-id="\${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
+          </div>
         </div>
       \`).join('');
+
+      list.querySelectorAll('.btn-edit-member').forEach(btn => {
+        btn.addEventListener('click', () => startEditMember(btn.getAttribute('data-id')));
+      });
 
       list.querySelectorAll('.btn-remove-member').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1390,6 +1412,51 @@ const htmlContent = `<!DOCTYPE html>
       });
     }
 
+    // ---- Edit support ----
+    let editingMemberId = null;
+
+    function syncPrefDayVisibility() {
+      const rotational = !document.getElementById('member-weekday-input').value;
+      document.getElementById('member-prefday-group').style.display = rotational ? 'block' : 'none';
+      if (!rotational) document.getElementById('member-prefday-input').value = '';
+    }
+    document.getElementById('member-weekday-input').addEventListener('change', syncPrefDayVisibility);
+
+    function resetMemberForm() {
+      editingMemberId = null;
+      document.getElementById('member-name-input').value = '';
+      document.getElementById('member-role-input').value = 'FT';
+      document.getElementById('member-weekday-input').value = '';
+      document.getElementById('member-prefday-input').value = '';
+      document.getElementById('member-color-input').value = '#1e3a8a';
+      document.getElementById('member-start-input').value = getActiveCycle().startDate;
+      document.getElementById('member-end-input').value = '';
+      document.getElementById('member-form-title').textContent = '+ Add Investigator to Roster';
+      document.getElementById('btn-save-new-member').textContent = '+ Add Investigator to Active Roster';
+      document.getElementById('btn-cancel-edit').style.display = 'none';
+      syncPrefDayVisibility();
+    }
+
+    function startEditMember(id) {
+      const m = window.appState.roster.find(x => x.id === id);
+      if (!m) return;
+      editingMemberId = id;
+      document.getElementById('member-name-input').value = m.name;
+      document.getElementById('member-role-input').value = m.role;
+      document.getElementById('member-weekday-input').value = m.baselineWeekday ? String(m.baselineWeekday) : '';
+      syncPrefDayVisibility();
+      document.getElementById('member-prefday-input').value = m.preferredWeekday ? String(m.preferredWeekday) : '';
+      document.getElementById('member-color-input').value = m.color || '#1e3a8a';
+      document.getElementById('member-start-input').value = m.activeStart || '';
+      document.getElementById('member-end-input').value = m.activeEnd || '';
+      document.getElementById('member-form-title').textContent = 'Editing ' + m.name;
+      document.getElementById('btn-save-new-member').textContent = 'Save Changes';
+      document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
+      document.getElementById('member-name-input').focus();
+    }
+
+    document.getElementById('btn-cancel-edit').addEventListener('click', resetMemberForm);
+
     document.getElementById('btn-save-new-member').addEventListener('click', () => {
       const nameInput = document.getElementById('member-name-input');
       const name = nameInput.value.trim().toUpperCase();
@@ -1405,9 +1472,31 @@ const htmlContent = `<!DOCTYPE html>
       const activeStart = document.getElementById('member-start-input').value || '2027-01-01';
       const activeEnd = document.getElementById('member-end-input').value || null;
 
+      const prefVal = document.getElementById('member-prefday-input').value;
+      const preferredWeekday = (!baselineWeekday && prefVal) ? parseInt(prefVal) : null;
+
+      if (activeEnd && activeEnd < activeStart) {
+        alert('Active end date must be on or after the start date.');
+        return;
+      }
+
+      if (editingMemberId) {
+        const m = window.appState.roster.find(x => x.id === editingMemberId);
+        if (m) {
+          Object.assign(m, { name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, color });
+        }
+        storage.saveState();
+        resetMemberForm();
+        renderRosterList();
+        renderApp();
+        showToast(name + ' updated. Re-run Auto-Generate to apply changes.');
+        return;
+      }
+
       const id = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString().slice(-4);
 
       window.appState.roster.push({
+        preferredWeekday,
         id,
         name,
         role,

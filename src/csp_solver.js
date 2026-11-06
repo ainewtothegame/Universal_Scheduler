@@ -355,6 +355,8 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // =========================================================================
   // STAGE 5: Mid-Week Allocation (Phase 1 Baseline vs. Phase 2 Dynamic Equity)
   // =========================================================================
+  const effectiveLoad = (ft, dow) => (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
+
   // Collect all dates from start to end
   let walker = parseDate(cycle.startDate);
   const cycleEnd = parseDate(cycle.endDate);
@@ -385,8 +387,8 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
       if (isPhase1) {
         // Phase 1 Baseline allocation: Mon=Polcha, Tue=Kemerer, Wed=Wolfe, Thu=Terek
-        const baselineMap = { 1: 'polcha', 2: 'kemerer', 3: 'wolfe', 4: 'terek' };
-        let candidateId = baselineMap[dow];
+        const baselineOwner = activeFTs.find(ft => ft.baselineWeekday === dow && isMemberActive(ft, dateStr));
+        let candidateId = baselineOwner ? baselineOwner.id : undefined;
 
         // Check feasibility of candidate
         const candidate = roster.find(m => m.id === candidateId);
@@ -405,7 +407,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
             if ((dow === 3 || dow === 4) && ft.id === restBlockedMemberId) return false;
             return true;
           });
-          eligibleSwaps.sort((a, b) => (weekdayCounts[a.id] || 0) - (weekdayCounts[b.id] || 0));
+          eligibleSwaps.sort((a, b) => effectiveLoad(a, dow) - effectiveLoad(b, dow));
 
           if (eligibleSwaps.length > 0) {
             assignments[dateStr] = eligibleSwaps[0].id;
@@ -424,8 +426,9 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
           return true;
         });
 
-        // Dynamic balance: pick member with lowest weekday shift load
-        eligibleFTs.sort((a, b) => (weekdayCounts[a.id] || 0) - (weekdayCounts[b.id] || 0));
+        // Dynamic balance: lowest weekday load wins; a member's 'preferred day if available'
+        // counts as a one-shift head start so it only wins when it keeps loads within 1 of fair.
+        eligibleFTs.sort((a, b) => effectiveLoad(a, dow) - effectiveLoad(b, dow));
 
         if (eligibleFTs.length > 0) {
           assignments[dateStr] = eligibleFTs[0].id;
