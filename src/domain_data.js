@@ -166,14 +166,19 @@ export const DEFAULT_2027_BLACKOUTS = [
   { id: 'b_terek_3', memberId: 'terek', startDate: '2027-06-26', endDate: '2027-07-03', notes: 'Summer vacation' }
 ];
 
+// Deep copy so state never aliases the shared defaults (or other cycles' snapshots)
+function clone(x) {
+  return JSON.parse(JSON.stringify(x));
+}
+
 // Initial AppState factory
 export function createInitialAppState() {
   return {
     version: 1,
-    roster: [...DEFAULT_2027_ROSTER],
-    blackouts: [...DEFAULT_2027_BLACKOUTS],
+    roster: clone(DEFAULT_2027_ROSTER),
+    blackouts: clone(DEFAULT_2027_BLACKOUTS),
     preferredWeekends: [], // { id, memberId, weekendFriday, notes }
-    holidays: [...DEFAULT_2027_HOLIDAYS],
+    holidays: clone(DEFAULT_2027_HOLIDAYS),
     cycles: {
       '2027-H1': {
         id: '2027-H1',
@@ -181,8 +186,8 @@ export function createInitialAppState() {
         blockType: 'H1',
         startDate: '2027-01-01',
         endDate: '2027-06-30',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},
@@ -194,8 +199,8 @@ export function createInitialAppState() {
         blockType: 'H2',
         startDate: '2027-07-01',
         endDate: '2027-12-31',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},
@@ -207,8 +212,8 @@ export function createInitialAppState() {
         blockType: 'FULL',
         startDate: '2027-01-01',
         endDate: '2027-12-31',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},

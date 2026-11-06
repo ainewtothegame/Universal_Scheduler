@@ -377,4 +377,4 @@ A specialized CSS print stylesheet hides all UI headers, navigation buttons, dra
 * Pennsylvania State Police Enlisted Leave Tracker (Holiday calendar specifications and attached holiday rules).
 * `calendar_2027_reference.csv`: Baseline operational 2027 barracks schedule for regression verification and import testing.
 * `scheduling_spec_2027.md`: PSP Fire Marshal 2027 Scheduling Specification.
-* `consolidated_review_report.md`: EGM Multi-Lens Review Synthesis and Remediation Matrix.
+* `reports/consolidated_review_report.md`: EGM Multi-Lens Review Synthesis and Remediation Matrix.

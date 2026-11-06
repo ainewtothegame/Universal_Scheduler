@@ -115,6 +115,30 @@ export function generateExcelWorkbook(XLSX, cycle, roster, assignments) {
 }
 
 /**
+ * Minimal RFC-4180 CSV parser: quoted fields, embedded commas/newlines, "" escapes.
+ */
+export function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', inQuotes = false;
+  const src = String(text).replace(/^\uFEFF/, '');
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') { cell += '"'; i++; } else { inQuotes = false; }
+      } else { cell += ch; }
+    } else if (ch === '"') { inQuotes = true; }
+    else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(cell.trim()); rows.push(row); row = []; cell = '';
+    } else { cell += ch; }
+  }
+  if (cell !== '' || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows;
+}
+
+/**
  * Parses any incoming spreadsheet (CSV text or SheetJS Workbook) into daily assignments.
  */
 export function parseSpreadsheet(XLSX, fileData, isRawCsv = false) {
@@ -122,10 +146,7 @@ export function parseSpreadsheet(XLSX, fileData, isRawCsv = false) {
 
   if (isRawCsv) {
     // Parse CSV lines
-    sheetData = fileData.split(/\r?\n/).map(line => {
-      // Split by comma preserving quotes if needed
-      return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-    });
+    sheetData = parseCsv(fileData);
   } else {
     // Read via SheetJS
     const wb = XLSX.read(fileData, { type: 'binary', cellDates: true });

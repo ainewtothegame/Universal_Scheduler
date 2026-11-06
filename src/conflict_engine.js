@@ -105,28 +105,41 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
     }
   }
 
-  // 4. Alternate Quota Over-Allocation
+  // 4. Alternate Quota Over-Allocation (enforced per 6-month half, as in the spec)
   const altCounts = {};
-  roster.filter(m => m.role === 'ALT').forEach(a => { altCounts[a.id] = 0; });
   weekends.forEach(w => {
     const workerId = assignments[w.saturday];
-    if (altCounts[workerId] !== undefined) {
-      altCounts[workerId]++;
-      const mem = roster.find(m => m.id === workerId);
-      const perHalf = (mem && mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
-        ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))
-        : 3;
-      const maxAllowed = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
-      if (altCounts[workerId] > maxAllowed) {
-        addConflict(
-          w.friday,
-          'WARNING',
-          'ALT_QUOTA_EXCEEDED',
-          `Alternate ${mem?.name} exceeds weekend quota (${altCounts[workerId]}/${maxAllowed}).`
-        );
-      }
+    const mem = roster.find(m => m.id === workerId);
+    if (!mem || mem.role !== 'ALT') return;
+    const half = w.friday.slice(5) < '07-01' ? 'H1' : 'H2';
+    const key = `${w.friday.slice(0, 4)}-${half}-${workerId}`;
+    altCounts[key] = (altCounts[key] || 0) + 1;
+    const maxAllowed = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
+      ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))
+      : 3;
+    if (altCounts[key] > maxAllowed) {
+      addConflict(
+        w.friday,
+        'WARNING',
+        'ALT_QUOTA_EXCEEDED',
+        `Alternate ${mem.name} exceeds weekend quota (${altCounts[key]}/${maxAllowed} for ${half}).`
+      );
     }
   });
+
+  // 4b. Daily coverage: every day in the cycle needs exactly one assignee.
+  // Skipped for a completely empty schedule so a fresh cycle is not flooded with warnings.
+  if (Object.keys(assignments).some(d => d >= cycle.startDate && d <= cycle.endDate && assignments[d])) {
+    let cov = parseDate(cycle.startDate);
+    const covEnd = parseDate(cycle.endDate);
+    while (cov <= covEnd) {
+      const ds = formatDate(cov);
+      if (!assignments[ds]) {
+        addConflict(ds, 'WARNING', 'UNASSIGNED_DAY', `No one is assigned to on-call duty on ${ds}.`);
+      }
+      cov.setDate(cov.getDate() + 1);
+    }
+  }
 
   // 5. Multi-Shift Weekday Coverage (Attention Badge)
   // Group days into calendar weeks

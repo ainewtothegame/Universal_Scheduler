@@ -79,14 +79,19 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   const activeALTs = roster.filter(m => m.role === 'ALT');
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
+  const halfOf = (w) => w.friday.slice(0, 4) + (w.friday.slice(5) < '07-01' ? 'H1' : 'H2');
+  const halves = [...new Set(weekends.map(halfOf))];
   const altQuotaConsumed = {};
   const altTargetQuotas = {};
   activeALTs.forEach(a => {
-    altQuotaConsumed[a.id] = 0;
     const perHalf = (a.weekendsPerSixMonths !== undefined && a.weekendsPerSixMonths !== null && !isNaN(Number(a.weekendsPerSixMonths)))
       ? Math.max(0, parseInt(a.weekendsPerSixMonths, 10))
       : 3;
-    altTargetQuotas[a.id] = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
+    // Quotas are per 6-month half (so a FULL year gets perHalf in H1 AND in H2).
+    halves.forEach(h => {
+      altQuotaConsumed[`${a.id}|${h}`] = 0;
+      altTargetQuotas[`${a.id}|${h}`] = perHalf;
+    });
   });
 
   const weekendAssignments = {}; // weekend.index -> memberId
@@ -98,7 +103,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
       weekendAssignments[w.index] = assignedId;
       const mem = roster.find(m => m.id === assignedId);
       if (mem && mem.role === 'ALT') {
-        altQuotaConsumed[assignedId] = (altQuotaConsumed[assignedId] || 0) + 1;
+        altQuotaConsumed[`${assignedId}|${halfOf(w)}`] = (altQuotaConsumed[`${assignedId}|${halfOf(w)}`] || 0) + 1;
       }
     }
   });
@@ -142,7 +147,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
       weekendAssignments[w.index] = mem.id;
       if (mem.role === 'ALT') {
-        altQuotaConsumed[mem.id] = (altQuotaConsumed[mem.id] || 0) + 1;
+        altQuotaConsumed[`${mem.id}|${halfOf(w)}`] = (altQuotaConsumed[`${mem.id}|${halfOf(w)}`] || 0) + 1;
       }
     });
 
@@ -170,7 +175,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
         const candidateAlt = activeALTs.find(alt => {
           if (!isMemberActive(alt, w.friday)) return false;
           // Check quota: max configured per block
-          if (altQuotaConsumed[alt.id] >= altTargetQuotas[alt.id]) return false;
+          if (altQuotaConsumed[`${alt.id}|${halfOf(w)}`] >= altTargetQuotas[`${alt.id}|${halfOf(w)}`]) return false;
           // Check non-consecutive
           if (prevWeekendWorker === alt.id) return false;
           // Check blackouts for Fri, Sat, Sun, and attached Monday if applicable
@@ -182,7 +187,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
         if (candidateAlt) {
           weekendAssignments[w.index] = candidateAlt.id;
-          altQuotaConsumed[candidateAlt.id] = (altQuotaConsumed[candidateAlt.id] || 0) + 1;
+          altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] = (altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] || 0) + 1;
         } else {
           diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
         }
@@ -198,19 +203,28 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // Find remaining unassigned weekends
   const unassignedWeekends = weekends.filter(w => !weekendAssignments[w.index]);
 
+  // One quota slot per (alternate, half-year)
+  const slots = [];
+  activeALTs.forEach(a => halves.forEach(h => slots.push({ alt: a, half: h, key: `${a.id}|${h}` })));
+
   // Backtracking search to assign remaining Alternate quotas
+  const MAX_SEARCH_STEPS = 200000;
+  let searchSteps = 0;
   function solveAlternateWeekends(altIndex, currentAssignments, currentQuotas) {
+    if (++searchSteps > MAX_SEARCH_STEPS) return false; // guard against pathological inputs
     // Check if all alternates have met target quota
-    const allQuotasMet = activeALTs.every(a => currentQuotas[a.id] >= altTargetQuotas[a.id]);
+    const allQuotasMet = slots.every(sl => currentQuotas[sl.key] >= altTargetQuotas[sl.key]);
     if (allQuotasMet) return true;
 
     // Pick the most constrained Alternate using MRV (Minimum Remaining Values)
     // Most constrained = fewest available legal weekends relative to remaining quota needed
-    const unmetAlts = activeALTs
-      .filter(a => currentQuotas[a.id] < altTargetQuotas[a.id])
-      .map(alt => {
-        const targetQuota = altTargetQuotas[alt.id];
+    const unmetAlts = slots
+      .filter(sl => currentQuotas[sl.key] < altTargetQuotas[sl.key])
+      .map(sl => {
+        const alt = sl.alt;
+        const targetQuota = altTargetQuotas[sl.key];
         const eligibleWeekends = unassignedWeekends.filter(w => {
+          if (halfOf(w) !== sl.half) return false;
           if (currentAssignments[w.index]) return false;
           if (!isMemberActive(alt, w.friday)) return false;
           // Non-consecutive check
@@ -222,12 +236,12 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
           if (w.attachedFriday) datesToCheck.push(w.attachedFriday);
           return !datesToCheck.some(d => isMemberBlackedOut(alt.id, d, blackouts));
         });
-        return { alt, remaining: targetQuota - currentQuotas[alt.id], eligibleCount: eligibleWeekends.length, eligibleWeekends };
+        return { alt, slot: sl, remaining: targetQuota - currentQuotas[sl.key], eligibleCount: eligibleWeekends.length, eligibleWeekends };
       })
       .sort((a, b) => (a.eligibleCount - a.remaining) - (b.eligibleCount - b.remaining));
 
     if (unmetAlts.length === 0) return true;
-    const { alt, eligibleWeekends } = unmetAlts[0];
+    const { alt, slot, eligibleWeekends } = unmetAlts[0];
 
     // If an alternate has remaining quota but 0 eligible weekends, backtrack
     if (eligibleWeekends.length === 0) return false;
@@ -248,7 +262,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
     for (const w of eligibleWeekends) {
       currentAssignments[w.index] = alt.id;
-      currentQuotas[alt.id]++;
+      currentQuotas[slot.key]++;
 
       if (solveAlternateWeekends(altIndex + 1, currentAssignments, currentQuotas)) {
         return true;
@@ -256,7 +270,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
       // Backtrack
       delete currentAssignments[w.index];
-      currentQuotas[alt.id]--;
+      currentQuotas[slot.key]--;
     }
 
     return false;
@@ -275,34 +289,72 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
     if (ftWeekendCounts[mId] !== undefined) ftWeekendCounts[mId]++;
   });
 
-  weekends.forEach(w => {
-    if (!weekendAssignments[w.index]) {
-      // Find candidate active FT members
-      const prevWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
-      const nextWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+  const ftCandidatesFor = (w) => {
+    const prevWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
+    const nextWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+    return activeFTs.filter(ft => {
+      if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
+      // Non-consecutive rule
+      if (prevWorker === ft.id || nextWorker === ft.id) return false;
+      // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
+      const checkDates = [w.friday, w.saturday, w.sunday];
+      if (w.attachedMonday) checkDates.push(w.attachedMonday);
+      if (w.phase === 2) checkDates.push(w.monday);
+      return !checkDates.some(d => isMemberBlackedOut(ft.id, d, blackouts));
+    });
+  };
 
-      const candidates = activeFTs.filter(ft => {
-        if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
-        // Non-consecutive rule
-        if (prevWorker === ft.id || nextWorker === ft.id) return false;
-        // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
-        const checkDates = [w.friday, w.saturday, w.sunday];
-        if (w.attachedMonday) checkDates.push(w.attachedMonday);
-        if (w.phase === 2) checkDates.push(w.monday);
-        const hasBlackout = checkDates.some(d => isMemberBlackedOut(ft.id, d, blackouts));
-        return !hasBlackout;
-      });
+  const openWeekends = weekends.filter(w => !weekendAssignments[w.index]);
+  const countsBeforeStage3 = { ...ftWeekendCounts };
 
-      // Sort candidates by lowest weekend count for equity
-      candidates.sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+  // Pass 1: greedy fill, least-loaded eligible FT first (fast path; used whenever it succeeds).
+  openWeekends.forEach(w => {
+    const candidates = ftCandidatesFor(w);
+    candidates.sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+    if (candidates.length > 0) {
+      weekendAssignments[w.index] = candidates[0].id;
+      ftWeekendCounts[candidates[0].id]++;
+    }
+  });
 
-      if (candidates.length > 0) {
-        const chosen = candidates[0];
-        weekendAssignments[w.index] = chosen.id;
-        ftWeekendCounts[chosen.id]++;
-      } else {
-        diagnostics[w.friday] = `Stage 3 Deadlock: No eligible, non-consecutive Full-Time member available for weekend of ${w.friday}.`;
+  // Pass 2: if greedy left a weekend uncovered, retry with bounded backtracking
+  // (same rules, same equity ordering) before reporting a deadlock.
+  if (openWeekends.some(w => !weekendAssignments[w.index])) {
+    openWeekends.forEach(w => { delete weekendAssignments[w.index]; });
+    Object.keys(countsBeforeStage3).forEach(k => { ftWeekendCounts[k] = countsBeforeStage3[k]; });
+    let steps = 0;
+    const MAX_STEPS = 200000;
+    const dfs = (i) => {
+      if (i === openWeekends.length) return true;
+      if (++steps > MAX_STEPS) return false;
+      const w = openWeekends[i];
+      const cands = ftCandidatesFor(w).sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+      for (const ft of cands) {
+        weekendAssignments[w.index] = ft.id;
+        ftWeekendCounts[ft.id]++;
+        if (dfs(i + 1)) return true;
+        delete weekendAssignments[w.index];
+        ftWeekendCounts[ft.id]--;
       }
+      return false;
+    };
+    if (!dfs(0)) {
+      // Could not cover everything: fall back to the greedy partial result so the UI still shows a best effort.
+      openWeekends.forEach(w => { delete weekendAssignments[w.index]; });
+      Object.keys(countsBeforeStage3).forEach(k => { ftWeekendCounts[k] = countsBeforeStage3[k]; });
+      openWeekends.forEach(w => {
+        const candidates = ftCandidatesFor(w).sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+        if (candidates.length > 0) {
+          weekendAssignments[w.index] = candidates[0].id;
+          ftWeekendCounts[candidates[0].id]++;
+        }
+      });
+    }
+  }
+
+  openWeekends.forEach(w => {
+    if (!weekendAssignments[w.index]) {
+      diagnostics[w.friday] = `Stage 3 Deadlock: No eligible, non-consecutive Full-Time member available for weekend of ${w.friday}.`;
     }
   });
 
@@ -444,6 +496,15 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
           diagnostics[dateStr] = `Stage 5 Conflict: Zero FT members available for ${dateStr} due to rest rule and blackouts.`;
         }
       }
+    }
+  });
+
+  // Clamp: the last weekend of a cycle can spill into the next cycle/year
+  // (e.g. a Dec 31 Friday). Drop auto-generated days outside the cycle range;
+  // explicit manual overrides are kept untouched.
+  Object.keys(assignments).forEach(d => {
+    if ((d < cycle.startDate || d > cycle.endDate) && !(d in manualOverrides)) {
+      delete assignments[d];
     }
   });
 

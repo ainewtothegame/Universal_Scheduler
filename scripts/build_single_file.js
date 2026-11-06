@@ -686,10 +686,10 @@ const htmlContent = `<!DOCTYPE html>
   <div id="modal-overlay" class="modal-overlay">
 
     <!-- 1. Personnel Roster Modal -->
-    <div id="modal-roster" class="modal modal-wide" style="display:none;">
+    <div id="modal-roster" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Personnel roster manager">
       <div class="modal-header">
         <div class="modal-title">&#128101; Personnel Roster Manager</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <!-- Add Member Form -->
@@ -775,10 +775,10 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 2. Blackouts & Vacations Modal -->
-    <div id="modal-blackouts" class="modal modal-wide" style="display:none;">
+    <div id="modal-blackouts" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Vacations and blackouts">
       <div class="modal-header">
         <div class="modal-title">&#128197; Vacations & Blackouts Booking</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
@@ -813,10 +813,10 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 3. Add Year / Schedule Block Modal -->
-    <div id="modal-prefs" class="modal modal-wide" style="display:none;">
+    <div id="modal-prefs" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Requested weekends">
       <div class="modal-header">
         <div class="modal-title">&#11088; Requested Weekends (Want to Work)</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:14px; color:var(--text-muted);">
@@ -847,10 +847,10 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 3b. Add Year / Schedule Block Modal -->
-    <div id="modal-add-cycle" class="modal" style="display:none;">
+    <div id="modal-add-cycle" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Add year or block">
       <div class="modal-header">
         <div class="modal-title">&#128197; Add Year / Schedule Block</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:16px; color:var(--text-muted);">
@@ -885,7 +885,7 @@ const htmlContent = `<!DOCTYPE html>
     <div id="modal-reassign" class="modal" style="width:400px; display:none;">
       <div class="modal-header">
         <div id="reassign-date-title" class="modal-title">Reassign Shift</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -904,10 +904,10 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 5. Import Modal -->
-    <div id="modal-import" class="modal modal-wide" style="display:none;">
+    <div id="modal-import" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Import schedule">
       <div class="modal-header">
         <div class="modal-title">&#128196; Import Barracks Schedule</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:#f8fafc; cursor:pointer;" id="drop-zone">
@@ -925,10 +925,10 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 6. Unmatched Alias Reconcile Modal -->
-    <div id="modal-alias" class="modal modal-wide" style="display:none;">
+    <div id="modal-alias" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Resolve unmatched names">
       <div class="modal-header">
         <div class="modal-title">Reconcile Imported Personnel Names</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:14px; color:var(--text-muted);">
@@ -954,6 +954,10 @@ const htmlContent = `<!DOCTYPE html>
 
   <!-- Inlined Domain & Architecture Modules -->
   <script>
+    function esc(v) {
+      return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
     // --- domain_data.js ---
     ${domainDataCode}
 
@@ -1297,7 +1301,7 @@ const htmlContent = `<!DOCTYPE html>
 
       monthTabsBar.innerHTML = months.map(m => \`
         <button class="month-tab \${m.idx === activeMonthIdx ? 'active' : ''}" data-idx="\${m.idx}">
-          \${m.name} \${m.year}
+          \${esc(m.name)} \${m.year}
         </button>
       \`).join('');
 
@@ -1362,7 +1366,7 @@ const htmlContent = `<!DOCTYPE html>
           if (member) {
             chipHtml = \`
               <div class="assignment-chip" style="background:\${member.color};">
-                <span>\${member.name}</span>
+                <span>\${esc(member.name)}</span>
                 <span style="font-size:10px; opacity:0.85;">\${member.role}</span>
               </div>
             \`;
@@ -1383,7 +1387,7 @@ const htmlContent = `<!DOCTYPE html>
             <div class="day-cell \${!isCurrentMonth ? 'other-month' : ''} \${isWeekend ? 'weekend-col' : ''}" data-date="\${dStr}">
               <div class="day-top">
                 <span class="day-num">\${d.getDate()}</span>
-                \${holiday ? \`<span class="holiday-pill \${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="\${holiday.name}\${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">\${holiday.name}\${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>\` : ''}
+                \${holiday ? \`<span class="holiday-pill \${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="\${esc(holiday.name)}\${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">\${esc(holiday.name)}\${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>\` : ''}
               </div>
               \${dotsHtml}
               \${chipHtml}
@@ -1433,7 +1437,7 @@ const htmlContent = `<!DOCTYPE html>
                 <tr>
                   <td>Weekend \${w.index + 1}</td>
                   <td>\${w.friday} &rarr; \${w.sunday}</td>
-                  <td><strong>\${mem ? mem.name : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
+                  <td><strong>\${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
                   <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${mem?.role === 'FT' ? '#0369a1' : '#b45309'}">\${mem?.role || '-'}</span></td>
                   <td>\${hol}</td>
                   <td>\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
@@ -1551,7 +1555,7 @@ const htmlContent = `<!DOCTYPE html>
           <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12px;">
             <div><strong>Full-Time (FT):</strong> Avg \${ftAvg.toFixed(1)} shifts &bull; Min: \${ftMin} &bull; Max: \${ftMax} &bull; Spread: \${ftSpread}</div>
             <div><strong>Alternates (ALT):</strong> Avg \${altAvg.toFixed(1)} shifts &bull; Min: \${altMin} &bull; Max: \${altMax} &bull; Spread: \${altSpread}</div>
-            \${partialMembers.length ? \`<div><em>Note: \${partialMembers.map(p => p.name + ' partial tenure').join(', ')}</em></div>\` : ''}
+            \${partialMembers.length ? \`<div><em>Note: \${partialMembers.map(p => esc(p.name) + ' partial tenure').join(', ')}</em></div>\` : ''}
           </div>
         </div>
 
@@ -1581,7 +1585,7 @@ const htmlContent = `<!DOCTYPE html>
                 const diffStr = diff === null ? 'N/A' : ((diff > 0 ? '+' : '') + diff.toFixed(1));
                 const w = maxOverall ? Math.round((s.total / maxOverall) * 70) : 0;
                 return \`<tr>
-                  <td><strong>\${m.name}</strong></td>
+                  <td><strong>\${esc(m.name)}</strong></td>
                   <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'};">\${m.role}</span></td>
                   <td style="text-align:left;"><span class="bd-bar" style="width:\${w}px; background:\${m.color};"></span><strong>\${s.total}</strong></td>
                   <td>\${s.weekday}</td>
@@ -1595,8 +1599,8 @@ const htmlContent = `<!DOCTYPE html>
                     \${s.holidaysWorked.length > 0 ? \`
                       <div style="display:flex; flex-wrap:wrap; gap:3px;">
                         \${s.holidaysWorked.map(h => \`
-                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="\${h.name} (\${h.dow}, \${h.date})">
-                            \${h.name} <span style="opacity:0.75;">\${h.date.slice(5)}</span>
+                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="\${esc(h.name)} (\${h.dow}, \${h.date})">
+                            \${esc(h.name)} <span style="opacity:0.75;">\${h.date.slice(5)}</span>
                           </span>
                         \`).join('')}
                       </div>
@@ -1642,7 +1646,7 @@ const htmlContent = `<!DOCTYPE html>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:\${m.color};"></span>
-                      <strong style="font-size:13px;">\${m.name}</strong>
+                      <strong style="font-size:13px;">\${esc(m.name)}</strong>
                       <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'};">\${m.role}</span>
                     </div>
                     <span style="font-size:12px; font-weight:700; color:\${s.hol > 0 ? 'var(--primary)' : 'var(--text-muted)'};">
@@ -1653,7 +1657,7 @@ const htmlContent = `<!DOCTYPE html>
                     <div style="display:flex; flex-direction:column; gap:4px;">
                       \${s.holidaysWorked.map(h => \`
                         <div style="font-size:11px; padding:4px 8px; border-radius:4px; background:#ffffff; border:1px solid #e2e8f0; display:flex; justify-content:space-between;">
-                          <strong>\${h.name}</strong>
+                          <strong>\${esc(h.name)}</strong>
                           <span style="color:var(--text-muted); font-weight:600;">\${h.dow} \${h.date}</span>
                         </div>
                       \`).join('')}
@@ -1688,12 +1692,12 @@ const htmlContent = `<!DOCTYPE html>
                     <tr>
                       <td><strong>\${h.date}</strong></td>
                       <td>\${dowStr}</td>
-                      <td><strong>\${h.name}</strong></td>
+                      <td><strong>\${esc(h.name)}</strong></td>
                       <td>
                         \${worker ? \`
                           <div style="display:flex; align-items:center; gap:6px;">
                             <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:\${worker.color};"></span>
-                            <strong>\${worker.name}</strong>
+                            <strong>\${esc(worker.name)}</strong>
                           </div>
                         \` : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>'}
                       </td>
@@ -1832,7 +1836,7 @@ const htmlContent = `<!DOCTYPE html>
               <span style="width:16px; height:16px; border-radius:50%; background:\${m.color}; display:inline-block; flex-shrink:0;"></span>
               <div>
                 <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-                  \${m.name}
+                  \${esc(m.name)}
                   <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'}">\${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
@@ -1860,7 +1864,7 @@ const htmlContent = `<!DOCTYPE html>
             \${endedMembers.map(m => \`
               <div class="item-card" style="opacity:0.75; background:#f8fafc; border:1px dashed var(--border-color);">
                 <div>
-                  <div style="font-weight:700; font-size:13px; color:var(--text-muted);">\${m.name} (\${m.role})</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-muted);">\${esc(m.name)} (\${m.role})</div>
                   <div style="font-size:11px; color:var(--danger);">End Date: \${m.activeEnd} (before block start \${cycle.startDate})</div>
                 </div>
                 <div style="display:flex; gap:6px;">
@@ -1890,7 +1894,7 @@ const htmlContent = `<!DOCTYPE html>
               <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:\${alt.color}; display:inline-block;"></span>
-                  <span>\${alt.name}</span>
+                  <span>\${esc(alt.name)}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                   <input type="number" class="form-input alt-quick-quota-input" data-id="\${alt.id}" value="\${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
@@ -2069,7 +2073,7 @@ const htmlContent = `<!DOCTYPE html>
       const select = document.getElementById('book-member-select');
       const cycleRoster = getCycleRoster();
       select.innerHTML = cycleRoster.map(m => \`
-        <option value="\${m.id}">\${m.name} (\${m.role})</option>
+        <option value="\${m.id}">\${esc(m.name)} (\${m.role})</option>
       \`).join('');
 
       const cycle = getActiveCycle();
@@ -2100,8 +2104,8 @@ const htmlContent = `<!DOCTYPE html>
             <div>
               <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
                 \${mem?.color ? ('<span style="width:10px; height:10px; border-radius:50%; background:' + mem.color + ';"></span>') : ''}
-                \${mem?.name || b.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${b.notes ? ('(' + b.notes + ')') : ''}</span>
+                \${esc(mem?.name || b.memberId)}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${b.notes ? ('(' + esc(b.notes) + ')') : ''}</span>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
                 \${b.startDate} &rarr; \${b.endDate}
@@ -2175,7 +2179,7 @@ const htmlContent = `<!DOCTYPE html>
       const cycle = getActiveCycle();
       const cycleRoster = getCycleRoster();
       document.getElementById('pref-member-select').innerHTML = cycleRoster.map(m =>
-        \`<option value="\${m.id}">\${m.name} (\${m.role})</option>\`).join('');
+        \`<option value="\${m.id}">\${esc(m.name)} (\${m.role})</option>\`).join('');
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
       document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
         const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
@@ -2201,8 +2205,8 @@ const htmlContent = `<!DOCTYPE html>
         return \`
           <div class="item-card">
             <div>
-              <div style="font-weight:700; font-size:13px;">&#11088; \${mem ? mem.name : p.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${p.notes ? ('(' + p.notes + ')') : ''}</span></div>
+              <div style="font-weight:700; font-size:13px;">&#11088; \${esc(mem ? mem.name : p.memberId)}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${p.notes ? ('(' + esc(p.notes) + ')') : ''}</span></div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Weekend starting Fri \${p.weekendFriday}</div>
             </div>
             <button class="btn btn-outline-dark btn-delete-pref" data-id="\${p.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
@@ -2292,7 +2296,7 @@ const htmlContent = `<!DOCTYPE html>
         blockType,
         startDate,
         endDate,
-        rosterSnapshot: carryRoster ? [...window.appState.roster] : [],
+        rosterSnapshot: carryRoster ? clone(window.appState.roster) : [],
         blackoutsSnapshot: [],
         assignments: {},
         manualOverrides: {},
@@ -2330,7 +2334,7 @@ const htmlContent = `<!DOCTYPE html>
       select.innerHTML = '<option value="">-- UNASSIGNED --</option>' +
         availableMembers.map(m => \`
           <option value="\${m.id}" \${m.id === currentAssigned ? 'selected' : ''}>
-            \${m.name} (\${m.role})
+            \${esc(m.name)} (\${m.role})
           </option>
         \`).join('');
 
@@ -2344,11 +2348,11 @@ const htmlContent = `<!DOCTYPE html>
         const mem = window.appState.roster.find(m => m.id === selectedId);
         const dayBlackout = window.appState.blackouts.find(b => b.memberId === selectedId && dateStr >= b.startDate && dateStr <= b.endDate);
         if (dayBlackout) {
-          preview.innerHTML = \`<span style="color:var(--danger); font-weight:700;">&#9888; Blackout Conflict: \${mem?.name} is on booked leave (\${dayBlackout.notes})</span>\`;
+          preview.innerHTML = \`<span style="color:var(--danger); font-weight:700;">&#9888; Blackout Conflict: \${esc(mem?.name)} is on booked leave (\${esc(dayBlackout.notes)})</span>\`;
         } else if (mem?.role === 'ALT' && getDayOfWeek(dateStr) >= 1 && getDayOfWeek(dateStr) <= 4) {
           preview.innerHTML = \`<span style="color:var(--warning); font-weight:700;">&#9888; Quota Warning: Alternate assigned to mid-week shift. Will trigger administrative exemption badge.</span>\`;
         } else {
-          preview.innerHTML = \`<span style="color:var(--success); font-weight:600;">&#10003; No blackout conflicts for \${mem?.name}.</span>\`;
+          preview.innerHTML = \`<span style="color:var(--success); font-weight:600;">&#10003; No blackout conflicts for \${esc(mem?.name)}.</span>\`;
         }
       }
 
@@ -2452,10 +2456,10 @@ const htmlContent = `<!DOCTYPE html>
 
       list.innerHTML = unmatched.map(alias => \`
         <div style="margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border-color);">
-          <div style="font-weight:700; margin-bottom:6px;">Unmatched Alias: <span style="color:var(--danger)">\${alias}</span></div>
-          <select class="form-select alias-select" data-alias="\${alias}">
+          <div style="font-weight:700; margin-bottom:6px;">Unmatched Alias: <span style="color:var(--danger)">\${esc(alias)}</span></div>
+          <select class="form-select alias-select" data-alias="\${esc(alias)}">
             <option value="">-- Leave Unassigned --</option>
-            \${allRosterAndHistorical.map(m => \`<option value="\${m.id}">Map to \${m.name} (\${m.role})</option>\`).join('')}
+            \${allRosterAndHistorical.map(m => \`<option value="\${m.id}">Map to \${esc(m.name)} (\${m.role})</option>\`).join('')}
             <option value="__NEW_INACTIVE__">+ Create as Historical Inactive Member</option>
           </select>
         </div>

@@ -23,7 +23,14 @@ export class StorageAdapter {
       if (typeof window !== 'undefined' && window.localStorage) {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(raw);
+          } catch (parseErr) {
+            this._preserveUnreadable(raw);
+            throw parseErr;
+          }
+          if (!parsed || parsed.version !== 1) this._preserveUnreadable(raw);
           if (parsed && parsed.version === 1) {
             // Prune invalid observed holidays (e.g. Independence Day Observed)
             if (Array.isArray(parsed.holidays)) {
@@ -62,6 +69,18 @@ export class StorageAdapter {
   }
 
   /**
+   * Keeps a copy of saved data we cannot read (corrupt or unknown version) so that
+   * starting from defaults never silently destroys the user's schedule.
+   */
+  _preserveUnreadable(raw) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY + '_unreadable_backup', raw);
+    } catch (e) {
+      console.warn('Could not preserve unreadable saved state:', e);
+    }
+  }
+
+  /**
    * Persists state atomically to storage.
    */
   saveState() {
@@ -77,15 +96,9 @@ export class StorageAdapter {
   /**
    * Pushes current state onto undo stack before a mutation.
    */
-  pushUndo() {
-    // Deep copy current active cycle assignments
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (activeCycle) {
-      this.undoStack.push({
-        cycleId: this.state.activeCycleId,
-        assignments: { ...activeCycle.assignments },
-        manualOverrides: { ...activeCycle.manualOverrides }
-      });
+  pushUndo(cycleId = this.state.activeCycleId) {
+    if (this.state.cycles[cycleId]) {
+      this.undoStack.push(this._capture(cycleId));
       if (this.undoStack.length > MAX_UNDO_STACK) {
         this.undoStack.shift();
       }
@@ -94,48 +107,52 @@ export class StorageAdapter {
   }
 
   /**
-   * Performs undo.
+   * Captures the current assignments of a cycle for the undo/redo stacks.
    */
-  undo() {
-    if (this.undoStack.length === 0) return false;
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (!activeCycle) return false;
+  _capture(cycleId) {
+    const c = this.state.cycles[cycleId];
+    return {
+      cycleId,
+      assignments: { ...c.assignments },
+      manualOverrides: { ...c.manualOverrides }
+    };
+  }
 
-    // Push current to redo
-    this.redoStack.push({
-      cycleId: this.state.activeCycleId,
-      assignments: { ...activeCycle.assignments },
-      manualOverrides: { ...activeCycle.manualOverrides }
-    });
-
-    const previous = this.undoStack.pop();
-    activeCycle.assignments = { ...previous.assignments };
-    activeCycle.manualOverrides = { ...previous.manualOverrides };
-    activeCycle.updatedAt = Date.now();
+  _apply(entry) {
+    const c = this.state.cycles[entry.cycleId];
+    if (!c) return false;
+    c.assignments = { ...entry.assignments };
+    c.manualOverrides = { ...entry.manualOverrides };
+    c.updatedAt = Date.now();
+    this.state.activeCycleId = entry.cycleId; // show the cycle that changed
     this.saveState();
     return true;
   }
 
   /**
-   * Performs redo.
+   * Performs undo on the cycle the entry was recorded for.
+   */
+  undo() {
+    while (this.undoStack.length) {
+      const previous = this.undoStack.pop();
+      if (!this.state.cycles[previous.cycleId]) continue; // cycle removed
+      this.redoStack.push(this._capture(previous.cycleId));
+      return this._apply(previous);
+    }
+    return false;
+  }
+
+  /**
+   * Performs redo on the cycle the entry was recorded for.
    */
   redo() {
-    if (this.redoStack.length === 0) return false;
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (!activeCycle) return false;
-
-    this.undoStack.push({
-      cycleId: this.state.activeCycleId,
-      assignments: { ...activeCycle.assignments },
-      manualOverrides: { ...activeCycle.manualOverrides }
-    });
-
-    const next = this.redoStack.pop();
-    activeCycle.assignments = { ...next.assignments };
-    activeCycle.manualOverrides = { ...next.manualOverrides };
-    activeCycle.updatedAt = Date.now();
-    this.saveState();
-    return true;
+    while (this.redoStack.length) {
+      const next = this.redoStack.pop();
+      if (!this.state.cycles[next.cycleId]) continue;
+      this.undoStack.push(this._capture(next.cycleId));
+      return this._apply(next);
+    }
+    return false;
   }
 
   /**
@@ -167,7 +184,7 @@ export class StorageAdapter {
     const snap = this.state.savedSnapshots ? this.state.savedSnapshots[id] : null;
     if (!snap) return false;
 
-    this.pushUndo();
+    this.pushUndo(snap.scheduleId);
     this.state.cycles[snap.scheduleId] = JSON.parse(JSON.stringify(snap.payload));
     this.state.activeCycleId = snap.scheduleId;
     this.saveState();

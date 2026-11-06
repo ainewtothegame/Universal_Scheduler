@@ -655,10 +655,10 @@
   <div id="modal-overlay" class="modal-overlay">
 
     <!-- 1. Personnel Roster Modal -->
-    <div id="modal-roster" class="modal modal-wide" style="display:none;">
+    <div id="modal-roster" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Personnel roster manager">
       <div class="modal-header">
         <div class="modal-title">&#128101; Personnel Roster Manager</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <!-- Add Member Form -->
@@ -744,10 +744,10 @@
     </div>
 
     <!-- 2. Blackouts & Vacations Modal -->
-    <div id="modal-blackouts" class="modal modal-wide" style="display:none;">
+    <div id="modal-blackouts" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Vacations and blackouts">
       <div class="modal-header">
         <div class="modal-title">&#128197; Vacations & Blackouts Booking</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
@@ -782,10 +782,10 @@
     </div>
 
     <!-- 3. Add Year / Schedule Block Modal -->
-    <div id="modal-prefs" class="modal modal-wide" style="display:none;">
+    <div id="modal-prefs" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Requested weekends">
       <div class="modal-header">
         <div class="modal-title">&#11088; Requested Weekends (Want to Work)</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:14px; color:var(--text-muted);">
@@ -816,10 +816,10 @@
     </div>
 
     <!-- 3b. Add Year / Schedule Block Modal -->
-    <div id="modal-add-cycle" class="modal" style="display:none;">
+    <div id="modal-add-cycle" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Add year or block">
       <div class="modal-header">
         <div class="modal-title">&#128197; Add Year / Schedule Block</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:16px; color:var(--text-muted);">
@@ -854,7 +854,7 @@
     <div id="modal-reassign" class="modal" style="width:400px; display:none;">
       <div class="modal-header">
         <div id="reassign-date-title" class="modal-title">Reassign Shift</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -873,10 +873,10 @@
     </div>
 
     <!-- 5. Import Modal -->
-    <div id="modal-import" class="modal modal-wide" style="display:none;">
+    <div id="modal-import" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Import schedule">
       <div class="modal-header">
         <div class="modal-title">&#128196; Import Barracks Schedule</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:#f8fafc; cursor:pointer;" id="drop-zone">
@@ -894,10 +894,10 @@
     </div>
 
     <!-- 6. Unmatched Alias Reconcile Modal -->
-    <div id="modal-alias" class="modal modal-wide" style="display:none;">
+    <div id="modal-alias" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Resolve unmatched names">
       <div class="modal-header">
         <div class="modal-title">Reconcile Imported Personnel Names</div>
-        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:14px; color:var(--text-muted);">
@@ -947,6 +947,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   <!-- Inlined Domain & Architecture Modules -->
   <script>
+    function esc(v) {
+      return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
     // --- domain_data.js ---
     /**
  * domain_data.js
@@ -1116,14 +1120,19 @@ const DEFAULT_2027_BLACKOUTS = [
   { id: 'b_terek_3', memberId: 'terek', startDate: '2027-06-26', endDate: '2027-07-03', notes: 'Summer vacation' }
 ];
 
+// Deep copy so state never aliases the shared defaults (or other cycles' snapshots)
+function clone(x) {
+  return JSON.parse(JSON.stringify(x));
+}
+
 // Initial AppState factory
 function createInitialAppState() {
   return {
     version: 1,
-    roster: [...DEFAULT_2027_ROSTER],
-    blackouts: [...DEFAULT_2027_BLACKOUTS],
+    roster: clone(DEFAULT_2027_ROSTER),
+    blackouts: clone(DEFAULT_2027_BLACKOUTS),
     preferredWeekends: [], // { id, memberId, weekendFriday, notes }
-    holidays: [...DEFAULT_2027_HOLIDAYS],
+    holidays: clone(DEFAULT_2027_HOLIDAYS),
     cycles: {
       '2027-H1': {
         id: '2027-H1',
@@ -1131,8 +1140,8 @@ function createInitialAppState() {
         blockType: 'H1',
         startDate: '2027-01-01',
         endDate: '2027-06-30',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},
@@ -1144,8 +1153,8 @@ function createInitialAppState() {
         blockType: 'H2',
         startDate: '2027-07-01',
         endDate: '2027-12-31',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},
@@ -1157,8 +1166,8 @@ function createInitialAppState() {
         blockType: 'FULL',
         startDate: '2027-01-01',
         endDate: '2027-12-31',
-        rosterSnapshot: [...DEFAULT_2027_ROSTER],
-        blackoutsSnapshot: [...DEFAULT_2027_BLACKOUTS],
+        rosterSnapshot: clone(DEFAULT_2027_ROSTER),
+        blackoutsSnapshot: clone(DEFAULT_2027_BLACKOUTS),
         assignments: {},
         manualOverrides: {},
         solverDiagnostics: {},
@@ -1252,14 +1261,19 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   const activeALTs = roster.filter(m => m.role === 'ALT');
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
+  const halfOf = (w) => w.friday.slice(0, 4) + (w.friday.slice(5) < '07-01' ? 'H1' : 'H2');
+  const halves = [...new Set(weekends.map(halfOf))];
   const altQuotaConsumed = {};
   const altTargetQuotas = {};
   activeALTs.forEach(a => {
-    altQuotaConsumed[a.id] = 0;
     const perHalf = (a.weekendsPerSixMonths !== undefined && a.weekendsPerSixMonths !== null && !isNaN(Number(a.weekendsPerSixMonths)))
       ? Math.max(0, parseInt(a.weekendsPerSixMonths, 10))
       : 3;
-    altTargetQuotas[a.id] = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
+    // Quotas are per 6-month half (so a FULL year gets perHalf in H1 AND in H2).
+    halves.forEach(h => {
+      altQuotaConsumed[`${a.id}|${h}`] = 0;
+      altTargetQuotas[`${a.id}|${h}`] = perHalf;
+    });
   });
 
   const weekendAssignments = {}; // weekend.index -> memberId
@@ -1271,7 +1285,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
       weekendAssignments[w.index] = assignedId;
       const mem = roster.find(m => m.id === assignedId);
       if (mem && mem.role === 'ALT') {
-        altQuotaConsumed[assignedId] = (altQuotaConsumed[assignedId] || 0) + 1;
+        altQuotaConsumed[`${assignedId}|${halfOf(w)}`] = (altQuotaConsumed[`${assignedId}|${halfOf(w)}`] || 0) + 1;
       }
     }
   });
@@ -1315,7 +1329,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
 
       weekendAssignments[w.index] = mem.id;
       if (mem.role === 'ALT') {
-        altQuotaConsumed[mem.id] = (altQuotaConsumed[mem.id] || 0) + 1;
+        altQuotaConsumed[`${mem.id}|${halfOf(w)}`] = (altQuotaConsumed[`${mem.id}|${halfOf(w)}`] || 0) + 1;
       }
     });
 
@@ -1343,7 +1357,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
         const candidateAlt = activeALTs.find(alt => {
           if (!isMemberActive(alt, w.friday)) return false;
           // Check quota: max configured per block
-          if (altQuotaConsumed[alt.id] >= altTargetQuotas[alt.id]) return false;
+          if (altQuotaConsumed[`${alt.id}|${halfOf(w)}`] >= altTargetQuotas[`${alt.id}|${halfOf(w)}`]) return false;
           // Check non-consecutive
           if (prevWeekendWorker === alt.id) return false;
           // Check blackouts for Fri, Sat, Sun, and attached Monday if applicable
@@ -1355,7 +1369,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
 
         if (candidateAlt) {
           weekendAssignments[w.index] = candidateAlt.id;
-          altQuotaConsumed[candidateAlt.id] = (altQuotaConsumed[candidateAlt.id] || 0) + 1;
+          altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] = (altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] || 0) + 1;
         } else {
           diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
         }
@@ -1371,19 +1385,28 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   // Find remaining unassigned weekends
   const unassignedWeekends = weekends.filter(w => !weekendAssignments[w.index]);
 
+  // One quota slot per (alternate, half-year)
+  const slots = [];
+  activeALTs.forEach(a => halves.forEach(h => slots.push({ alt: a, half: h, key: `${a.id}|${h}` })));
+
   // Backtracking search to assign remaining Alternate quotas
+  const MAX_SEARCH_STEPS = 200000;
+  let searchSteps = 0;
   function solveAlternateWeekends(altIndex, currentAssignments, currentQuotas) {
+    if (++searchSteps > MAX_SEARCH_STEPS) return false; // guard against pathological inputs
     // Check if all alternates have met target quota
-    const allQuotasMet = activeALTs.every(a => currentQuotas[a.id] >= altTargetQuotas[a.id]);
+    const allQuotasMet = slots.every(sl => currentQuotas[sl.key] >= altTargetQuotas[sl.key]);
     if (allQuotasMet) return true;
 
     // Pick the most constrained Alternate using MRV (Minimum Remaining Values)
     // Most constrained = fewest available legal weekends relative to remaining quota needed
-    const unmetAlts = activeALTs
-      .filter(a => currentQuotas[a.id] < altTargetQuotas[a.id])
-      .map(alt => {
-        const targetQuota = altTargetQuotas[alt.id];
+    const unmetAlts = slots
+      .filter(sl => currentQuotas[sl.key] < altTargetQuotas[sl.key])
+      .map(sl => {
+        const alt = sl.alt;
+        const targetQuota = altTargetQuotas[sl.key];
         const eligibleWeekends = unassignedWeekends.filter(w => {
+          if (halfOf(w) !== sl.half) return false;
           if (currentAssignments[w.index]) return false;
           if (!isMemberActive(alt, w.friday)) return false;
           // Non-consecutive check
@@ -1395,12 +1418,12 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
           if (w.attachedFriday) datesToCheck.push(w.attachedFriday);
           return !datesToCheck.some(d => isMemberBlackedOut(alt.id, d, blackouts));
         });
-        return { alt, remaining: targetQuota - currentQuotas[alt.id], eligibleCount: eligibleWeekends.length, eligibleWeekends };
+        return { alt, slot: sl, remaining: targetQuota - currentQuotas[sl.key], eligibleCount: eligibleWeekends.length, eligibleWeekends };
       })
       .sort((a, b) => (a.eligibleCount - a.remaining) - (b.eligibleCount - b.remaining));
 
     if (unmetAlts.length === 0) return true;
-    const { alt, eligibleWeekends } = unmetAlts[0];
+    const { alt, slot, eligibleWeekends } = unmetAlts[0];
 
     // If an alternate has remaining quota but 0 eligible weekends, backtrack
     if (eligibleWeekends.length === 0) return false;
@@ -1421,7 +1444,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
 
     for (const w of eligibleWeekends) {
       currentAssignments[w.index] = alt.id;
-      currentQuotas[alt.id]++;
+      currentQuotas[slot.key]++;
 
       if (solveAlternateWeekends(altIndex + 1, currentAssignments, currentQuotas)) {
         return true;
@@ -1429,7 +1452,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
 
       // Backtrack
       delete currentAssignments[w.index];
-      currentQuotas[alt.id]--;
+      currentQuotas[slot.key]--;
     }
 
     return false;
@@ -1448,34 +1471,72 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
     if (ftWeekendCounts[mId] !== undefined) ftWeekendCounts[mId]++;
   });
 
-  weekends.forEach(w => {
-    if (!weekendAssignments[w.index]) {
-      // Find candidate active FT members
-      const prevWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
-      const nextWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+  const ftCandidatesFor = (w) => {
+    const prevWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
+    const nextWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+    return activeFTs.filter(ft => {
+      if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
+      // Non-consecutive rule
+      if (prevWorker === ft.id || nextWorker === ft.id) return false;
+      // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
+      const checkDates = [w.friday, w.saturday, w.sunday];
+      if (w.attachedMonday) checkDates.push(w.attachedMonday);
+      if (w.phase === 2) checkDates.push(w.monday);
+      return !checkDates.some(d => isMemberBlackedOut(ft.id, d, blackouts));
+    });
+  };
 
-      const candidates = activeFTs.filter(ft => {
-        if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
-        // Non-consecutive rule
-        if (prevWorker === ft.id || nextWorker === ft.id) return false;
-        // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
-        const checkDates = [w.friday, w.saturday, w.sunday];
-        if (w.attachedMonday) checkDates.push(w.attachedMonday);
-        if (w.phase === 2) checkDates.push(w.monday);
-        const hasBlackout = checkDates.some(d => isMemberBlackedOut(ft.id, d, blackouts));
-        return !hasBlackout;
-      });
+  const openWeekends = weekends.filter(w => !weekendAssignments[w.index]);
+  const countsBeforeStage3 = { ...ftWeekendCounts };
 
-      // Sort candidates by lowest weekend count for equity
-      candidates.sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+  // Pass 1: greedy fill, least-loaded eligible FT first (fast path; used whenever it succeeds).
+  openWeekends.forEach(w => {
+    const candidates = ftCandidatesFor(w);
+    candidates.sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+    if (candidates.length > 0) {
+      weekendAssignments[w.index] = candidates[0].id;
+      ftWeekendCounts[candidates[0].id]++;
+    }
+  });
 
-      if (candidates.length > 0) {
-        const chosen = candidates[0];
-        weekendAssignments[w.index] = chosen.id;
-        ftWeekendCounts[chosen.id]++;
-      } else {
-        diagnostics[w.friday] = `Stage 3 Deadlock: No eligible, non-consecutive Full-Time member available for weekend of ${w.friday}.`;
+  // Pass 2: if greedy left a weekend uncovered, retry with bounded backtracking
+  // (same rules, same equity ordering) before reporting a deadlock.
+  if (openWeekends.some(w => !weekendAssignments[w.index])) {
+    openWeekends.forEach(w => { delete weekendAssignments[w.index]; });
+    Object.keys(countsBeforeStage3).forEach(k => { ftWeekendCounts[k] = countsBeforeStage3[k]; });
+    let steps = 0;
+    const MAX_STEPS = 200000;
+    const dfs = (i) => {
+      if (i === openWeekends.length) return true;
+      if (++steps > MAX_STEPS) return false;
+      const w = openWeekends[i];
+      const cands = ftCandidatesFor(w).sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+      for (const ft of cands) {
+        weekendAssignments[w.index] = ft.id;
+        ftWeekendCounts[ft.id]++;
+        if (dfs(i + 1)) return true;
+        delete weekendAssignments[w.index];
+        ftWeekendCounts[ft.id]--;
       }
+      return false;
+    };
+    if (!dfs(0)) {
+      // Could not cover everything: fall back to the greedy partial result so the UI still shows a best effort.
+      openWeekends.forEach(w => { delete weekendAssignments[w.index]; });
+      Object.keys(countsBeforeStage3).forEach(k => { ftWeekendCounts[k] = countsBeforeStage3[k]; });
+      openWeekends.forEach(w => {
+        const candidates = ftCandidatesFor(w).sort((a, b) => ftWeekendCounts[a.id] - ftWeekendCounts[b.id]);
+        if (candidates.length > 0) {
+          weekendAssignments[w.index] = candidates[0].id;
+          ftWeekendCounts[candidates[0].id]++;
+        }
+      });
+    }
+  }
+
+  openWeekends.forEach(w => {
+    if (!weekendAssignments[w.index]) {
+      diagnostics[w.friday] = `Stage 3 Deadlock: No eligible, non-consecutive Full-Time member available for weekend of ${w.friday}.`;
     }
   });
 
@@ -1620,6 +1681,15 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
     }
   });
 
+  // Clamp: the last weekend of a cycle can spill into the next cycle/year
+  // (e.g. a Dec 31 Friday). Drop auto-generated days outside the cycle range;
+  // explicit manual overrides are kept untouched.
+  Object.keys(assignments).forEach(d => {
+    if ((d < cycle.startDate || d > cycle.endDate) && !(d in manualOverrides)) {
+      delete assignments[d];
+    }
+  });
+
   return {
     assignments,
     diagnostics,
@@ -1735,28 +1805,41 @@ function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, assignmen
     }
   }
 
-  // 4. Alternate Quota Over-Allocation
+  // 4. Alternate Quota Over-Allocation (enforced per 6-month half, as in the spec)
   const altCounts = {};
-  roster.filter(m => m.role === 'ALT').forEach(a => { altCounts[a.id] = 0; });
   weekends.forEach(w => {
     const workerId = assignments[w.saturday];
-    if (altCounts[workerId] !== undefined) {
-      altCounts[workerId]++;
-      const mem = roster.find(m => m.id === workerId);
-      const perHalf = (mem && mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
-        ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))
-        : 3;
-      const maxAllowed = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
-      if (altCounts[workerId] > maxAllowed) {
-        addConflict(
-          w.friday,
-          'WARNING',
-          'ALT_QUOTA_EXCEEDED',
-          `Alternate ${mem?.name} exceeds weekend quota (${altCounts[workerId]}/${maxAllowed}).`
-        );
-      }
+    const mem = roster.find(m => m.id === workerId);
+    if (!mem || mem.role !== 'ALT') return;
+    const half = w.friday.slice(5) < '07-01' ? 'H1' : 'H2';
+    const key = `${w.friday.slice(0, 4)}-${half}-${workerId}`;
+    altCounts[key] = (altCounts[key] || 0) + 1;
+    const maxAllowed = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
+      ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))
+      : 3;
+    if (altCounts[key] > maxAllowed) {
+      addConflict(
+        w.friday,
+        'WARNING',
+        'ALT_QUOTA_EXCEEDED',
+        `Alternate ${mem.name} exceeds weekend quota (${altCounts[key]}/${maxAllowed} for ${half}).`
+      );
     }
   });
+
+  // 4b. Daily coverage: every day in the cycle needs exactly one assignee.
+  // Skipped for a completely empty schedule so a fresh cycle is not flooded with warnings.
+  if (Object.keys(assignments).some(d => d >= cycle.startDate && d <= cycle.endDate && assignments[d])) {
+    let cov = parseDate(cycle.startDate);
+    const covEnd = parseDate(cycle.endDate);
+    while (cov <= covEnd) {
+      const ds = formatDate(cov);
+      if (!assignments[ds]) {
+        addConflict(ds, 'WARNING', 'UNASSIGNED_DAY', `No one is assigned to on-call duty on ${ds}.`);
+      }
+      cov.setDate(cov.getDate() + 1);
+    }
+  }
 
   // 5. Multi-Shift Weekday Coverage (Attention Badge)
   // Group days into calendar weeks
@@ -1924,6 +2007,30 @@ function generateExcelWorkbook(XLSX, cycle, roster, assignments) {
 }
 
 /**
+ * Minimal RFC-4180 CSV parser: quoted fields, embedded commas/newlines, "" escapes.
+ */
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', inQuotes = false;
+  const src = String(text).replace(/^\uFEFF/, '');
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') { cell += '"'; i++; } else { inQuotes = false; }
+      } else { cell += ch; }
+    } else if (ch === '"') { inQuotes = true; }
+    else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(cell.trim()); rows.push(row); row = []; cell = '';
+    } else { cell += ch; }
+  }
+  if (cell !== '' || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows;
+}
+
+/**
  * Parses any incoming spreadsheet (CSV text or SheetJS Workbook) into daily assignments.
  */
 function parseSpreadsheet(XLSX, fileData, isRawCsv = false) {
@@ -1931,10 +2038,7 @@ function parseSpreadsheet(XLSX, fileData, isRawCsv = false) {
 
   if (isRawCsv) {
     // Parse CSV lines
-    sheetData = fileData.split(/\r?\n/).map(line => {
-      // Split by comma preserving quotes if needed
-      return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-    });
+    sheetData = parseCsv(fileData);
   } else {
     // Read via SheetJS
     const wb = XLSX.read(fileData, { type: 'binary', cellDates: true });
@@ -2054,7 +2158,14 @@ class StorageAdapter {
       if (typeof window !== 'undefined' && window.localStorage) {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(raw);
+          } catch (parseErr) {
+            this._preserveUnreadable(raw);
+            throw parseErr;
+          }
+          if (!parsed || parsed.version !== 1) this._preserveUnreadable(raw);
           if (parsed && parsed.version === 1) {
             // Prune invalid observed holidays (e.g. Independence Day Observed)
             if (Array.isArray(parsed.holidays)) {
@@ -2093,6 +2204,18 @@ class StorageAdapter {
   }
 
   /**
+   * Keeps a copy of saved data we cannot read (corrupt or unknown version) so that
+   * starting from defaults never silently destroys the user's schedule.
+   */
+  _preserveUnreadable(raw) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY + '_unreadable_backup', raw);
+    } catch (e) {
+      console.warn('Could not preserve unreadable saved state:', e);
+    }
+  }
+
+  /**
    * Persists state atomically to storage.
    */
   saveState() {
@@ -2108,15 +2231,9 @@ class StorageAdapter {
   /**
    * Pushes current state onto undo stack before a mutation.
    */
-  pushUndo() {
-    // Deep copy current active cycle assignments
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (activeCycle) {
-      this.undoStack.push({
-        cycleId: this.state.activeCycleId,
-        assignments: { ...activeCycle.assignments },
-        manualOverrides: { ...activeCycle.manualOverrides }
-      });
+  pushUndo(cycleId = this.state.activeCycleId) {
+    if (this.state.cycles[cycleId]) {
+      this.undoStack.push(this._capture(cycleId));
       if (this.undoStack.length > MAX_UNDO_STACK) {
         this.undoStack.shift();
       }
@@ -2125,48 +2242,52 @@ class StorageAdapter {
   }
 
   /**
-   * Performs undo.
+   * Captures the current assignments of a cycle for the undo/redo stacks.
    */
-  undo() {
-    if (this.undoStack.length === 0) return false;
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (!activeCycle) return false;
+  _capture(cycleId) {
+    const c = this.state.cycles[cycleId];
+    return {
+      cycleId,
+      assignments: { ...c.assignments },
+      manualOverrides: { ...c.manualOverrides }
+    };
+  }
 
-    // Push current to redo
-    this.redoStack.push({
-      cycleId: this.state.activeCycleId,
-      assignments: { ...activeCycle.assignments },
-      manualOverrides: { ...activeCycle.manualOverrides }
-    });
-
-    const previous = this.undoStack.pop();
-    activeCycle.assignments = { ...previous.assignments };
-    activeCycle.manualOverrides = { ...previous.manualOverrides };
-    activeCycle.updatedAt = Date.now();
+  _apply(entry) {
+    const c = this.state.cycles[entry.cycleId];
+    if (!c) return false;
+    c.assignments = { ...entry.assignments };
+    c.manualOverrides = { ...entry.manualOverrides };
+    c.updatedAt = Date.now();
+    this.state.activeCycleId = entry.cycleId; // show the cycle that changed
     this.saveState();
     return true;
   }
 
   /**
-   * Performs redo.
+   * Performs undo on the cycle the entry was recorded for.
+   */
+  undo() {
+    while (this.undoStack.length) {
+      const previous = this.undoStack.pop();
+      if (!this.state.cycles[previous.cycleId]) continue; // cycle removed
+      this.redoStack.push(this._capture(previous.cycleId));
+      return this._apply(previous);
+    }
+    return false;
+  }
+
+  /**
+   * Performs redo on the cycle the entry was recorded for.
    */
   redo() {
-    if (this.redoStack.length === 0) return false;
-    const activeCycle = this.state.cycles[this.state.activeCycleId];
-    if (!activeCycle) return false;
-
-    this.undoStack.push({
-      cycleId: this.state.activeCycleId,
-      assignments: { ...activeCycle.assignments },
-      manualOverrides: { ...activeCycle.manualOverrides }
-    });
-
-    const next = this.redoStack.pop();
-    activeCycle.assignments = { ...next.assignments };
-    activeCycle.manualOverrides = { ...next.manualOverrides };
-    activeCycle.updatedAt = Date.now();
-    this.saveState();
-    return true;
+    while (this.redoStack.length) {
+      const next = this.redoStack.pop();
+      if (!this.state.cycles[next.cycleId]) continue;
+      this.undoStack.push(this._capture(next.cycleId));
+      return this._apply(next);
+    }
+    return false;
   }
 
   /**
@@ -2198,7 +2319,7 @@ class StorageAdapter {
     const snap = this.state.savedSnapshots ? this.state.savedSnapshots[id] : null;
     if (!snap) return false;
 
-    this.pushUndo();
+    this.pushUndo(snap.scheduleId);
     this.state.cycles[snap.scheduleId] = JSON.parse(JSON.stringify(snap.payload));
     this.state.activeCycleId = snap.scheduleId;
     this.saveState();
@@ -2564,7 +2685,7 @@ class StorageAdapter {
 
       monthTabsBar.innerHTML = months.map(m => `
         <button class="month-tab ${m.idx === activeMonthIdx ? 'active' : ''}" data-idx="${m.idx}">
-          ${m.name} ${m.year}
+          ${esc(m.name)} ${m.year}
         </button>
       `).join('');
 
@@ -2629,7 +2750,7 @@ class StorageAdapter {
           if (member) {
             chipHtml = `
               <div class="assignment-chip" style="background:${member.color};">
-                <span>${member.name}</span>
+                <span>${esc(member.name)}</span>
                 <span style="font-size:10px; opacity:0.85;">${member.role}</span>
               </div>
             `;
@@ -2650,7 +2771,7 @@ class StorageAdapter {
             <div class="day-cell ${!isCurrentMonth ? 'other-month' : ''} ${isWeekend ? 'weekend-col' : ''}" data-date="${dStr}">
               <div class="day-top">
                 <span class="day-num">${d.getDate()}</span>
-                ${holiday ? `<span class="holiday-pill ${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="${holiday.name}${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">${holiday.name}${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>` : ''}
+                ${holiday ? `<span class="holiday-pill ${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="${esc(holiday.name)}${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">${esc(holiday.name)}${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>` : ''}
               </div>
               ${dotsHtml}
               ${chipHtml}
@@ -2700,7 +2821,7 @@ class StorageAdapter {
                 <tr>
                   <td>Weekend ${w.index + 1}</td>
                   <td>${w.friday} &rarr; ${w.sunday}</td>
-                  <td><strong>${mem ? mem.name : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
+                  <td><strong>${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
                   <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${mem?.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${mem?.role === 'FT' ? '#0369a1' : '#b45309'}">${mem?.role || '-'}</span></td>
                   <td>${hol}</td>
                   <td>${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
@@ -2818,7 +2939,7 @@ class StorageAdapter {
           <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12px;">
             <div><strong>Full-Time (FT):</strong> Avg ${ftAvg.toFixed(1)} shifts &bull; Min: ${ftMin} &bull; Max: ${ftMax} &bull; Spread: ${ftSpread}</div>
             <div><strong>Alternates (ALT):</strong> Avg ${altAvg.toFixed(1)} shifts &bull; Min: ${altMin} &bull; Max: ${altMax} &bull; Spread: ${altSpread}</div>
-            ${partialMembers.length ? `<div><em>Note: ${partialMembers.map(p => p.name + ' partial tenure').join(', ')}</em></div>` : ''}
+            ${partialMembers.length ? `<div><em>Note: ${partialMembers.map(p => esc(p.name) + ' partial tenure').join(', ')}</em></div>` : ''}
           </div>
         </div>
 
@@ -2848,7 +2969,7 @@ class StorageAdapter {
                 const diffStr = diff === null ? 'N/A' : ((diff > 0 ? '+' : '') + diff.toFixed(1));
                 const w = maxOverall ? Math.round((s.total / maxOverall) * 70) : 0;
                 return `<tr>
-                  <td><strong>${m.name}</strong></td>
+                  <td><strong>${esc(m.name)}</strong></td>
                   <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'};">${m.role}</span></td>
                   <td style="text-align:left;"><span class="bd-bar" style="width:${w}px; background:${m.color};"></span><strong>${s.total}</strong></td>
                   <td>${s.weekday}</td>
@@ -2862,8 +2983,8 @@ class StorageAdapter {
                     ${s.holidaysWorked.length > 0 ? `
                       <div style="display:flex; flex-wrap:wrap; gap:3px;">
                         ${s.holidaysWorked.map(h => `
-                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="${h.name} (${h.dow}, ${h.date})">
-                            ${h.name} <span style="opacity:0.75;">${h.date.slice(5)}</span>
+                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="${esc(h.name)} (${h.dow}, ${h.date})">
+                            ${esc(h.name)} <span style="opacity:0.75;">${h.date.slice(5)}</span>
                           </span>
                         `).join('')}
                       </div>
@@ -2909,7 +3030,7 @@ class StorageAdapter {
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${m.color};"></span>
-                      <strong style="font-size:13px;">${m.name}</strong>
+                      <strong style="font-size:13px;">${esc(m.name)}</strong>
                       <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'};">${m.role}</span>
                     </div>
                     <span style="font-size:12px; font-weight:700; color:${s.hol > 0 ? 'var(--primary)' : 'var(--text-muted)'};">
@@ -2920,7 +3041,7 @@ class StorageAdapter {
                     <div style="display:flex; flex-direction:column; gap:4px;">
                       ${s.holidaysWorked.map(h => `
                         <div style="font-size:11px; padding:4px 8px; border-radius:4px; background:#ffffff; border:1px solid #e2e8f0; display:flex; justify-content:space-between;">
-                          <strong>${h.name}</strong>
+                          <strong>${esc(h.name)}</strong>
                           <span style="color:var(--text-muted); font-weight:600;">${h.dow} ${h.date}</span>
                         </div>
                       `).join('')}
@@ -2955,12 +3076,12 @@ class StorageAdapter {
                     <tr>
                       <td><strong>${h.date}</strong></td>
                       <td>${dowStr}</td>
-                      <td><strong>${h.name}</strong></td>
+                      <td><strong>${esc(h.name)}</strong></td>
                       <td>
                         ${worker ? `
                           <div style="display:flex; align-items:center; gap:6px;">
                             <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${worker.color};"></span>
-                            <strong>${worker.name}</strong>
+                            <strong>${esc(worker.name)}</strong>
                           </div>
                         ` : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>'}
                       </td>
@@ -3099,7 +3220,7 @@ class StorageAdapter {
               <span style="width:16px; height:16px; border-radius:50%; background:${m.color}; display:inline-block; flex-shrink:0;"></span>
               <div>
                 <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-                  ${m.name}
+                  ${esc(m.name)}
                   <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'}">${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
@@ -3127,7 +3248,7 @@ class StorageAdapter {
             ${endedMembers.map(m => `
               <div class="item-card" style="opacity:0.75; background:#f8fafc; border:1px dashed var(--border-color);">
                 <div>
-                  <div style="font-weight:700; font-size:13px; color:var(--text-muted);">${m.name} (${m.role})</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-muted);">${esc(m.name)} (${m.role})</div>
                   <div style="font-size:11px; color:var(--danger);">End Date: ${m.activeEnd} (before block start ${cycle.startDate})</div>
                 </div>
                 <div style="display:flex; gap:6px;">
@@ -3157,7 +3278,7 @@ class StorageAdapter {
               <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:${alt.color}; display:inline-block;"></span>
-                  <span>${alt.name}</span>
+                  <span>${esc(alt.name)}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                   <input type="number" class="form-input alt-quick-quota-input" data-id="${alt.id}" value="${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
@@ -3336,7 +3457,7 @@ class StorageAdapter {
       const select = document.getElementById('book-member-select');
       const cycleRoster = getCycleRoster();
       select.innerHTML = cycleRoster.map(m => `
-        <option value="${m.id}">${m.name} (${m.role})</option>
+        <option value="${m.id}">${esc(m.name)} (${m.role})</option>
       `).join('');
 
       const cycle = getActiveCycle();
@@ -3367,8 +3488,8 @@ class StorageAdapter {
             <div>
               <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
                 ${mem?.color ? ('<span style="width:10px; height:10px; border-radius:50%; background:' + mem.color + ';"></span>') : ''}
-                ${mem?.name || b.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${b.notes ? ('(' + b.notes + ')') : ''}</span>
+                ${esc(mem?.name || b.memberId)}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${b.notes ? ('(' + esc(b.notes) + ')') : ''}</span>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
                 ${b.startDate} &rarr; ${b.endDate}
@@ -3442,7 +3563,7 @@ class StorageAdapter {
       const cycle = getActiveCycle();
       const cycleRoster = getCycleRoster();
       document.getElementById('pref-member-select').innerHTML = cycleRoster.map(m =>
-        `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+        `<option value="${m.id}">${esc(m.name)} (${m.role})</option>`).join('');
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
       document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
         const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
@@ -3468,8 +3589,8 @@ class StorageAdapter {
         return `
           <div class="item-card">
             <div>
-              <div style="font-weight:700; font-size:13px;">&#11088; ${mem ? mem.name : p.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${p.notes ? ('(' + p.notes + ')') : ''}</span></div>
+              <div style="font-weight:700; font-size:13px;">&#11088; ${esc(mem ? mem.name : p.memberId)}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${p.notes ? ('(' + esc(p.notes) + ')') : ''}</span></div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Weekend starting Fri ${p.weekendFriday}</div>
             </div>
             <button class="btn btn-outline-dark btn-delete-pref" data-id="${p.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
@@ -3559,7 +3680,7 @@ class StorageAdapter {
         blockType,
         startDate,
         endDate,
-        rosterSnapshot: carryRoster ? [...window.appState.roster] : [],
+        rosterSnapshot: carryRoster ? clone(window.appState.roster) : [],
         blackoutsSnapshot: [],
         assignments: {},
         manualOverrides: {},
@@ -3597,7 +3718,7 @@ class StorageAdapter {
       select.innerHTML = '<option value="">-- UNASSIGNED --</option>' +
         availableMembers.map(m => `
           <option value="${m.id}" ${m.id === currentAssigned ? 'selected' : ''}>
-            ${m.name} (${m.role})
+            ${esc(m.name)} (${m.role})
           </option>
         `).join('');
 
@@ -3611,11 +3732,11 @@ class StorageAdapter {
         const mem = window.appState.roster.find(m => m.id === selectedId);
         const dayBlackout = window.appState.blackouts.find(b => b.memberId === selectedId && dateStr >= b.startDate && dateStr <= b.endDate);
         if (dayBlackout) {
-          preview.innerHTML = `<span style="color:var(--danger); font-weight:700;">&#9888; Blackout Conflict: ${mem?.name} is on booked leave (${dayBlackout.notes})</span>`;
+          preview.innerHTML = `<span style="color:var(--danger); font-weight:700;">&#9888; Blackout Conflict: ${esc(mem?.name)} is on booked leave (${esc(dayBlackout.notes)})</span>`;
         } else if (mem?.role === 'ALT' && getDayOfWeek(dateStr) >= 1 && getDayOfWeek(dateStr) <= 4) {
           preview.innerHTML = `<span style="color:var(--warning); font-weight:700;">&#9888; Quota Warning: Alternate assigned to mid-week shift. Will trigger administrative exemption badge.</span>`;
         } else {
-          preview.innerHTML = `<span style="color:var(--success); font-weight:600;">&#10003; No blackout conflicts for ${mem?.name}.</span>`;
+          preview.innerHTML = `<span style="color:var(--success); font-weight:600;">&#10003; No blackout conflicts for ${esc(mem?.name)}.</span>`;
         }
       }
 
@@ -3719,10 +3840,10 @@ class StorageAdapter {
 
       list.innerHTML = unmatched.map(alias => `
         <div style="margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border-color);">
-          <div style="font-weight:700; margin-bottom:6px;">Unmatched Alias: <span style="color:var(--danger)">${alias}</span></div>
-          <select class="form-select alias-select" data-alias="${alias}">
+          <div style="font-weight:700; margin-bottom:6px;">Unmatched Alias: <span style="color:var(--danger)">${esc(alias)}</span></div>
+          <select class="form-select alias-select" data-alias="${esc(alias)}">
             <option value="">-- Leave Unassigned --</option>
-            ${allRosterAndHistorical.map(m => `<option value="${m.id}">Map to ${m.name} (${m.role})</option>`).join('')}
+            ${allRosterAndHistorical.map(m => `<option value="${m.id}">Map to ${esc(m.name)} (${m.role})</option>`).join('')}
             <option value="__NEW_INACTIVE__">+ Create as Historical Inactive Member</option>
           </select>
         </div>

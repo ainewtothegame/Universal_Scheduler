@@ -1,0 +1,9 @@
+{
+  "name": "work-calendar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build_single_file.js",
+    "test": "node tests/preferred_weekends_test.js && node tests/solver_test.js > /dev/null && node tests/test_import_reference.js > /dev/null && node tests/regression_test.js && node tests/breakdown_and_holiday_test.cjs > /dev/null && node tests/features_test.cjs > /dev/null"
+  }
+}
