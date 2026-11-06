@@ -1108,11 +1108,60 @@ const htmlContent = `<!DOCTYPE html>
       modalReassign.style.display = 'none';
       modalImport.style.display = 'none';
       modalAlias.style.display = 'none';
+      if (typeof resetMemberForm === 'function') resetMemberForm();
     }
 
     modalOverlay.addEventListener('click', (e) => {
       if (e.target === modalOverlay) closeAllModals();
     });
+
+    // Keyboard handlers:
+    // 1. Esc closes the open menu/modal
+    // 2. Enter in a menu accepts changes and saves
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        if (modalOverlay.classList.contains('open')) {
+          closeAllModals();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        if (modalOverlay.classList.contains('open')) {
+          if (document.activeElement && (document.activeElement.tagName === 'BUTTON' || document.activeElement.tagName === 'A')) {
+            return;
+          }
+          e.preventDefault();
+          if (modalRoster.style.display !== 'none') {
+            document.getElementById('btn-save-new-member').click();
+          } else if (modalBlackouts.style.display !== 'none') {
+            document.getElementById('btn-save-new-blackout').click();
+          } else if (modalPrefs.style.display !== 'none') {
+            document.getElementById('btn-save-new-pref').click();
+          } else if (modalAddCycle.style.display !== 'none') {
+            document.getElementById('btn-confirm-add-cycle').click();
+          } else if (modalReassign.style.display !== 'none') {
+            document.getElementById('btn-save-shift').click();
+          } else if (modalAlias.style.display !== 'none') {
+            document.getElementById('btn-confirm-alias').click();
+          }
+        }
+      }
+    });
+
+    // Helper: Determine if a member is active for a given cycle
+    function isMemberInCycle(m, cycle) {
+      if (!cycle) return true;
+      if (m.activeEnd && cycle.startDate > m.activeEnd) return false;
+      if (m.activeStart && cycle.endDate < m.activeStart) return false;
+      return true;
+    }
+
+    // Helper: Get active members for the currently selected cycle
+    function getCycleRoster() {
+      const cycle = getActiveCycle();
+      return window.appState.roster.filter(m => isMemberInCycle(m, cycle));
+    }
 
     function getActiveCycle() {
       if (!window.appState.cycles[window.appState.activeCycleId]) {
@@ -1137,9 +1186,9 @@ const htmlContent = `<!DOCTYPE html>
     function renderApp() {
       refreshCycleDropdown();
       const cycle = getActiveCycle();
-      rosterCount.textContent = window.appState.roster.length;
-      blackoutCount.textContent = window.appState.blackouts.length;
-      document.getElementById('pref-count').textContent = window.appState.preferredWeekends.length;
+      rosterCount.textContent = getCycleRoster().length;
+      blackoutCount.textContent = cycleBlackouts().length;
+      document.getElementById('pref-count').textContent = cyclePrefs().length;
 
       renderMonthTabs();
       renderCalendar();
@@ -1147,7 +1196,6 @@ const htmlContent = `<!DOCTYPE html>
       renderBreakdown();
     }
 
-    // Render Month Tabs
     function renderMonthTabs() {
       const cycle = getActiveCycle();
       const start = parseDate(cycle.startDate);
@@ -1323,7 +1371,7 @@ const htmlContent = `<!DOCTYPE html>
     function renderBreakdown() {
       const cycle = getActiveCycle();
       const container = document.getElementById('breakdown-table-container');
-      const roster = window.appState.roster;
+      const roster = getCycleRoster();
       const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const start = parseDate(cycle.startDate);
       const end = parseDate(cycle.endDate);
@@ -1419,7 +1467,7 @@ const htmlContent = `<!DOCTYPE html>
     document.getElementById('btn-solve').addEventListener('click', () => {
       storage.pushUndo();
       const cycle = getActiveCycle();
-      const result = solveSchedule(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.manualOverrides, window.appState.preferredWeekends);
+      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, cycle.manualOverrides, window.appState.preferredWeekends);
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
@@ -1474,33 +1522,66 @@ const htmlContent = `<!DOCTYPE html>
 
     function renderRosterList() {
       const list = document.getElementById('roster-items-container');
-      document.getElementById('modal-roster-count').textContent = window.appState.roster.length;
-      document.getElementById('roster-count').textContent = window.appState.roster.length;
+      const cycle = getActiveCycle();
+      const cycleRoster = getCycleRoster();
+      const endedMembers = window.appState.roster.filter(m => !isMemberInCycle(m, cycle));
+
+      document.getElementById('modal-roster-count').textContent = cycleRoster.length;
+      document.getElementById('roster-count').textContent = cycleRoster.length;
 
       const weekdayNames = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday' };
 
-      list.innerHTML = window.appState.roster.map(m => \`
-        <div class="item-card">
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="width:16px; height:16px; border-radius:50%; background:\${m.color}; display:inline-block; flex-shrink:0;"></span>
-            <div>
-              <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-                \${m.name}
-                <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'}">\${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
-              </div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
-                Active: \${m.activeStart} \${m.activeEnd ? \`to \${m.activeEnd}\` : '(Indefinite)'}
-                \${m.baselineWeekday ? \` &bull; Baseline: \${weekdayNames[m.baselineWeekday]}\` : (m.role === 'FT' ? ' &bull; Rotational' : '')}
-                \${(!m.baselineWeekday && m.preferredWeekday) ? \` (prefers \${weekdayNames[m.preferredWeekday]} if available)\` : ''}
+      let html = '';
+      if (cycleRoster.length === 0) {
+        html += '<div style="color:var(--text-muted); padding:16px; text-align:center;">No active investigators for this schedule block.</div>';
+      } else {
+        html += cycleRoster.map(m => \`
+          <div class="item-card">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="width:16px; height:16px; border-radius:50%; background:\${m.color}; display:inline-block; flex-shrink:0;"></span>
+              <div>
+                <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
+                  \${m.name}
+                  <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'}">\${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                  Active: \${m.activeStart} \${m.activeEnd ? ('to ' + m.activeEnd) : '(Indefinite)'}
+                  \${m.baselineWeekday ? (' &bull; Baseline: ' + weekdayNames[m.baselineWeekday]) : (m.role === 'FT' ? ' &bull; Rotational' : '')}
+                  \${(!m.baselineWeekday && m.preferredWeekday) ? (' (prefers ' + weekdayNames[m.preferredWeekday] + ' if available)') : ''}
+                </div>
               </div>
             </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-outline-dark btn-edit-member" data-id="\${m.id}" style="color:var(--primary); border-color:var(--primary); padding:4px 10px; font-size:12px;">Edit</button>
+              <button class="btn btn-outline-dark btn-remove-member" data-id="\${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
+            </div>
           </div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline-dark btn-edit-member" data-id="\${m.id}" style="color:var(--primary); border-color:var(--primary); padding:4px 10px; font-size:12px;">Edit</button>
-            <button class="btn btn-outline-dark btn-remove-member" data-id="\${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
+        \`).join('');
+      }
+
+      if (endedMembers.length > 0) {
+        html += \`
+          <div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--border-color);">
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">
+              Ended / Past Members for this block (\${endedMembers.length} removed from active menu):
+            </div>
+            \${endedMembers.map(m => \`
+              <div class="item-card" style="opacity:0.75; background:#f8fafc; border:1px dashed var(--border-color);">
+                <div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-muted);">\${m.name} (\${m.role})</div>
+                  <div style="font-size:11px; color:var(--danger);">End Date: \${m.activeEnd} (before block start \${cycle.startDate})</div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-outline-dark btn-edit-member" data-id="\${m.id}" style="font-size:11px; padding:3px 8px;">Edit End Date</button>
+                  <button class="btn btn-outline-dark btn-remove-member" data-id="\${m.id}" style="color:var(--danger); border-color:#fca5a5; font-size:11px; padding:3px 8px;">Remove</button>
+                </div>
+              </div>
+            \`).join('')}
           </div>
-        </div>
-      \`).join('');
+        \`;
+      }
+
+      list.innerHTML = html;
 
       list.querySelectorAll('.btn-edit-member').forEach(btn => {
         btn.addEventListener('click', () => startEditMember(btn.getAttribute('data-id')));
@@ -1630,9 +1711,20 @@ const htmlContent = `<!DOCTYPE html>
       openBlackoutsModal();
     });
 
+    // Helper: Get blackouts for the currently selected cycle
+    // In H1/H2, show only blackouts overlapping that portion; in FULL, show all
+    function cycleBlackouts() {
+      const c = getActiveCycle();
+      if (!c || c.blockType === 'FULL') {
+        return window.appState.blackouts;
+      }
+      return window.appState.blackouts.filter(b => b.startDate <= c.endDate && b.endDate >= c.startDate);
+    }
+
     function openBlackoutsModal() {
       const select = document.getElementById('book-member-select');
-      select.innerHTML = window.appState.roster.map(m => \`
+      const cycleRoster = getCycleRoster();
+      select.innerHTML = cycleRoster.map(m => \`
         <option value="\${m.id}">\${m.name} (\${m.role})</option>
       \`).join('');
 
@@ -1648,23 +1740,24 @@ const htmlContent = `<!DOCTYPE html>
 
     function renderBlackoutsList() {
       const list = document.getElementById('blackouts-items-container');
-      document.getElementById('modal-blackouts-count').textContent = window.appState.blackouts.length;
-      document.getElementById('blackout-count').textContent = window.appState.blackouts.length;
+      const blackouts = cycleBlackouts();
+      document.getElementById('modal-blackouts-count').textContent = blackouts.length;
+      document.getElementById('blackout-count').textContent = blackouts.length;
 
-      if (window.appState.blackouts.length === 0) {
-        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No blackout ranges booked yet.</div>';
+      if (blackouts.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No blackout ranges booked for this schedule block.</div>';
         return;
       }
 
-      list.innerHTML = window.appState.blackouts.map(b => {
+      list.innerHTML = blackouts.map(b => {
         const mem = window.appState.roster.find(m => m.id === b.memberId);
         return \`
           <div class="item-card">
             <div>
               <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
-                \${mem?.color ? \`<span style="width:10px; height:10px; border-radius:50%; background:\${mem.color};"></span>\` : ''}
+                \${mem?.color ? ('<span style="width:10px; height:10px; border-radius:50%; background:' + mem.color + ';"></span>') : ''}
                 \${mem?.name || b.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${b.notes ? \`(\${b.notes})\` : ''}</span>
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${b.notes ? ('(' + b.notes + ')') : ''}</span>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
                 \${b.startDate} &rarr; \${b.endDate}
@@ -1724,14 +1817,20 @@ const htmlContent = `<!DOCTYPE html>
     // -------------------------------------------------------------
     // 2b. Requested Weekends Handlers
     // -------------------------------------------------------------
+    // Helper: Get requested weekends for the currently selected cycle
+    // In H1/H2, show only requests for that portion; in FULL, show all
     function cyclePrefs() {
       const c = getActiveCycle();
+      if (!c || c.blockType === 'FULL') {
+        return window.appState.preferredWeekends;
+      }
       return window.appState.preferredWeekends.filter(p => p.weekendFriday >= c.startDate && p.weekendFriday <= c.endDate);
     }
 
     document.getElementById('btn-open-prefs').addEventListener('click', () => {
       const cycle = getActiveCycle();
-      document.getElementById('pref-member-select').innerHTML = window.appState.roster.map(m =>
+      const cycleRoster = getCycleRoster();
+      document.getElementById('pref-member-select').innerHTML = cycleRoster.map(m =>
         \`<option value="\${m.id}">\${m.name} (\${m.role})</option>\`).join('');
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
       document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
@@ -1748,7 +1847,7 @@ const htmlContent = `<!DOCTYPE html>
       const list = document.getElementById('pref-items-container');
       const prefs = cyclePrefs().sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday));
       document.getElementById('modal-pref-count').textContent = prefs.length;
-      document.getElementById('pref-count').textContent = window.appState.preferredWeekends.length;
+      document.getElementById('pref-count').textContent = prefs.length;
       if (prefs.length === 0) {
         list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No requested weekends for this block.</div>';
         return;
@@ -1759,17 +1858,19 @@ const htmlContent = `<!DOCTYPE html>
           <div class="item-card">
             <div>
               <div style="font-weight:700; font-size:13px;">&#11088; \${mem ? mem.name : p.memberId}
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${p.notes ? \`(\${p.notes})\` : ''}</span></div>
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${p.notes ? ('(' + p.notes + ')') : ''}</span></div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Weekend starting Fri \${p.weekendFriday}</div>
             </div>
             <button class="btn btn-outline-dark btn-delete-pref" data-id="\${p.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
           </div>\`;
       }).join('');
+
       list.querySelectorAll('.btn-delete-pref').forEach(btn => {
         btn.addEventListener('click', () => {
           window.appState.preferredWeekends = window.appState.preferredWeekends.filter(p => p.id !== btn.getAttribute('data-id'));
           storage.saveState();
           renderPrefsList();
+          renderApp();
           showToast('Requested weekend removed. Re-run Auto-Generate to apply.');
         });
       });
@@ -1788,6 +1889,7 @@ const htmlContent = `<!DOCTYPE html>
       storage.saveState();
       document.getElementById('pref-notes-input').value = '';
       renderPrefsList();
+      renderApp();
       showToast('Requested weekend added. Click Auto-Generate Schedule to apply.');
     });
 
@@ -1874,8 +1976,15 @@ const htmlContent = `<!DOCTYPE html>
 
       document.getElementById('reassign-date-title').textContent = \`Duty Assignment: \${dateStr}\`;
       const select = document.getElementById('reassign-member-select');
+      
+      const availableMembers = window.appState.roster.filter(m => {
+        if (m.activeStart && dateStr < m.activeStart) return false;
+        if (m.activeEnd && dateStr > m.activeEnd) return false;
+        return true;
+      });
+
       select.innerHTML = '<option value="">-- UNASSIGNED --</option>' +
-        window.appState.roster.map(m => \`
+        availableMembers.map(m => \`
           <option value="\${m.id}" \${m.id === currentAssigned ? 'selected' : ''}>
             \${m.name} (\${m.role})
           </option>
