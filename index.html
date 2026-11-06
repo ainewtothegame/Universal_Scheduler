@@ -1254,9 +1254,14 @@ function identifyWeekends(startDateStr, endDateStr, holidays) {
  * Master 5-Stage Stratified CSP Solver
  */
 function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}, preferredWeekends = []) {
-  const assignments = { ...manualOverrides };
+  // Only real member ids count as locked shifts; ignore legacy boolean flags (`true`) that older
+  // versions of the UI stored here, which would otherwise be written into the schedule as a "member".
+  const lockedShifts = {};
+  Object.entries(manualOverrides || {}).forEach(([d, id]) => { if (typeof id === 'string' && id) lockedShifts[d] = id; });
+  const assignments = { ...lockedShifts };
   const diagnostics = {};
   const preferenceWarnings = [];
+  const scheduleNotices = []; // things the user should act on that are not skipped requests
   const activeFTs = roster.filter(m => m.role === 'FT');
   const activeALTs = roster.filter(m => m.role === 'ALT');
 
@@ -1294,7 +1299,9 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   // STAGE 0: Lock Requested ("Want to Work") Weekends
   // =========================================================================
   // Requested weekends are hard constraints. Everything else is scheduled around them.
-  // A request is skipped (with a warning) only if it is physically impossible:
+  // Order of precedence: (1) blackouts / tenure, (2) requested weekends, (3) everything else.
+  // A requested weekend is ALWAYS honored, even beyond an Alternate's normal quota; it is skipped
+  // (with a warning) only if it is physically impossible:
   // already locked manually, blackout/inactive, a second member requesting the same
   // weekend, or the same member requesting back-to-back weekends (rest rule).
   [...preferredWeekends]
@@ -1334,46 +1341,54 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
     });
 
   // =========================================================================
-  // STAGE 1: Lock Manuals & Phase 2 Proactive Leave Lookaheads
+  // STAGE 1: Mandatory Alternate Weekends Before FT Leave (Spec §7)
   // =========================================================================
-  // Detect any active FT member with leave covering >= 3 consecutive mid-week days or full week in Phase 2
+  // When a full-time member is off for most of a Phase 2 week, only two FTs remain and the
+  // post-weekend rest rule would leave one person covering Wed AND Thu (or worse). The spec
+  // therefore REQUIRES an Alternate on the weekend before such a leave (e.g. May 7-9, Jun 25-27).
+  // This runs AFTER requested weekends are locked: requests are never moved or dropped. If no
+  // Alternate has quota left for such a weekend, it is reported in `scheduleNotices` so the user
+  // can ask an Alternate whether they could give a different weekend instead.
   weekends.forEach(w => {
-    // Only apply in Phase 2 (or if active FT count < 4)
-    if (w.phase === 2 && !weekendAssignments[w.index]) {
-      // The week following weekend w is week W. The weekdays are Mon w.monday through Thu
-      const midWeekDays = [w.monday, formatDate(addDays(w.monday, 1)), formatDate(addDays(w.monday, 2)), formatDate(addDays(w.monday, 3))];
-      
-      // Check if any active FT has >= 3 blackout days in this mid-week window
-      const ftOnLeave = activeFTs.find(ft => {
-        if (!isMemberActive(ft, w.monday)) return false;
-        const blackedDays = midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts));
-        return blackedDays.length >= 3;
-      });
+    if (w.phase !== 2 || weekendAssignments[w.index]) return;
+    const midWeekDays = [0, 1, 2, 3].map(n => formatDate(addDays(w.monday, n)));
+    const ftOnLeave = activeFTs.find(ft => {
+      if (!isMemberActive(ft, w.monday)) return false;
+      return midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length >= 3;
+    });
+    if (!ftOnLeave) return;
 
-      if (ftOnLeave) {
-        // Must place an eligible Alternate on weekend w (the weekend preceding ftOnLeave's vacation)
-        // Find candidate Alternate
-        const prevWeekendWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
-        const candidateAlt = activeALTs.find(alt => {
-          if (!isMemberActive(alt, w.friday)) return false;
-          // Check quota: max configured per block
-          if (altQuotaConsumed[`${alt.id}|${halfOf(w)}`] >= altTargetQuotas[`${alt.id}|${halfOf(w)}`]) return false;
-          // Check non-consecutive
-          if (prevWeekendWorker === alt.id) return false;
-          // Check blackouts for Fri, Sat, Sun, and attached Monday if applicable
-          const checkDates = [w.friday, w.saturday, w.sunday];
-          if (w.attachedMonday) checkDates.push(w.attachedMonday);
-          const hasBlackout = checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts));
-          return !hasBlackout;
-        });
+    const prevWeekendWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
+    const nextWeekendWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
+    const key = (alt) => `${alt.id}|${halfOf(w)}`;
+    const candidates = activeALTs.filter(alt => {
+      if (!isMemberActive(alt, w.friday)) return false;
+      if (altQuotaConsumed[key(alt)] >= altTargetQuotas[key(alt)]) return false;
+      if (prevWeekendWorker === alt.id || nextWeekendWorker === alt.id) return false;
+      const checkDates = [w.friday, w.saturday, w.sunday];
+      if (w.attachedMonday) checkDates.push(w.attachedMonday);
+      return !checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts));
+    });
+    // Most remaining quota first, then roster order.
+    candidates.sort((x, y) =>
+      (altTargetQuotas[key(y)] - altQuotaConsumed[key(y)]) - (altTargetQuotas[key(x)] - altQuotaConsumed[key(x)]));
 
-        if (candidateAlt) {
-          weekendAssignments[w.index] = candidateAlt.id;
-          altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] = (altQuotaConsumed[`${candidateAlt.id}|${halfOf(w)}`] || 0) + 1;
-        } else {
-          diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
-        }
-      }
+    const label = `${w.friday} to ${w.sunday}`;
+    if (candidates.length > 0) {
+      weekendAssignments[w.index] = candidates[0].id;
+      altQuotaConsumed[key(candidates[0])] = (altQuotaConsumed[key(candidates[0])] || 0) + 1;
+    } else {
+      const withRequests = [...new Set(preferredWeekends
+        .filter(p => { const pw = weekends.find(x => x.friday === p.weekendFriday); return pw && halfOf(pw) === halfOf(w); })
+        .map(p => roster.find(m => m.id === p.memberId))
+        .filter(m => m && m.role === 'ALT')
+        .map(m => m.name))];
+      diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
+      scheduleNotices.push(
+        `Weekend ${label} should be worked by an Alternate (${ftOnLeave.name} is off that following week, and the other two full-time members cannot cover it without long stretches), ` +
+        `but no Alternate has an open weekend: their requested weekends already use their quota` +
+        (withRequests.length ? ` (${withRequests.join(', ')} have requests in this period)` : '') +
+        `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`);
     }
   });
 
@@ -1596,7 +1611,22 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   // =========================================================================
   // STAGE 5: Mid-Week Allocation (Phase 1 Baseline vs. Phase 2 Dynamic Equity)
   // =========================================================================
-  const effectiveLoad = (ft, dow) => (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
+  // Soft preference: a full-timer who works the coming Fri-Mon weekend should, where possible,
+  // not also take the Thursday just before it (that makes 5 days on call in a row). It is a
+  // tiebreak only: it counts as extra weekday load, so it never overrides blackouts, the rest
+  // rule, or keeps weekday loads from staying within about one shift of each other.
+  const THURSDAY_BEFORE_OWN_WEEKEND_PENALTY = 2;
+  const weekendWorkerStartingOn = (fridayStr) => {
+    const w = weekends.find(x => x.friday === fridayStr);
+    return w ? weekendAssignments[w.index] : null;
+  };
+  const effectiveLoad = (ft, dow, dateStr) => {
+    let load = (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
+    if (dow === 4 && dateStr && weekendWorkerStartingOn(formatDate(addDays(dateStr, 1))) === ft.id) {
+      load += THURSDAY_BEFORE_OWN_WEEKEND_PENALTY;
+    }
+    return load;
+  };
 
   // Collect all dates from start to end
   let walker = parseDate(cycle.startDate);
@@ -1637,7 +1667,11 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
         const isBlackedOut = isMemberBlackedOut(candidateId, dateStr, blackouts);
         const isActive = candidate && isMemberActive(candidate, dateStr);
 
-        if (!isRestBlocked && !isBlackedOut && isActive) {
+        const worksNextWeekend = dow === 4 && candidateId && weekendWorkerStartingOn(formatDate(addDays(dateStr, 1))) === candidateId;
+        const swapAvailable = worksNextWeekend && activeFTs.some(ft =>
+          ft.id !== candidateId && isMemberActive(ft, dateStr) && !isMemberBlackedOut(ft.id, dateStr, blackouts) && ft.id !== restBlockedMemberId);
+
+        if (!isRestBlocked && !isBlackedOut && isActive && !swapAvailable) {
           assignments[dateStr] = candidateId;
           weekdayCounts[candidateId] = (weekdayCounts[candidateId] || 0) + 1;
         } else {
@@ -1648,7 +1682,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
             if ((dow === 3 || dow === 4) && ft.id === restBlockedMemberId) return false;
             return true;
           });
-          eligibleSwaps.sort((a, b) => effectiveLoad(a, dow) - effectiveLoad(b, dow));
+          eligibleSwaps.sort((a, b) => effectiveLoad(a, dow, dateStr) - effectiveLoad(b, dow, dateStr));
 
           if (eligibleSwaps.length > 0) {
             assignments[dateStr] = eligibleSwaps[0].id;
@@ -1669,7 +1703,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
 
         // Dynamic balance: lowest weekday load wins; a member's 'preferred day if available'
         // counts as a one-shift head start so it only wins when it keeps loads within 1 of fair.
-        eligibleFTs.sort((a, b) => effectiveLoad(a, dow) - effectiveLoad(b, dow));
+        eligibleFTs.sort((a, b) => effectiveLoad(a, dow, dateStr) - effectiveLoad(b, dow, dateStr));
 
         if (eligibleFTs.length > 0) {
           assignments[dateStr] = eligibleFTs[0].id;
@@ -1685,7 +1719,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   // (e.g. a Dec 31 Friday). Drop auto-generated days outside the cycle range;
   // explicit manual overrides are kept untouched.
   Object.keys(assignments).forEach(d => {
-    if ((d < cycle.startDate || d > cycle.endDate) && !(d in manualOverrides)) {
+    if ((d < cycle.startDate || d > cycle.endDate) && !(d in lockedShifts)) {
       delete assignments[d];
     }
   });
@@ -1694,6 +1728,7 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
     assignments,
     diagnostics,
     preferenceWarnings,
+    scheduleNotices,
     weekends
   };
 }
@@ -3123,7 +3158,13 @@ class StorageAdapter {
     document.getElementById('btn-solve').addEventListener('click', () => {
       storage.pushUndo();
       const cycle = getActiveCycle();
-      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, cycle.manualOverrides, window.appState.preferredWeekends);
+      // manualOverrides stores a flag per date; the solver needs the member the user chose for it.
+      const lockedShifts = {};
+      Object.keys(cycle.manualOverrides || {}).forEach(d => {
+        const memberId = cycle.assignments[d];
+        if (memberId) lockedShifts[d] = memberId;
+      });
+      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, lockedShifts, window.appState.preferredWeekends);
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
@@ -3151,8 +3192,13 @@ class StorageAdapter {
       }
       storage.saveState();
       renderApp();
-      if (result.preferenceWarnings && result.preferenceWarnings.length) {
-        alert('Schedule generated, but these requested weekends could not be honored:\n\n' + result.preferenceWarnings.join('\n'));
+      const notices = result.scheduleNotices || [];
+      const prefWarn = result.preferenceWarnings || [];
+      if (notices.length || prefWarn.length) {
+        let msg = 'Schedule generated.';
+        if (prefWarn.length) msg += '\n\nThese requested weekends could not be honored:\n' + prefWarn.join('\n');
+        if (notices.length) msg += '\n\nNeeds your attention:\n' + notices.join('\n\n');
+        alert(msg);
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
       }
@@ -3272,13 +3318,25 @@ class StorageAdapter {
           altBlockEl.style.display = 'none';
         } else {
           altBlockEl.style.display = 'block';
+          const countCycle = getActiveCycle();
+          const countWeekends = identifyWeekends(countCycle.startDate, countCycle.endDate, window.appState.holidays);
+          const scheduledIn = (altId, half) => countWeekends.filter(w =>
+            (countCycle.assignments || {})[w.saturday] === altId &&
+            (half === null || (w.friday.slice(5) < '07-01') === (half === 'H1'))).length;
+          const hasH1 = countWeekends.some(w => w.friday.slice(5) < '07-01');
+          const hasH2 = countWeekends.some(w => w.friday.slice(5) >= '07-01');
           altListEl.innerHTML = altMembersInRoster.map(alt => {
+            const total = scheduledIn(alt.id, null);
+            const split = (hasH1 && hasH2)
+              ? `H1: ${scheduledIn(alt.id, 'H1')} &middot; H2: ${scheduledIn(alt.id, 'H2')}`
+              : '';
             const quotaVal = (alt.weekendsPerSixMonths !== undefined && alt.weekendsPerSixMonths !== null) ? alt.weekendsPerSixMonths : 3;
             return `
               <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:${alt.color}; display:inline-block;"></span>
                   <span>${esc(alt.name)}</span>
+                  <span title="Weekends scheduled for ${esc(alt.name)} in the selected block${split ? ' (' + split.replace('&middot;', ',') + ')' : ''}" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700;">${total} scheduled${split ? ' <span style="font-weight:600; opacity:0.8;">(' + split + ')</span>' : ''}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                   <input type="number" class="form-input alt-quick-quota-input" data-id="${alt.id}" value="${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
@@ -3562,20 +3620,59 @@ class StorageAdapter {
     document.getElementById('btn-open-prefs').addEventListener('click', () => {
       const cycle = getActiveCycle();
       const cycleRoster = getCycleRoster();
-      document.getElementById('pref-member-select').innerHTML = cycleRoster.map(m =>
-        `<option value="${m.id}">${esc(m.name)} (${m.role})</option>`).join('');
-      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
-      document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
-        const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
-        return `<option value="${w.friday}">Fri ${w.friday} to Sun ${w.sunday}${hol}</option>`;
-      }).join('');
+      refreshPrefWeekendSelect();
       renderPrefsList();
       closeAllModals();
       modalOverlay.classList.add('open');
       modalPrefs.style.display = 'flex';
     });
 
+    // Investigator dropdown: alternates show how many weekends they are scheduled
+    // for in this block, plus how many requests are waiting for the next Auto-Generate.
+    function refreshPrefMemberSelect() {
+      const cycle = getActiveCycle();
+      const select = document.getElementById('pref-member-select');
+      const previous = select.value;
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
+      const prefs = cyclePrefs();
+      select.innerHTML = getCycleRoster().map(m => {
+        let label = `${esc(m.name)} (${m.role})`;
+        if (m.role === 'ALT') {
+          const scheduled = weekends.filter(w => (cycle.assignments || {})[w.saturday] === m.id).length;
+          const requested = prefs.filter(p => p.memberId === m.id).length;
+          label += ` — ${scheduled} scheduled${requested ? ', ' + requested + ' requested' : ''}`;
+        }
+        return `<option value="${m.id}">${label}</option>`;
+      }).join('');
+      if (previous && Array.from(select.options).some(o => o.value === previous)) select.value = previous;
+    }
+
+    // Weekend dropdown lists only weekends nobody has requested yet, so a weekend
+    // can never be requested twice. Re-run after every add/delete.
+    function refreshPrefWeekendSelect() {
+      refreshPrefMemberSelect();
+      const cycle = getActiveCycle();
+      const select = document.getElementById('pref-weekend-select');
+      const addBtn = document.getElementById('btn-save-new-pref');
+      const previous = select.value;
+      const taken = new Set(window.appState.preferredWeekends.map(p => p.weekendFriday));
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays)
+        .filter(w => !taken.has(w.friday));
+      if (weekends.length === 0) {
+        select.innerHTML = '<option value="">All weekends in this block are already requested</option>';
+        addBtn.disabled = true;
+        return;
+      }
+      addBtn.disabled = false;
+      select.innerHTML = weekends.map(w => {
+        const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
+        return `<option value="${w.friday}">Fri ${w.friday} to Sun ${w.sunday}${hol}</option>`;
+      }).join('');
+      if (weekends.some(w => w.friday === previous)) select.value = previous;
+    }
+
     function renderPrefsList() {
+      refreshPrefWeekendSelect();
       const list = document.getElementById('pref-items-container');
       const prefs = cyclePrefs().sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday));
       document.getElementById('modal-pref-count').textContent = prefs.length;
@@ -3613,8 +3710,9 @@ class StorageAdapter {
       const weekendFriday = document.getElementById('pref-weekend-select').value;
       const notes = document.getElementById('pref-notes-input').value.trim();
       if (!memberId || !weekendFriday) { alert('Choose an investigator and a weekend.'); return; }
-      if (window.appState.preferredWeekends.some(p => p.memberId === memberId && p.weekendFriday === weekendFriday)) {
-        alert('That request already exists.');
+      if (window.appState.preferredWeekends.some(p => p.weekendFriday === weekendFriday)) {
+        alert('That weekend has already been requested.');
+        refreshPrefWeekendSelect();
         return;
       }
       window.appState.preferredWeekends.push({ id: `p_${Date.now()}`, memberId, weekendFriday, notes });

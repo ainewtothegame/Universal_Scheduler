@@ -159,3 +159,98 @@ console.log('PASS ft weekend backtracking');
   delete globalThis.window;
 }
 console.log('PASS unreadable state preserved');
+
+// 10. Requested-weekend dropdown hides taken weekends; roster shows scheduled counts
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('function refreshPrefWeekendSelect'));
+  assert(html.includes('.filter(w => !taken.has(w.friday))'));
+  assert(html.includes('scheduled'));
+}
+console.log('PASS requested-weekend filter + scheduled counts present');
+
+// 11. Investigator dropdown shows scheduled/requested counts for alternates
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('function refreshPrefMemberSelect'));
+  assert(html.includes(' scheduled${requested'));
+}
+console.log('PASS investigator dropdown counts present');
+
+// 12. Requested weekends are ALWAYS honored (blackouts first, requests second, then fill).
+// If the requests use all alternate quota, the spec §7 weekends (May 7-9, Jun 25-27) cannot get an
+// Alternate: the solver must keep every request and tell the user instead of dropping a request.
+{
+  const roster = D.DEFAULT_2027_ROSTER;
+  const req = (memberId, weekendFriday) => ({ id: memberId + weekendFriday, memberId, weekendFriday, notes: '' });
+  const prefs = [
+    req('chester', '2027-04-02'), req('zeiders', '2027-01-22'), req('zeiders', '2027-02-19'),
+    req('zeiders', '2027-04-16'), req('chester', '2027-02-05'), req('chester', '2027-06-11'),
+    req('reed', '2027-02-26'), req('reed', '2027-05-21'), req('reed', '2027-04-23')
+  ];
+  const c = cycles[0];
+  const r = solveSchedule(c, roster, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, prefs);
+  prefs.forEach(p => {
+    const w = r.weekends.find(x => x.friday === p.weekendFriday);
+    assert.strictEqual(r.assignments[w.saturday], p.memberId, `request honored ${p.weekendFriday}`);
+  });
+  assert.deepStrictEqual(r.preferenceWarnings, [], 'no request skipped');
+  assert.strictEqual(r.scheduleNotices.length, 2, 'both spec §7 weekends reported');
+  assert(r.scheduleNotices.some(n => n.includes('2027-05-07')) && r.scheduleNotices.some(n => n.includes('2027-06-25')));
+  assert(r.scheduleNotices.every(n => /ask an Alternate/i.test(n)));
+
+  // With room in the quota (one request fewer per alternate) the required weekends DO get an Alternate
+  const fewer = prefs.filter(p => !['2027-04-16', '2027-06-11', '2027-04-23'].includes(p.weekendFriday));
+  const r2 = solveSchedule(c, roster, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, fewer);
+  assert.strictEqual(r2.scheduleNotices.length, 0);
+  assert.strictEqual(role(r2.assignments['2027-05-07']), 'ALT');
+  assert.strictEqual(role(r2.assignments['2027-06-25']), 'ALT');
+  fewer.forEach(p => {
+    const w = r2.weekends.find(x => x.friday === p.weekendFriday);
+    assert.strictEqual(r2.assignments[w.saturday], p.memberId, 'still honored ' + p.weekendFriday);
+  });
+  function role(id) { return roster.find(m => m.id === id).role; }
+}
+console.log('PASS requests honored first; spec §7 conflicts reported');
+
+// 12b. A request that falls in a blackout is the only thing skipped (blackouts come first)
+{
+  const prefs = [{ id: 'x', memberId: 'polcha', weekendFriday: '2027-01-15', notes: '' }]; // POLCHA off Jan 16-17
+  const r = solveSchedule(cycles[0], D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, prefs);
+  assert(r.preferenceWarnings.some(w => /blackout/.test(w)));
+  assert.notStrictEqual(r.assignments['2027-01-16'], 'polcha');
+}
+console.log('PASS blackout beats request');
+
+// 13. Legacy boolean manual-override flags never become a "member"
+{
+  const c = cycles[0];
+  const r = solveSchedule(c, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, { '2027-03-02': true, '2027-03-09': 'terek' }, []);
+  assert.notStrictEqual(r.assignments['2027-03-02'], true);
+  assert(typeof r.assignments['2027-03-02'] === 'string');
+  assert.strictEqual(r.assignments['2027-03-09'], 'terek');
+}
+console.log('PASS manual override flags');
+
+// 14. Soft preference: an FT who works the coming Fri-Mon weekend does not also take the Thursday before it
+{
+  const plus = (d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+  for (const c of cycles) {
+    const r = solveSchedule(c, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, []);
+    const bad = r.weekends.filter(w => {
+      const who = r.assignments[w.friday];
+      return who && r.assignments[plus(w.friday, -1)] === who && D.DEFAULT_2027_ROSTER.find(m => m.id === who).role === 'FT';
+    }).map(w => w.friday);
+    assert.deepStrictEqual(bad, [], `${c.blockType}: Thursday before own weekend`);
+  }
+  // ...and weekday load stays balanced among the full-year FTs
+  const r = solveSchedule(cycles[2], D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, []);
+  const cnt = { polcha: 0, terek: 0, wolfe: 0 };
+  Object.entries(r.assignments).forEach(([d, id]) => {
+    const dw = new Date(d + 'T00:00:00').getDay();
+    if (dw >= 1 && dw <= 4 && cnt[id] !== undefined) cnt[id]++;
+  });
+  const v = Object.values(cnt);
+  assert(Math.max(...v) - Math.min(...v) <= 3, 'weekday balance ' + JSON.stringify(cnt));
+}
+console.log('PASS Thursday-before-own-weekend preference');

@@ -1739,7 +1739,13 @@ const htmlContent = `<!DOCTYPE html>
     document.getElementById('btn-solve').addEventListener('click', () => {
       storage.pushUndo();
       const cycle = getActiveCycle();
-      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, cycle.manualOverrides, window.appState.preferredWeekends);
+      // manualOverrides stores a flag per date; the solver needs the member the user chose for it.
+      const lockedShifts = {};
+      Object.keys(cycle.manualOverrides || {}).forEach(d => {
+        const memberId = cycle.assignments[d];
+        if (memberId) lockedShifts[d] = memberId;
+      });
+      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, lockedShifts, window.appState.preferredWeekends);
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
@@ -1767,8 +1773,13 @@ const htmlContent = `<!DOCTYPE html>
       }
       storage.saveState();
       renderApp();
-      if (result.preferenceWarnings && result.preferenceWarnings.length) {
-        alert('Schedule generated, but these requested weekends could not be honored:\\n\\n' + result.preferenceWarnings.join('\\n'));
+      const notices = result.scheduleNotices || [];
+      const prefWarn = result.preferenceWarnings || [];
+      if (notices.length || prefWarn.length) {
+        let msg = 'Schedule generated.';
+        if (prefWarn.length) msg += '\\n\\nThese requested weekends could not be honored:\\n' + prefWarn.join('\\n');
+        if (notices.length) msg += '\\n\\nNeeds your attention:\\n' + notices.join('\\n\\n');
+        alert(msg);
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
       }
@@ -1888,13 +1899,25 @@ const htmlContent = `<!DOCTYPE html>
           altBlockEl.style.display = 'none';
         } else {
           altBlockEl.style.display = 'block';
+          const countCycle = getActiveCycle();
+          const countWeekends = identifyWeekends(countCycle.startDate, countCycle.endDate, window.appState.holidays);
+          const scheduledIn = (altId, half) => countWeekends.filter(w =>
+            (countCycle.assignments || {})[w.saturday] === altId &&
+            (half === null || (w.friday.slice(5) < '07-01') === (half === 'H1'))).length;
+          const hasH1 = countWeekends.some(w => w.friday.slice(5) < '07-01');
+          const hasH2 = countWeekends.some(w => w.friday.slice(5) >= '07-01');
           altListEl.innerHTML = altMembersInRoster.map(alt => {
+            const total = scheduledIn(alt.id, null);
+            const split = (hasH1 && hasH2)
+              ? \`H1: \${scheduledIn(alt.id, 'H1')} &middot; H2: \${scheduledIn(alt.id, 'H2')}\`
+              : '';
             const quotaVal = (alt.weekendsPerSixMonths !== undefined && alt.weekendsPerSixMonths !== null) ? alt.weekendsPerSixMonths : 3;
             return \`
               <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:\${alt.color}; display:inline-block;"></span>
                   <span>\${esc(alt.name)}</span>
+                  <span title="Weekends scheduled for \${esc(alt.name)} in the selected block\${split ? ' (' + split.replace('&middot;', ',') + ')' : ''}" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700;">\${total} scheduled\${split ? ' <span style="font-weight:600; opacity:0.8;">(' + split + ')</span>' : ''}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                   <input type="number" class="form-input alt-quick-quota-input" data-id="\${alt.id}" value="\${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
@@ -2178,20 +2201,59 @@ const htmlContent = `<!DOCTYPE html>
     document.getElementById('btn-open-prefs').addEventListener('click', () => {
       const cycle = getActiveCycle();
       const cycleRoster = getCycleRoster();
-      document.getElementById('pref-member-select').innerHTML = cycleRoster.map(m =>
-        \`<option value="\${m.id}">\${esc(m.name)} (\${m.role})</option>\`).join('');
-      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
-      document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
-        const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
-        return \`<option value="\${w.friday}">Fri \${w.friday} to Sun \${w.sunday}\${hol}</option>\`;
-      }).join('');
+      refreshPrefWeekendSelect();
       renderPrefsList();
       closeAllModals();
       modalOverlay.classList.add('open');
       modalPrefs.style.display = 'flex';
     });
 
+    // Investigator dropdown: alternates show how many weekends they are scheduled
+    // for in this block, plus how many requests are waiting for the next Auto-Generate.
+    function refreshPrefMemberSelect() {
+      const cycle = getActiveCycle();
+      const select = document.getElementById('pref-member-select');
+      const previous = select.value;
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
+      const prefs = cyclePrefs();
+      select.innerHTML = getCycleRoster().map(m => {
+        let label = \`\${esc(m.name)} (\${m.role})\`;
+        if (m.role === 'ALT') {
+          const scheduled = weekends.filter(w => (cycle.assignments || {})[w.saturday] === m.id).length;
+          const requested = prefs.filter(p => p.memberId === m.id).length;
+          label += \` \u2014 \${scheduled} scheduled\${requested ? ', ' + requested + ' requested' : ''}\`;
+        }
+        return \`<option value="\${m.id}">\${label}</option>\`;
+      }).join('');
+      if (previous && Array.from(select.options).some(o => o.value === previous)) select.value = previous;
+    }
+
+    // Weekend dropdown lists only weekends nobody has requested yet, so a weekend
+    // can never be requested twice. Re-run after every add/delete.
+    function refreshPrefWeekendSelect() {
+      refreshPrefMemberSelect();
+      const cycle = getActiveCycle();
+      const select = document.getElementById('pref-weekend-select');
+      const addBtn = document.getElementById('btn-save-new-pref');
+      const previous = select.value;
+      const taken = new Set(window.appState.preferredWeekends.map(p => p.weekendFriday));
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays)
+        .filter(w => !taken.has(w.friday));
+      if (weekends.length === 0) {
+        select.innerHTML = '<option value="">All weekends in this block are already requested</option>';
+        addBtn.disabled = true;
+        return;
+      }
+      addBtn.disabled = false;
+      select.innerHTML = weekends.map(w => {
+        const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
+        return \`<option value="\${w.friday}">Fri \${w.friday} to Sun \${w.sunday}\${hol}</option>\`;
+      }).join('');
+      if (weekends.some(w => w.friday === previous)) select.value = previous;
+    }
+
     function renderPrefsList() {
+      refreshPrefWeekendSelect();
       const list = document.getElementById('pref-items-container');
       const prefs = cyclePrefs().sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday));
       document.getElementById('modal-pref-count').textContent = prefs.length;
@@ -2229,8 +2291,9 @@ const htmlContent = `<!DOCTYPE html>
       const weekendFriday = document.getElementById('pref-weekend-select').value;
       const notes = document.getElementById('pref-notes-input').value.trim();
       if (!memberId || !weekendFriday) { alert('Choose an investigator and a weekend.'); return; }
-      if (window.appState.preferredWeekends.some(p => p.memberId === memberId && p.weekendFriday === weekendFriday)) {
-        alert('That request already exists.');
+      if (window.appState.preferredWeekends.some(p => p.weekendFriday === weekendFriday)) {
+        alert('That weekend has already been requested.');
+        refreshPrefWeekendSelect();
         return;
       }
       window.appState.preferredWeekends.push({ id: \`p_\${Date.now()}\`, memberId, weekendFriday, notes });
