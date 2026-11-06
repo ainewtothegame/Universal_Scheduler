@@ -61,8 +61,10 @@ When a **Full-Time (FT)** member works a weekend (Weekend $W$), they are schedul
 * **Phase 1 Impact:** If WOLFE works Weekend $W$, WOLFE cannot work Wednesday of Week $W+1$. If TEREK works Weekend $W$, TEREK cannot work Thursday of Week $W+1$. Swap their weekday on-call shifts with an eligible FT member.
 * **Phase 2 Impact:** With only 3 active FT members (POLCHA, TEREK, WOLFE), the FT member who worked Weekend $W$ (Fri–Mon) may **only** be scheduled on **Tuesday** during Week $W+1$ (if needed), leaving the other 2 FT members to split **Wednesday and Thursday** of Week $W+1$.
 
-### Soft Preference (not a hard rule): Thursday Before Your Own Weekend
-When assigning a Thursday, avoid the FT member who is scheduled to work the Friday–Monday weekend that starts the next day, so they are not on call 5 days in a row. This is a tiebreak applied in the weekday allocation: it never overrides blackouts, the Post-Weekend Rest Rule, or Full-Time weekday equity, and it is used only when another eligible FT member is available.
+### Soft Preference (not a hard rule): The Week Leading Into Your Own Weekend
+In Phase 2, when a Full-Time member works a Friday–Monday weekend, the weekdays before it should look like this (example): **Tuesday POLCHA, Wednesday WOLFE, Thursday POLCHA, then WOLFE works Friday–Monday.** That is, the weekend worker takes the **Wednesday** but is kept off **Tuesday and Thursday**, so they get a day off before the weekend and are not on call 5+ days in a row. The Thursday avoidance also applies in Phase 1 (the Phase 1 baseline days are otherwise unchanged).
+
+These are tiebreaks applied in the weekday allocation: they never override blackouts, the Post-Weekend Rest Rule, or Full-Time weekday equity, and they apply only when another eligible FT member is available (e.g. during a week when one FT is on leave, the pattern cannot always hold).
 
 ---
 

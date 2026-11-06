@@ -254,3 +254,22 @@ console.log('PASS manual override flags');
   assert(Math.max(...v) - Math.min(...v) <= 3, 'weekday balance ' + JSON.stringify(cnt));
 }
 console.log('PASS Thursday-before-own-weekend preference');
+
+// 15. Week leading into a full-timer's own weekend (Phase 2): Tue other, Wed = weekend worker, Thu other
+{
+  const plus = (d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+  const r = solveSchedule(cycles[2], D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, []);
+  const A = r.assignments;
+  let held = 0, total = 0;
+  const forcedWeeks = new Set(['2027-05-14']); // WOLFE on vacation May 10-14: only two FTs available
+  r.weekends.forEach(w => {
+    if (w.phase !== 2) return;
+    const W = A[w.friday];
+    if (!W || D.DEFAULT_2027_ROSTER.find(m => m.id === W).role !== 'FT') return;
+    total++;
+    const ok = A[plus(w.friday, -2)] === W && A[plus(w.friday, -3)] !== W && A[plus(w.friday, -1)] !== W;
+    if (ok) held++; else assert(forcedWeeks.has(w.friday), 'unexpected exception ' + w.friday);
+  });
+  assert(held >= total - 1, `pattern held ${held}/${total}`);
+}
+console.log('PASS Tue other / Wed weekend worker / Thu other pattern');

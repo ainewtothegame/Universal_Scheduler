@@ -429,19 +429,28 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // =========================================================================
   // STAGE 5: Mid-Week Allocation (Phase 1 Baseline vs. Phase 2 Dynamic Equity)
   // =========================================================================
-  // Soft preference: a full-timer who works the coming Fri-Mon weekend should, where possible,
-  // not also take the Thursday just before it (that makes 5 days on call in a row). It is a
-  // tiebreak only: it counts as extra weekday load, so it never overrides blackouts, the rest
-  // rule, or keeps weekday loads from staying within about one shift of each other.
-  const THURSDAY_BEFORE_OWN_WEEKEND_PENALTY = 2;
+  // Soft preference for the week leading into a full-timer's own Fri-Mon weekend (Phase 2):
+  //   Tue = someone else, Wed = the weekend worker, Thu = someone else, Fri-Mon = the weekend worker.
+  // e.g. Tue POLCHA, Wed WOLFE, Thu POLCHA, then WOLFE works Fri-Mon. This gives the weekend worker
+  // a day off (Thu) before the weekend and avoids 5+ days in a row. These are tiebreaks that adjust
+  // a member's effective weekday load; they never override blackouts, the Post-Weekend Rest Rule,
+  // or Full-Time weekday equity (loads stay within a shift or two of each other).
+  const WEEKEND_WORKER_AVOID_THU_TUE_PENALTY = { 4: 2, 2: 1 }; // Thursday strongest, then Tuesday
+  const WEEKEND_WORKER_WED_BONUS = 1;
   const weekendWorkerStartingOn = (fridayStr) => {
     const w = weekends.find(x => x.friday === fridayStr);
     return w ? weekendAssignments[w.index] : null;
   };
   const effectiveLoad = (ft, dow, dateStr) => {
     let load = (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
-    if (dow === 4 && dateStr && weekendWorkerStartingOn(formatDate(addDays(dateStr, 1))) === ft.id) {
-      load += THURSDAY_BEFORE_OWN_WEEKEND_PENALTY;
+    if (dateStr && dow >= 2 && dow <= 4) {
+      const upcomingFriday = formatDate(addDays(dateStr, 5 - dow));
+      const worker = weekendWorkerStartingOn(upcomingFriday);
+      if (worker === ft.id) {
+        if (dow === 4) load += WEEKEND_WORKER_AVOID_THU_TUE_PENALTY[4];
+        else if (dow === 2 && upcomingFriday >= '2027-03-01') load += WEEKEND_WORKER_AVOID_THU_TUE_PENALTY[2];
+        else if (dow === 3 && upcomingFriday >= '2027-03-01') load -= WEEKEND_WORKER_WED_BONUS;
+      }
     }
     return load;
   };
