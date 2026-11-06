@@ -549,6 +549,7 @@ const htmlContent = `<!DOCTYPE html>
     }
 
     #print-all-container { display: none; }
+    .print-page-title { display: none; }
     .breakdown-table { width:100%; border-collapse:collapse; font-size:13px; }
     .breakdown-table th, .breakdown-table td { border:1px solid var(--border-color); padding:8px 10px; text-align:center; }
     .breakdown-table th { background:#f1f5f9; font-weight:700; }
@@ -563,6 +564,14 @@ const htmlContent = `<!DOCTYPE html>
       }
       body { background: #ffffff !important; }
       main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+      .print-page-title {
+        display: block !important;
+        text-align: center !important;
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        padding: 4px 0 10px 0 !important;
+        color: #000000 !important;
+      }
       .calendar-container {
         border: none !important;
         box-shadow: none !important;
@@ -630,6 +639,7 @@ const htmlContent = `<!DOCTYPE html>
   <main id="main-content">
     <div id="view-calendar-wrapper">
       <div class="calendar-container">
+        <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
         <div class="calendar-header">
           <div id="calendar-month-title" class="calendar-title">January 2027</div>
           <div style="font-size: 13px; color: var(--text-muted);" id="calendar-summary-stat"></div>
@@ -735,10 +745,25 @@ const htmlContent = `<!DOCTYPE html>
             </select>
             <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Used only when it keeps shift counts fair and rest/blackout rules allow it.</div>
           </div>
+          <div class="form-group" id="member-alt-quota-group" style="display:none;">
+            <label class="form-label">Weekends Per 6 Months (Alternate Fire Marshal Quota)</label>
+            <input type="number" id="member-alt-quota-input" class="form-input" value="3" min="0" max="26">
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Default is 3 weekends per 6-month block (6 for Full Year). Increase or decrease to adjust scheduled weekends.</div>
+          </div>
           <div style="display:flex; gap:8px;">
             <button id="btn-save-new-member" class="btn btn-primary" style="flex:1; justify-content:center; padding:9px;">+ Add Investigator to Active Roster</button>
             <button id="btn-cancel-edit" class="btn btn-outline-dark" style="display:none; padding:9px;">Cancel Edit</button>
           </div>
+        </div>
+
+        <div id="alt-weekends-manager-block" style="background:#fffbeb; padding:14px 16px; border-radius:8px; margin-bottom:20px; border:1px solid #fde68a;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <div>
+              <div style="font-weight:700; font-size:13px; color:#92400e;">Alternate Fire Marshals &mdash; Weekends Per 6 Months</div>
+              <div style="font-size:11px; color:#b45309;">Adjust the number of weekends each Alternate Fire Marshal is scheduled per 6-month block (default: 3).</div>
+            </div>
+          </div>
+          <div id="alt-quota-controls-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px;"></div>
         </div>
 
         <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Active Roster (<span id="modal-roster-count">0</span> Members)</div>
@@ -1814,6 +1839,7 @@ const htmlContent = `<!DOCTYPE html>
                   Active: \${m.activeStart} \${m.activeEnd ? ('to ' + m.activeEnd) : '(Indefinite)'}
                   \${m.baselineWeekday ? (' &bull; Baseline: ' + weekdayNames[m.baselineWeekday]) : (m.role === 'FT' ? ' &bull; Rotational' : '')}
                   \${(!m.baselineWeekday && m.preferredWeekday) ? (' (prefers ' + weekdayNames[m.preferredWeekday] + ' if available)') : ''}
+                  \${m.role === 'ALT' ? (' &bull; <strong>' + ((m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? m.weekendsPerSixMonths : 3) + ' weekends / 6 mos</strong>') : ''}
                 </div>
               </div>
             </div>
@@ -1849,6 +1875,49 @@ const htmlContent = `<!DOCTYPE html>
 
       list.innerHTML = html;
 
+      // Render Alternate Fire Marshal Weekends Per 6 Months block
+      const altListEl = document.getElementById('alt-quota-controls-list');
+      const altBlockEl = document.getElementById('alt-weekends-manager-block');
+      const altMembersInRoster = window.appState.roster.filter(m => m.role === 'ALT');
+      if (altBlockEl && altListEl) {
+        if (altMembersInRoster.length === 0) {
+          altBlockEl.style.display = 'none';
+        } else {
+          altBlockEl.style.display = 'block';
+          altListEl.innerHTML = altMembersInRoster.map(alt => {
+            const quotaVal = (alt.weekendsPerSixMonths !== undefined && alt.weekendsPerSixMonths !== null) ? alt.weekendsPerSixMonths : 3;
+            return \`
+              <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
+                  <span style="width:10px; height:10px; border-radius:50%; background:\${alt.color}; display:inline-block;"></span>
+                  <span>\${alt.name}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <input type="number" class="form-input alt-quick-quota-input" data-id="\${alt.id}" value="\${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
+                  <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">/ 6 mos</span>
+                </div>
+              </div>
+            \`;
+          }).join('');
+
+          altListEl.querySelectorAll('.alt-quick-quota-input').forEach(inp => {
+            inp.addEventListener('change', (e) => {
+              const id = e.target.getAttribute('data-id');
+              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+              e.target.value = val;
+              const mem = window.appState.roster.find(m => m.id === id);
+              if (mem) {
+                mem.weekendsPerSixMonths = val;
+                storage.saveState();
+                renderRosterList();
+                renderApp();
+                showToast(\`\${mem.name} weekend quota updated to \${val} per 6 months. Re-run Auto-Generate to apply.\`);
+              }
+            });
+          });
+        }
+      }
+
       list.querySelectorAll('.btn-edit-member').forEach(btn => {
         btn.addEventListener('click', () => startEditMember(btn.getAttribute('data-id')));
       });
@@ -1872,11 +1941,15 @@ const htmlContent = `<!DOCTYPE html>
     let editingMemberId = null;
 
     function syncPrefDayVisibility() {
-      const rotational = !document.getElementById('member-weekday-input').value;
+      const role = document.getElementById('member-role-input').value;
+      const rotational = !document.getElementById('member-weekday-input').value && role === 'FT';
       document.getElementById('member-prefday-group').style.display = rotational ? 'block' : 'none';
       if (!rotational) document.getElementById('member-prefday-input').value = '';
+      const altGroup = document.getElementById('member-alt-quota-group');
+      if (altGroup) altGroup.style.display = role === 'ALT' ? 'block' : 'none';
     }
     document.getElementById('member-weekday-input').addEventListener('change', syncPrefDayVisibility);
+    document.getElementById('member-role-input').addEventListener('change', syncPrefDayVisibility);
 
     function resetMemberForm() {
       editingMemberId = null;
@@ -1884,6 +1957,7 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-role-input').value = 'FT';
       document.getElementById('member-weekday-input').value = '';
       document.getElementById('member-prefday-input').value = '';
+      document.getElementById('member-alt-quota-input').value = '3';
       document.getElementById('member-color-input').value = '#1e3a8a';
       document.getElementById('member-start-input').value = getActiveCycle().startDate;
       document.getElementById('member-end-input').value = '';
@@ -1900,6 +1974,7 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-name-input').value = m.name;
       document.getElementById('member-role-input').value = m.role;
       document.getElementById('member-weekday-input').value = m.baselineWeekday ? String(m.baselineWeekday) : '';
+      document.getElementById('member-alt-quota-input').value = (m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? String(m.weekendsPerSixMonths) : '3';
       syncPrefDayVisibility();
       document.getElementById('member-prefday-input').value = m.preferredWeekday ? String(m.preferredWeekday) : '';
       document.getElementById('member-color-input').value = m.color || '#1e3a8a';
@@ -1930,6 +2005,8 @@ const htmlContent = `<!DOCTYPE html>
 
       const prefVal = document.getElementById('member-prefday-input').value;
       const preferredWeekday = (!baselineWeekday && prefVal) ? parseInt(prefVal) : null;
+      const rawAltQuota = parseInt(document.getElementById('member-alt-quota-input').value, 10);
+      const weekendsPerSixMonths = role === 'ALT' ? (isNaN(rawAltQuota) ? 3 : Math.max(0, rawAltQuota)) : null;
 
       if (activeEnd && activeEnd < activeStart) {
         alert('Active end date must be on or after the start date.');
@@ -1939,7 +2016,7 @@ const htmlContent = `<!DOCTYPE html>
       if (editingMemberId) {
         const m = window.appState.roster.find(x => x.id === editingMemberId);
         if (m) {
-          Object.assign(m, { name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, color });
+          Object.assign(m, { name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
         }
         storage.saveState();
         resetMemberForm();
@@ -1953,6 +2030,7 @@ const htmlContent = `<!DOCTYPE html>
 
       window.appState.roster.push({
         preferredWeekday,
+        weekendsPerSixMonths,
         id,
         name,
         role,

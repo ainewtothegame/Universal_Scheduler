@@ -112,9 +112,12 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
     const workerId = assignments[w.saturday];
     if (altCounts[workerId] !== undefined) {
       altCounts[workerId]++;
-      const maxAllowed = cycle.blockType === 'FULL' ? 6 : 3;
+      const mem = roster.find(m => m.id === workerId);
+      const perHalf = (mem && mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
+        ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))
+        : 3;
+      const maxAllowed = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
       if (altCounts[workerId] > maxAllowed) {
-        const mem = roster.find(m => m.id === workerId);
         addConflict(
           w.friday,
           'WARNING',

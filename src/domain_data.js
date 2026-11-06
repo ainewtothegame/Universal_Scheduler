@@ -75,6 +75,7 @@ export const DEFAULT_2027_ROSTER = [
     activeStart: '2027-01-01',
     activeEnd: null,
     baselineWeekday: null,
+    weekendsPerSixMonths: 3,
     color: '#6d28d9'        // Purple
   },
   {
@@ -84,6 +85,7 @@ export const DEFAULT_2027_ROSTER = [
     activeStart: '2027-01-01',
     activeEnd: null,
     baselineWeekday: null,
+    weekendsPerSixMonths: 3,
     color: '#be185d'        // Pink/Rose
   },
   {
@@ -93,6 +95,7 @@ export const DEFAULT_2027_ROSTER = [
     activeStart: '2027-01-01',
     activeEnd: null,
     baselineWeekday: null,
+    weekendsPerSixMonths: 3,
     color: '#c2410c'        // Orange
   }
 ];

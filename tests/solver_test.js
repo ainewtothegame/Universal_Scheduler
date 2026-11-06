@@ -187,6 +187,27 @@ assert(
 );
 
 // -----------------------------------------------------------------------------
+// Test 8: Custom Alternate Weekend Quotas (Increase & Decrease per 6 months)
+// -----------------------------------------------------------------------------
+const customRoster = roster.map(m => {
+  if (m.id === 'chester') return { ...m, weekendsPerSixMonths: 4 }; // Increased to 4
+  if (m.id === 'zeiders') return { ...m, weekendsPerSixMonths: 2 }; // Decreased to 2
+  if (m.id === 'reed') return { ...m, weekendsPerSixMonths: 1 };    // Decreased to 1
+  return { ...m };
+});
+const customResult = solveSchedule(cycleH1, customRoster, blackouts, holidays);
+const customCounts = { chester: 0, zeiders: 0, reed: 0 };
+customResult.weekends.forEach(w => {
+  const wId = customResult.assignments[w.saturday];
+  if (customCounts[wId] !== undefined) customCounts[wId]++;
+});
+assert(
+  `Custom Alternate Quotas respected in H1 (Chester=4, Zeiders=2, Reed=1)`,
+  customCounts.chester === 4 && customCounts.zeiders === 2 && customCounts.reed === 1,
+  `Actual counts: Chester=${customCounts.chester}, Zeiders=${customCounts.zeiders}, Reed=${customCounts.reed}`
+);
+
+// -----------------------------------------------------------------------------
 // Final Summary Table
 // -----------------------------------------------------------------------------
 console.log('\n================================================================');

@@ -80,4 +80,17 @@ const fullActive = members.filter(m => isMemberInCycle(m, full)).map(m => m.id);
 assert.deepStrictEqual(fullActive, ['m1', 'm2', 'm3'], 'FULL should include m1, m2, m3, but exclude m4 (ended in 2026)');
 
 console.log('PASS: Members with end date are properly removed from cycles beyond their end date');
+
+console.log('--- Testing Requirement 5: Print Header Title ---');
+assert(html.includes('<div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>'), 'Missing print-page-title div with Troop H Fire Marshal Unit Schedule');
+assert(html.includes('.print-page-title { display: none; }'), 'Print title should be hidden on screen');
+assert(html.includes('text-align: center !important;'), 'Print title should be centered in @media print');
+console.log('PASS: "Troop H Fire Marshal Unit Schedule" is top-centered on each month page when printing');
+
+console.log('--- Testing Requirement 6: Alternate Fire Marshal Weekends Per 6 Months Block ---');
+assert(html.includes('id="alt-weekends-manager-block"'), 'Missing Alternate Fire Marshals weekends block in Personnel Roster');
+assert(html.includes('id="member-alt-quota-input"'), 'Missing weekendsPerSixMonths input in member form');
+assert(html.includes('weekendsPerSixMonths: 3'), 'Default weekendsPerSixMonths should be 3');
+console.log('PASS: Alternate Fire Marshal weekends per 6 months editor present with default of 3');
+
 console.log('All verification checks PASSED!');

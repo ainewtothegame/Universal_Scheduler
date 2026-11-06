@@ -80,7 +80,14 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
   const altQuotaConsumed = {};
-  activeALTs.forEach(a => { altQuotaConsumed[a.id] = 0; });
+  const altTargetQuotas = {};
+  activeALTs.forEach(a => {
+    altQuotaConsumed[a.id] = 0;
+    const perHalf = (a.weekendsPerSixMonths !== undefined && a.weekendsPerSixMonths !== null && !isNaN(Number(a.weekendsPerSixMonths)))
+      ? Math.max(0, parseInt(a.weekendsPerSixMonths, 10))
+      : 3;
+    altTargetQuotas[a.id] = cycle.blockType === 'FULL' ? perHalf * 2 : perHalf;
+  });
 
   const weekendAssignments = {}; // weekend.index -> memberId
 
@@ -162,8 +169,8 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
         const prevWeekendWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
         const candidateAlt = activeALTs.find(alt => {
           if (!isMemberActive(alt, w.friday)) return false;
-          // Check quota: max 3 per half-year block
-          if (altQuotaConsumed[alt.id] >= 3) return false;
+          // Check quota: max configured per block
+          if (altQuotaConsumed[alt.id] >= altTargetQuotas[alt.id]) return false;
           // Check non-consecutive
           if (prevWeekendWorker === alt.id) return false;
           // Check blackouts for Fri, Sat, Sun, and attached Monday if applicable
@@ -186,8 +193,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // =========================================================================
   // STAGE 2: Alternate Weekend Quota Allocation (CSP via MRV)
   // =========================================================================
-  // Each Alternate gets exactly 3 weekends in H1 and 3 in H2 (quota = 3 per half)
-  const targetQuota = cycle.blockType === 'FULL' ? 6 : 3;
+  // Each Alternate gets their configured weekends per 6 months (default 3 per half, 6 for FULL)
 
   // Find remaining unassigned weekends
   const unassignedWeekends = weekends.filter(w => !weekendAssignments[w.index]);
@@ -195,14 +201,15 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // Backtracking search to assign remaining Alternate quotas
   function solveAlternateWeekends(altIndex, currentAssignments, currentQuotas) {
     // Check if all alternates have met target quota
-    const allQuotasMet = activeALTs.every(a => currentQuotas[a.id] >= targetQuota);
+    const allQuotasMet = activeALTs.every(a => currentQuotas[a.id] >= altTargetQuotas[a.id]);
     if (allQuotasMet) return true;
 
     // Pick the most constrained Alternate using MRV (Minimum Remaining Values)
     // Most constrained = fewest available legal weekends relative to remaining quota needed
     const unmetAlts = activeALTs
-      .filter(a => currentQuotas[a.id] < targetQuota)
+      .filter(a => currentQuotas[a.id] < altTargetQuotas[a.id])
       .map(alt => {
+        const targetQuota = altTargetQuotas[alt.id];
         const eligibleWeekends = unassignedWeekends.filter(w => {
           if (currentAssignments[w.index]) return false;
           if (!isMemberActive(alt, w.friday)) return false;
