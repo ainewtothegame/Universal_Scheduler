@@ -66,6 +66,9 @@ In Phase 2, when a Full-Time member works a Friday–Monday weekend, the weekday
 
 These are tiebreaks applied in the weekday allocation: they never override blackouts, the Post-Weekend Rest Rule, or Full-Time weekday equity, and they apply only when another eligible FT member is available (e.g. during a week when one FT is on leave, the pattern cannot always hold).
 
+### Soft Preference (lowest priority): Holiday Balance
+After everything else (blackouts, requested weekends, the mandatory rules above, rest/consecutive rules, and weekend/weekday equity), the schedule tries to share holidays as evenly as possible among the Full-Time members. Premium holidays count 1 and non-premium holidays count 0.5. This only reorders choices that are already equally valid, so if balanced holidays are not possible the schedule is left as it falls out.
+
 ---
 
 ## 5. Official 2027 Enlisted Holiday Schedule & Rules
