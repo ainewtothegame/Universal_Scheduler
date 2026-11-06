@@ -136,7 +136,6 @@ export const DEFAULT_2027_HOLIDAYS = [
   { date: '2027-05-31', year: 2027, name: 'Memorial Day', type: 'attached_mon' },
   { date: '2027-06-19', year: 2027, name: 'Juneteenth', type: 'weekend' },
   { date: '2027-07-04', year: 2027, name: 'Independence Day', type: 'weekend' },
-  { date: '2027-07-05', year: 2027, name: 'Independence Day (Observed)', type: 'attached_mon' },
   { date: '2027-09-06', year: 2027, name: 'Labor Day', type: 'attached_mon' },
   { date: '2027-10-11', year: 2027, name: 'Columbus Day', type: 'attached_mon' },
   { date: '2027-11-02', year: 2027, name: 'General Election Day', type: 'midweek' },

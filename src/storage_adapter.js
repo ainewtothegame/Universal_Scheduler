@@ -25,6 +25,32 @@ export class StorageAdapter {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && parsed.version === 1) {
+            // Prune invalid observed holidays (e.g. Independence Day Observed)
+            if (Array.isArray(parsed.holidays)) {
+              parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
+            }
+            // Synchronize full-year and half-year blocks
+            if (parsed.cycles) {
+              const years = new Set(Object.values(parsed.cycles).map(c => c.year).filter(Boolean));
+              years.forEach(y => {
+                const full = parsed.cycles[`${y}-FULL`];
+                const h1 = parsed.cycles[`${y}-H1`];
+                const h2 = parsed.cycles[`${y}-H2`];
+                if (full) {
+                  if (!full.assignments) full.assignments = {};
+                  if (h1 && h1.assignments) {
+                    for (const [d, id] of Object.entries(h1.assignments)) {
+                      if (!full.assignments[d]) full.assignments[d] = id;
+                    }
+                  }
+                  if (h2 && h2.assignments) {
+                    for (const [d, id] of Object.entries(h2.assignments)) {
+                      if (!full.assignments[d]) full.assignments[d] = id;
+                    }
+                  }
+                }
+              });
+            }
             return parsed;
           }
         }
@@ -162,6 +188,9 @@ export class StorageAdapter {
     try {
       const parsed = JSON.parse(jsonStr);
       if (parsed && parsed.version === 1 && parsed.roster && parsed.cycles) {
+        if (Array.isArray(parsed.holidays)) {
+          parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
+        }
         this.state = parsed;
         this.undoStack = [];
         this.redoStack = [];

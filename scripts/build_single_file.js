@@ -1017,15 +1017,10 @@ const htmlContent = `<!DOCTYPE html>
       const jDow = june19.getDay();
       addHol(june19, 'Juneteenth', jDow === 5 ? 'attached_fri' : (jDow === 1 ? 'attached_mon' : (jDow === 0 || jDow === 6 ? 'weekend' : 'midweek')));
 
-      // Independence Day: July 4
+      // Independence Day: July 4 (always July 4th, no observed holiday)
       const jul4 = new Date(year, 6, 4);
       const julDow = jul4.getDay();
       addHol(jul4, 'Independence Day', julDow === 5 ? 'attached_fri' : (julDow === 1 ? 'attached_mon' : (julDow === 0 || julDow === 6 ? 'weekend' : 'midweek')));
-      if (julDow === 0) {
-        addHol(new Date(year, 6, 5), 'Independence Day (Observed)', 'attached_mon');
-      } else if (julDow === 6) {
-        addHol(new Date(year, 6, 3), 'Independence Day (Observed)', 'attached_fri');
-      }
 
       // Labor Day: 1st Monday in Sept
       addHol(getNthWeekdayOfMonth(year, 8, 1, 1), 'Labor Day', 'attached_mon');
@@ -1172,6 +1167,63 @@ const htmlContent = `<!DOCTYPE html>
       return window.appState.cycles[window.appState.activeCycleId];
     }
 
+    // Helper: Synchronize cycle assignments across H1, H2, and FULL
+    function syncCycleAssignments(year) {
+      if (!window.appState || !window.appState.cycles) return;
+      const targetYears = year ? [parseInt(year)] : [...new Set(Object.values(window.appState.cycles).map(c => c.year).filter(Boolean))];
+      targetYears.forEach(y => {
+        const full = window.appState.cycles[\`\${y}-FULL\`];
+        const h1 = window.appState.cycles[\`\${y}-H1\`];
+        const h2 = window.appState.cycles[\`\${y}-H2\`];
+        if (full) {
+          if (!full.assignments) full.assignments = {};
+          if (h1 && h1.assignments) {
+            for (const [d, id] of Object.entries(h1.assignments)) {
+              if (id && !full.assignments[d]) full.assignments[d] = id;
+            }
+          }
+          if (h2 && h2.assignments) {
+            for (const [d, id] of Object.entries(h2.assignments)) {
+              if (id && !full.assignments[d]) full.assignments[d] = id;
+            }
+          }
+        }
+        if (full && full.assignments) {
+          for (const [d, id] of Object.entries(full.assignments)) {
+            if (!id) continue;
+            if (h1 && d >= h1.startDate && d <= h1.endDate) {
+              if (!h1.assignments) h1.assignments = {};
+              if (!h1.assignments[d]) h1.assignments[d] = id;
+            }
+            if (h2 && d >= h2.startDate && d <= h2.endDate) {
+              if (!h2.assignments) h2.assignments = {};
+              if (!h2.assignments[d]) h2.assignments[d] = id;
+            }
+          }
+        }
+      });
+    }
+
+    function syncShiftToSiblings(dateStr, memberId) {
+      if (!dateStr || !window.appState || !window.appState.cycles) return;
+      const [yStr, mStr] = dateStr.split('-');
+      const y = parseInt(yStr);
+      const m = parseInt(mStr);
+      const full = window.appState.cycles[\`\${y}-FULL\`];
+      const halfId = m <= 6 ? \`\${y}-H1\` : \`\${y}-H2\`;
+      const half = window.appState.cycles[halfId];
+      if (full) {
+        if (!full.assignments) full.assignments = {};
+        if (memberId) full.assignments[dateStr] = memberId;
+        else delete full.assignments[dateStr];
+      }
+      if (half) {
+        if (!half.assignments) half.assignments = {};
+        if (memberId) half.assignments[dateStr] = memberId;
+        else delete half.assignments[dateStr];
+      }
+    }
+
     // Refresh Cycle Selector Options
     function refreshCycleDropdown() {
       const cycleKeys = Object.keys(window.appState.cycles);
@@ -1184,6 +1236,7 @@ const htmlContent = `<!DOCTYPE html>
 
     // Refresh UI
     function renderApp() {
+      syncCycleAssignments();
       refreshCycleDropdown();
       const cycle = getActiveCycle();
       rosterCount.textContent = getCycleRoster().length;
@@ -1370,19 +1423,53 @@ const htmlContent = `<!DOCTYPE html>
     // Render Shift Breakdown
     function renderBreakdown() {
       const cycle = getActiveCycle();
+      if (!cycle) return;
+      syncCycleAssignments(cycle.year);
+
       const container = document.getElementById('breakdown-table-container');
-      const roster = getCycleRoster();
+      const baseRoster = getCycleRoster();
+      const roster = [...baseRoster];
+      const assignedIds = new Set(Object.values(cycle.assignments || {}));
+      assignedIds.forEach(id => {
+        if (id && !roster.some(m => m.id === id)) {
+          const found = window.appState.roster.find(m => m.id === id) ||
+            (typeof HISTORICAL_MEMBERS !== 'undefined' ? HISTORICAL_MEMBERS.find(m => m.id === id) : null) ||
+            { id, name: id.toUpperCase(), role: 'FT', color: '#64748b' };
+          roster.push(found);
+        }
+      });
+
       const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const start = parseDate(cycle.startDate);
       const end = parseDate(cycle.endDate);
       const months = [];
       let mc = new Date(start.getFullYear(), start.getMonth(), 1);
-      while (mc <= end) { months.push({ y: mc.getFullYear(), m: mc.getMonth() }); mc = new Date(mc.getFullYear(), mc.getMonth() + 1, 1); }
+      while (mc <= end) {
+        months.push({ y: mc.getFullYear(), m: mc.getMonth() });
+        mc = new Date(mc.getFullYear(), mc.getMonth() + 1, 1);
+      }
+
+      // Filter out any invalid observed holidays (e.g. July 4th observed)
+      const cycleHolidays = (window.appState.holidays || []).filter(h => {
+        return h.date >= cycle.startDate && h.date <= cycle.endDate && h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day'));
+      }).sort((a, b) => a.date.localeCompare(b.date));
 
       const stats = {};
-      roster.forEach(m => { stats[m.id] = { total: 0, weekday: 0, sat: 0, sun: 0, hol: 0, months: months.map(() => 0) }; });
+      roster.forEach(m => {
+        stats[m.id] = {
+          total: 0,
+          weekday: 0,
+          sat: 0,
+          sun: 0,
+          hol: 0,
+          holidaysWorked: [],
+          months: months.map(() => 0)
+        };
+      });
       let unassigned = 0;
       let totalDays = 0;
+
       for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
         totalDays++;
         const dStr = formatDate(d);
@@ -1392,56 +1479,212 @@ const htmlContent = `<!DOCTYPE html>
         const dow = d.getDay();
         s.total++;
         if (dow === 6) s.sat++; else if (dow === 0) s.sun++; else s.weekday++;
-        if (window.appState.holidays.some(h => h.date === dStr)) s.hol++;
+
+        const hol = cycleHolidays.find(h => h.date === dStr);
+        if (hol) {
+          s.hol++;
+          s.holidaysWorked.push({
+            date: dStr,
+            name: hol.name,
+            dow: dayNames[dow]
+          });
+        }
+
         const mi = months.findIndex(x => x.y === d.getFullYear() && x.m === d.getMonth());
         if (mi >= 0) s.months[mi]++;
       }
 
-      const totals = roster.map(m => stats[m.id].total);
-      const max = Math.max(0, ...totals);
-      const min = totals.length ? Math.min(...totals) : 0;
-      const avg = roster.length ? (totals.reduce((a, b) => a + b, 0) / roster.length) : 0;
-      const spread = max - min;
-      const balanced = spread <= 1;
+      // Equity analysis segmented by role
+      const fullFtMembers = roster.filter(m => m.role === 'FT' && (!m.activeEnd || m.activeEnd >= cycle.endDate) && (!m.activeStart || m.activeStart <= cycle.startDate));
+      const partialMembers = roster.filter(m => (m.activeEnd && m.activeEnd < cycle.endDate) || (m.activeStart && m.activeStart > cycle.startDate));
+      const altMembers = roster.filter(m => m.role === 'ALT');
+
+      const ftTotals = fullFtMembers.map(m => stats[m.id].total);
+      const ftMax = ftTotals.length ? Math.max(...ftTotals) : 0;
+      const ftMin = ftTotals.length ? Math.min(...ftTotals) : 0;
+      const ftAvg = ftTotals.length ? (ftTotals.reduce((a, b) => a + b, 0) / ftTotals.length) : 0;
+      const ftSpread = ftMax - ftMin;
+      const ftBalanced = ftSpread <= (cycle.blockType === 'FULL' ? 3 : 2);
+
+      const altTotals = altMembers.map(m => stats[m.id].total);
+      const altMax = altTotals.length ? Math.max(...altTotals) : 0;
+      const altMin = altTotals.length ? Math.min(...altTotals) : 0;
+      const altAvg = altTotals.length ? (altTotals.reduce((a, b) => a + b, 0) / altTotals.length) : 0;
+      const altSpread = altMax - altMin;
+      const altBalanced = altSpread <= 2;
+
+      const allTotals = roster.map(m => stats[m.id].total);
+      const maxOverall = allTotals.length ? Math.max(...allTotals) : 0;
+      const isOverallBalanced = ftBalanced && altBalanced && unassigned === 0;
 
       container.innerHTML = \`
-        <div style="margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px; background:\${balanced ? '#dcfce7' : '#fef3c7'}; color:\${balanced ? '#166534' : '#92400e'}; font-weight:600;">
-          \${balanced ? '&#10003; Shifts are evenly distributed' : '&#9888; Shifts are not evenly distributed'} &mdash; Min: \${min} | Max: \${max} | Average: \${avg.toFixed(1)} | Spread: \${spread}\${unassigned ? ' | Unassigned days: ' + unassigned : ''}
+        <div style="margin-bottom:16px; padding:12px 16px; border-radius:8px; font-size:13px; background:\${isOverallBalanced ? '#dcfce7' : '#fef3c7'}; color:\${isOverallBalanced ? '#166534' : '#92400e'}; border:1px solid \${isOverallBalanced ? '#bbf7d0' : '#fde68a'};">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+            <span>\${isOverallBalanced ? '&#10003; Shifts are evenly distributed across all active investigators' : '&#9888; Shift Distribution Summary'}</span>
+            \${unassigned > 0 ? \`<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">\${unassigned} Unassigned Days</span>\` : '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">100% Fully Staffed</span>'}
+          </div>
+          <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12px;">
+            <div><strong>Full-Time (FT):</strong> Avg \${ftAvg.toFixed(1)} shifts &bull; Min: \${ftMin} &bull; Max: \${ftMax} &bull; Spread: \${ftSpread}</div>
+            <div><strong>Alternates (ALT):</strong> Avg \${altAvg.toFixed(1)} shifts &bull; Min: \${altMin} &bull; Max: \${altMax} &bull; Spread: \${altSpread}</div>
+            \${partialMembers.length ? \`<div><em>Note: \${partialMembers.map(p => p.name + ' partial tenure').join(', ')}</em></div>\` : ''}
+          </div>
         </div>
-        <table class="breakdown-table">
-          <thead>
-            <tr>
-              <th>Member</th><th>Role</th><th>Total Shifts</th><th>Weekday</th><th>Saturday</th><th>Sunday</th><th>Holiday Days</th><th>vs. Avg</th>
-              \${months.map(x => \`<th>\${monthNames[x.m]}</th>\`).join('')}
-            </tr>
-          </thead>
-          <tbody>
+
+        <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:20px; border-radius:8px; border:1px solid var(--border-color);">
+          <table class="breakdown-table" style="min-width:960px; margin:0;">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>Total Shifts</th>
+                <th>Weekday</th>
+                <th>Saturday</th>
+                <th>Sunday</th>
+                <th style="min-width:180px;">Holidays Worked</th>
+                <th>vs. Role Avg</th>
+                \${months.map(x => \`<th>\${monthNames[x.m]}</th>\`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              \${roster.map(m => {
+                const s = stats[m.id];
+                const isFt = m.role === 'FT';
+                const isPartial = partialMembers.some(p => p.id === m.id);
+                const targetAvg = isFt ? ftAvg : altAvg;
+                const diff = isPartial ? null : (s.total - targetAvg);
+                const diffColor = diff === null ? 'var(--text-muted)' : (Math.abs(diff) <= 1.5 ? 'var(--success)' : 'var(--danger)');
+                const diffStr = diff === null ? 'N/A' : ((diff > 0 ? '+' : '') + diff.toFixed(1));
+                const w = maxOverall ? Math.round((s.total / maxOverall) * 70) : 0;
+                return \`<tr>
+                  <td><strong>\${m.name}</strong></td>
+                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'};">\${m.role}</span></td>
+                  <td style="text-align:left;"><span class="bd-bar" style="width:\${w}px; background:\${m.color};"></span><strong>\${s.total}</strong></td>
+                  <td>\${s.weekday}</td>
+                  <td>\${s.sat}</td>
+                  <td>\${s.sun}</td>
+                  <td style="text-align:left;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:\${s.holidaysWorked.length ? '4px' : '0'};">
+                      <strong>\${s.hol}</strong>
+                      <span style="font-size:11px; color:var(--text-muted);">\${s.hol === 1 ? 'day' : 'days'}</span>
+                    </div>
+                    \${s.holidaysWorked.length > 0 ? \`
+                      <div style="display:flex; flex-wrap:wrap; gap:3px;">
+                        \${s.holidaysWorked.map(h => \`
+                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="\${h.name} (\${h.dow}, \${h.date})">
+                            \${h.name} <span style="opacity:0.75;">\${h.date.slice(5)}</span>
+                          </span>
+                        \`).join('')}
+                      </div>
+                    \` : '<span style="color:var(--text-muted); font-size:11px;">None</span>'}
+                  </td>
+                  <td style="color:\${diffColor}; font-weight:700;">\${diffStr}</td>
+                  \${s.months.map(n => \`<td>\${n}</td>\`).join('')}
+                </tr>\`;
+              }).join('')}
+              <tr class="totals">
+                <td>Total</td>
+                <td></td>
+                <td>\${allTotals.reduce((a, b) => a + b, 0)}</td>
+                <td>\${roster.reduce((a, m) => a + stats[m.id].weekday, 0)}</td>
+                <td>\${roster.reduce((a, m) => a + stats[m.id].sat, 0)}</td>
+                <td>\${roster.reduce((a, m) => a + stats[m.id].sun, 0)}</td>
+                <td>\${roster.reduce((a, m) => a + stats[m.id].hol, 0)}</td>
+                <td></td>
+                \${months.map((x, i) => \`<td>\${roster.reduce((a, m) => a + stats[m.id].months[i], 0)}</td>\`).join('')}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Official Holidays Coverage Breakdown -->
+        <div style="margin-top:24px; padding:20px; background:#ffffff; border:1px solid var(--border-color); border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:2px;">&#127881; Official Holidays Coverage Breakdown</h3>
+              <div style="font-size:12px; color:var(--text-muted);">List of members and holidays worked for active block (\${cycle.year} \${cycle.blockType === 'FULL' ? 'Full Year' : cycle.blockType}). July 4th is celebrated strictly on July 4th.</div>
+            </div>
+            <div style="font-size:12px; font-weight:600; background:#f1f5f9; padding:4px 10px; border-radius:6px;">
+              \${cycleHolidays.length} Official Holidays in Block
+            </div>
+          </div>
+
+          <!-- Member Holiday Cards -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-bottom:20px;">
             \${roster.map(m => {
               const s = stats[m.id];
-              const diff = s.total - avg;
-              const color = Math.abs(diff) <= 1 ? 'var(--success)' : 'var(--danger)';
-              const w = max ? Math.round((s.total / max) * 80) : 0;
-              return \`<tr>
-                <td><strong>\${m.name}</strong></td>
-                <td>\${m.role}</td>
-                <td style="text-align:left;"><span class="bd-bar" style="width:\${w}px; background:\${m.color};"></span><strong>\${s.total}</strong></td>
-                <td>\${s.weekday}</td><td>\${s.sat}</td><td>\${s.sun}</td><td>\${s.hol}</td>
-                <td style="color:\${color}; font-weight:600;">\${diff > 0 ? '+' : ''}\${diff.toFixed(1)}</td>
-                \${s.months.map(n => \`<td>\${n}</td>\`).join('')}
-              </tr>\`;
+              return \`
+                <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; background:#f8fafc;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:\${m.color};"></span>
+                      <strong style="font-size:13px;">\${m.name}</strong>
+                      <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:\${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${m.role === 'FT' ? '#0369a1' : '#b45309'};">\${m.role}</span>
+                    </div>
+                    <span style="font-size:12px; font-weight:700; color:\${s.hol > 0 ? 'var(--primary)' : 'var(--text-muted)'};">
+                      \${s.hol} \${s.hol === 1 ? 'Holiday' : 'Holidays'}
+                    </span>
+                  </div>
+                  \${s.holidaysWorked.length > 0 ? \`
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      \${s.holidaysWorked.map(h => \`
+                        <div style="font-size:11px; padding:4px 8px; border-radius:4px; background:#ffffff; border:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+                          <strong>\${h.name}</strong>
+                          <span style="color:var(--text-muted); font-weight:600;">\${h.dow} \${h.date}</span>
+                        </div>
+                      \`).join('')}
+                    </div>
+                  \` : '<div style="font-size:11px; color:var(--text-muted); font-style:italic;">No holidays worked in this cycle</div>'}
+                </div>
+              \`;
             }).join('')}
-            <tr class="totals">
-              <td>Total</td><td></td>
-              <td>\${totals.reduce((a, b) => a + b, 0)}</td>
-              <td>\${roster.reduce((a, m) => a + stats[m.id].weekday, 0)}</td>
-              <td>\${roster.reduce((a, m) => a + stats[m.id].sat, 0)}</td>
-              <td>\${roster.reduce((a, m) => a + stats[m.id].sun, 0)}</td>
-              <td>\${roster.reduce((a, m) => a + stats[m.id].hol, 0)}</td>
-              <td></td>
-              \${months.map((x, i) => \`<td>\${roster.reduce((a, m) => a + stats[m.id].months[i], 0)}</td>\`).join('')}
-            </tr>
-          </tbody>
-        </table>
+          </div>
+
+          <!-- Master Holiday Schedule Table -->
+          <h4 style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-main);">Master Holiday Schedule</h4>
+          <div style="overflow-x:auto;">
+            <table class="breakdown-table" style="font-size:12px; min-width:600px;">
+              <thead>
+                <tr>
+                  <th style="width:120px;">Holiday Date</th>
+                  <th style="width:90px;">Day</th>
+                  <th>Holiday Name</th>
+                  <th>Assigned Investigator</th>
+                  <th style="width:70px;">Role</th>
+                  <th style="width:100px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${cycleHolidays.map(h => {
+                  const workerId = cycle.assignments[h.date];
+                  const worker = roster.find(m => m.id === workerId);
+                  const dObj = parseDate(h.date);
+                  const dowStr = dayNames[dObj.getDay()];
+                  return \`
+                    <tr>
+                      <td><strong>\${h.date}</strong></td>
+                      <td>\${dowStr}</td>
+                      <td><strong>\${h.name}</strong></td>
+                      <td>
+                        \${worker ? \`
+                          <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:\${worker.color};"></span>
+                            <strong>\${worker.name}</strong>
+                          </div>
+                        \` : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>'}
+                      </td>
+                      <td>
+                        \${worker ? \`<span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; background:\${worker.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:\${worker.role === 'FT' ? '#0369a1' : '#b45309'};">\${worker.role}</span>\` : '-'}
+                      </td>
+                      <td>
+                        \${worker ? '<span style="color:var(--success); font-weight:600;">&#10003; Assigned</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}
+                      </td>
+                    </tr>
+                  \`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
       \`;
     }
 
@@ -1471,6 +1714,28 @@ const htmlContent = `<!DOCTYPE html>
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
+
+      // Propagate assignments across sibling blocks
+      if (cycle.blockType === 'H1' || cycle.blockType === 'H2') {
+        const full = window.appState.cycles[\`\${cycle.year}-FULL\`];
+        if (full) {
+          if (!full.assignments) full.assignments = {};
+          Object.assign(full.assignments, cycle.assignments);
+        }
+      } else if (cycle.blockType === 'FULL') {
+        const h1 = window.appState.cycles[\`\${cycle.year}-H1\`];
+        const h2 = window.appState.cycles[\`\${cycle.year}-H2\`];
+        for (const [d, memId] of Object.entries(cycle.assignments)) {
+          if (h1 && d >= h1.startDate && d <= h1.endDate) {
+            if (!h1.assignments) h1.assignments = {};
+            h1.assignments[d] = memId;
+          }
+          if (h2 && d >= h2.startDate && d <= h2.endDate) {
+            if (!h2.assignments) h2.assignments = {};
+            h2.assignments[d] = memId;
+          }
+        }
+      }
       storage.saveState();
       renderApp();
       if (result.preferenceWarnings && result.preferenceWarnings.length) {
@@ -1497,8 +1762,9 @@ const htmlContent = `<!DOCTYPE html>
     // Cycle Change
     cycleSelect.addEventListener('change', (e) => {
       window.appState.activeCycleId = e.target.value;
-      storage.saveState();
       const c = getActiveCycle();
+      syncCycleAssignments(c ? c.year : undefined);
+      storage.saveState();
       const start = parseDate(c.startDate);
       activeMonthIdx = start.getMonth();
       renderApp();
@@ -2030,6 +2296,7 @@ const htmlContent = `<!DOCTYPE html>
         delete cycle.manualOverrides[selectedDateForReassign];
       }
       cycle.updatedAt = Date.now();
+      syncShiftToSiblings(selectedDateForReassign, newMemberId);
       storage.saveState();
       closeAllModals();
       renderApp();
@@ -2043,6 +2310,7 @@ const htmlContent = `<!DOCTYPE html>
       delete cycle.assignments[selectedDateForReassign];
       delete cycle.manualOverrides[selectedDateForReassign];
       cycle.updatedAt = Date.now();
+      syncShiftToSiblings(selectedDateForReassign, null);
       storage.saveState();
       closeAllModals();
       renderApp();
@@ -2153,10 +2421,10 @@ const htmlContent = `<!DOCTYPE html>
       pendingImportShifts.forEach(({ dateStr, rawName }) => {
         if (!rawName) return;
         let member = window.appState.roster.find(m => m.name === rawName);
-        if (member) {
-          cycle.assignments[dateStr] = member.id;
-        } else if (aliasMap[rawName]) {
-          cycle.assignments[dateStr] = aliasMap[rawName];
+        const memId = member ? member.id : aliasMap[rawName];
+        if (memId) {
+          cycle.assignments[dateStr] = memId;
+          syncShiftToSiblings(dateStr, memId);
         }
       });
 
