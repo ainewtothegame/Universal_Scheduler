@@ -340,13 +340,12 @@ const htmlContent = `<!DOCTYPE html>
       font-weight: 700;
       padding: 1px 5px;
       border-radius: 4px;
-      background: #fee2e2;
-      color: #b91c1c;
-      white-space: nowrap;
-      max-width: 90px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.25;
+      text-align: right;
+      max-width: 100px;
     }
+    .holiday-pill.premium { background: #fee2e2; color: #b91c1c; }
+    .holiday-pill.standard { background: #e0e7ff; color: #3730a3; }
 
     .assignment-chip {
       margin-top: auto;
@@ -1226,7 +1225,7 @@ const htmlContent = `<!DOCTYPE html>
             <div class="day-cell \${!isCurrentMonth ? 'other-month' : ''} \${isWeekend ? 'weekend-col' : ''}" data-date="\${dStr}">
               <div class="day-top">
                 <span class="day-num">\${d.getDate()}</span>
-                \${holiday ? \`<span class="holiday-pill" title="\${holiday.name}">\${holiday.name}</span>\` : ''}
+                \${holiday ? \`<span class="holiday-pill \${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="\${holiday.name}\${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">\${holiday.name}\${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>\` : ''}
               </div>
               \${dotsHtml}
               \${chipHtml}

@@ -309,13 +309,12 @@
       font-weight: 700;
       padding: 1px 5px;
       border-radius: 4px;
-      background: #fee2e2;
-      color: #b91c1c;
-      white-space: nowrap;
-      max-width: 90px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.25;
+      text-align: right;
+      max-width: 100px;
     }
+    .holiday-pill.premium { background: #fee2e2; color: #b91c1c; }
+    .holiday-pill.standard { background: #e0e7ff; color: #3730a3; }
 
     .assignment-chip {
       margin-top: auto;
@@ -1016,6 +1015,14 @@ const HISTORICAL_MEMBERS = [
   }
 ];
 
+// Premium holidays per the Enlisted Leave Tracker: every official holiday EXCEPT
+// Martin Luther King Day, Presidents' Day and General Election Day.
+const NON_PREMIUM_HOLIDAY_NAMES = ['Martin Luther King Day', "Presidents' Day", 'General Election Day'];
+
+// Name-based so it also works for holidays saved in the browser before this flag existed.
+function isPremiumHoliday(holiday) {
+  return !NON_PREMIUM_HOLIDAY_NAMES.includes(holiday.name);
+}
 // Official 2027 Enlisted Holidays
 const DEFAULT_2027_HOLIDAYS = [
   { date: '2027-01-01', year: 2027, name: "New Year's Day", type: 'attached_fri' },
@@ -2446,7 +2453,7 @@ class StorageAdapter {
             <div class="day-cell ${!isCurrentMonth ? 'other-month' : ''} ${isWeekend ? 'weekend-col' : ''}" data-date="${dStr}">
               <div class="day-top">
                 <span class="day-num">${d.getDate()}</span>
-                ${holiday ? `<span class="holiday-pill" title="${holiday.name}">${holiday.name}</span>` : ''}
+                ${holiday ? `<span class="holiday-pill ${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="${holiday.name}${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">${holiday.name}${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>` : ''}
               </div>
               ${dotsHtml}
               ${chipHtml}

@@ -119,6 +119,14 @@ export const HISTORICAL_MEMBERS = [
   }
 ];
 
+// Premium holidays per the Enlisted Leave Tracker: every official holiday EXCEPT
+// Martin Luther King Day, Presidents' Day and General Election Day.
+const NON_PREMIUM_HOLIDAY_NAMES = ['Martin Luther King Day', "Presidents' Day", 'General Election Day'];
+
+// Name-based so it also works for holidays saved in the browser before this flag existed.
+export function isPremiumHoliday(holiday) {
+  return !NON_PREMIUM_HOLIDAY_NAMES.includes(holiday.name);
+}
 // Official 2027 Enlisted Holidays
 export const DEFAULT_2027_HOLIDAYS = [
   { date: '2027-01-01', year: 2027, name: "New Year's Day", type: 'attached_fri' },
