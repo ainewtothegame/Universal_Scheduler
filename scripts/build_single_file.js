@@ -13,7 +13,7 @@ const sheetJsCode = fs.readFileSync('xlsx.full.min.js', 'utf8');
 function cleanModuleCode(filePath) {
   let code = fs.readFileSync(filePath, 'utf8');
   // Strip import statements
-  code = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
+  code = code.replace(/^import\s[^;]*?from\s+['"][^'"]+['"];?[ \t]*\r?\n?/gm, '');
   // Replace export function / export const / export class / export let
   code = code.replace(/export\s+function\s+/g, 'function ');
   code = code.replace(/export\s+const\s+/g, 'const ');
@@ -602,6 +602,9 @@ const htmlContent = `<!DOCTYPE html>
       <button id="btn-open-prefs" class="btn btn-outline-dark">&#11088; Requested Weekends (<span id="pref-count">0</span>)</button>
       <button id="btn-open-import" class="btn btn-outline-dark">&#128196; Import Schedule</button>
       <button id="btn-export-excel" class="btn btn-primary">&#128229; Export to Excel</button>
+      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Export Backup (JSON)</button>
+      <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore Backup</button>
+      <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <button id="btn-print" class="btn btn-outline-dark">&#128424; Print</button>
     </div>
   </div>
@@ -1962,6 +1965,50 @@ const htmlContent = `<!DOCTYPE html>
       window.print();
     });
 
+    // -------------------------------------------------------------
+    // Backup / Restore (JSON)
+    // -------------------------------------------------------------
+    document.getElementById('btn-backup-export').addEventListener('click', () => {
+      const json = storage.exportBackupJSON();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = 'PSP_FireMarshal_Backup_' + stamp + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Backup downloaded: ' + a.download);
+    });
+
+    const backupFileInput = document.getElementById('backup-file-input');
+    document.getElementById('btn-backup-restore').addEventListener('click', () => backupFileInput.click());
+    backupFileInput.addEventListener('change', () => {
+      const file = backupFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (!confirm('Restore from "' + file.name + '"? This replaces ALL current data (roster, blackouts, requests and schedules).')) {
+          backupFileInput.value = '';
+          return;
+        }
+        if (storage.importBackupJSON(evt.target.result)) {
+          window.appState = storage.state;
+          if (!window.appState.preferredWeekends) window.appState.preferredWeekends = [];
+          const c = getActiveCycle();
+          activeMonthIdx = parseDate(c.startDate).getMonth();
+          closeAllModals();
+          renderApp();
+          showToast('Backup restored.');
+        } else {
+          alert('That file is not a valid backup from this program.');
+        }
+        backupFileInput.value = '';
+      };
+      reader.readAsText(file);
+    });
     // Initial render
     renderApp();
   </script>
