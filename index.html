@@ -517,6 +517,14 @@
       gap: 10px;
     }
 
+    #print-all-container { display: none; }
+    .breakdown-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .breakdown-table th, .breakdown-table td { border:1px solid var(--border-color); padding:8px 10px; text-align:center; }
+    .breakdown-table th { background:#f1f5f9; font-weight:700; }
+    .breakdown-table td:first-child, .breakdown-table th:first-child { text-align:left; }
+    .breakdown-table tr.totals td { background:#f8fafc; font-weight:700; }
+    .bd-bar { display:inline-block; height:10px; border-radius:3px; vertical-align:middle; margin-right:6px; }
+
     /* Print Stylesheet */
     @media print {
       header, .ribbon, .month-tabs, .btn, .modal-overlay {
@@ -537,6 +545,10 @@
         border: 1px solid #000000 !important;
         font-weight: 700 !important;
       }
+      body.printing-all #view-calendar-wrapper,
+      body.printing-all #view-matrix-wrapper,
+      body.printing-all #view-breakdown-wrapper { display: none !important; }
+      body.printing-all #print-all-container { display: block !important; }
       @page { size: landscape; margin: 0.5in; }
     }
   </style>
@@ -564,6 +576,7 @@
     <div class="tab-group">
       <button id="tab-calendar-view" class="tab-btn active">7-Column Calendar</button>
       <button id="tab-matrix-view" class="tab-btn">Matrix Overview</button>
+      <button id="tab-breakdown-view" class="tab-btn">Shift Breakdown</button>
     </div>
     <div class="ribbon-actions">
       <button id="btn-open-roster" class="btn btn-outline-dark">&#128101; Personnel Roster (<span id="roster-count">7</span>)</button>
@@ -575,6 +588,7 @@
       <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore Backup</button>
       <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <button id="btn-print" class="btn btn-outline-dark">&#128424; Print</button>
+      <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All Months</button>
     </div>
   </div>
 
@@ -605,6 +619,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Shift Breakdown View (Hidden by default) -->
+    <div id="view-breakdown-wrapper" style="display:none;">
+      <div class="calendar-container" style="padding:20px;">
+        <h2 style="font-size:18px; margin-bottom:4px;">Shift Breakdown</h2>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Number of on-call shifts (days) per team member for the active cycle. Use this to check how evenly shifts are distributed.</div>
+        <div id="breakdown-table-container"></div>
+      </div>
+    </div>
+
+    <!-- Print All container (only visible when printing all months) -->
+    <div id="print-all-container"></div>
 
     <!-- Matrix View (Hidden by default) -->
     <div id="view-matrix-wrapper" style="display:none;">
@@ -2286,6 +2312,8 @@ class StorageAdapter {
     const tabMatrixView = document.getElementById('tab-matrix-view');
     const viewCalendarWrapper = document.getElementById('view-calendar-wrapper');
     const viewMatrixWrapper = document.getElementById('view-matrix-wrapper');
+    const tabBreakdownView = document.getElementById('tab-breakdown-view');
+    const viewBreakdownWrapper = document.getElementById('view-breakdown-wrapper');
 
     // Modals
     const modalOverlay = document.getElementById('modal-overlay');
@@ -2342,6 +2370,7 @@ class StorageAdapter {
       renderMonthTabs();
       renderCalendar();
       renderMatrix();
+      renderBreakdown();
     }
 
     // Render Month Tabs
@@ -2516,24 +2545,102 @@ class StorageAdapter {
       `;
     }
 
+    // Render Shift Breakdown
+    function renderBreakdown() {
+      const cycle = getActiveCycle();
+      const container = document.getElementById('breakdown-table-container');
+      const roster = window.appState.roster;
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const start = parseDate(cycle.startDate);
+      const end = parseDate(cycle.endDate);
+      const months = [];
+      let mc = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (mc <= end) { months.push({ y: mc.getFullYear(), m: mc.getMonth() }); mc = new Date(mc.getFullYear(), mc.getMonth() + 1, 1); }
+
+      const stats = {};
+      roster.forEach(m => { stats[m.id] = { total: 0, weekday: 0, sat: 0, sun: 0, hol: 0, months: months.map(() => 0) }; });
+      let unassigned = 0;
+      let totalDays = 0;
+      for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+        totalDays++;
+        const dStr = formatDate(d);
+        const id = cycle.assignments[dStr];
+        if (!id || !stats[id]) { unassigned++; continue; }
+        const s = stats[id];
+        const dow = d.getDay();
+        s.total++;
+        if (dow === 6) s.sat++; else if (dow === 0) s.sun++; else s.weekday++;
+        if (window.appState.holidays.some(h => h.date === dStr)) s.hol++;
+        const mi = months.findIndex(x => x.y === d.getFullYear() && x.m === d.getMonth());
+        if (mi >= 0) s.months[mi]++;
+      }
+
+      const totals = roster.map(m => stats[m.id].total);
+      const max = Math.max(0, ...totals);
+      const min = totals.length ? Math.min(...totals) : 0;
+      const avg = roster.length ? (totals.reduce((a, b) => a + b, 0) / roster.length) : 0;
+      const spread = max - min;
+      const balanced = spread <= 1;
+
+      container.innerHTML = `
+        <div style="margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px; background:${balanced ? '#dcfce7' : '#fef3c7'}; color:${balanced ? '#166534' : '#92400e'}; font-weight:600;">
+          ${balanced ? '&#10003; Shifts are evenly distributed' : '&#9888; Shifts are not evenly distributed'} &mdash; Min: ${min} | Max: ${max} | Average: ${avg.toFixed(1)} | Spread: ${spread}${unassigned ? ' | Unassigned days: ' + unassigned : ''}
+        </div>
+        <table class="breakdown-table">
+          <thead>
+            <tr>
+              <th>Member</th><th>Role</th><th>Total Shifts</th><th>Weekday</th><th>Saturday</th><th>Sunday</th><th>Holiday Days</th><th>vs. Avg</th>
+              ${months.map(x => `<th>${monthNames[x.m]}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${roster.map(m => {
+              const s = stats[m.id];
+              const diff = s.total - avg;
+              const color = Math.abs(diff) <= 1 ? 'var(--success)' : 'var(--danger)';
+              const w = max ? Math.round((s.total / max) * 80) : 0;
+              return `<tr>
+                <td><strong>${m.name}</strong></td>
+                <td>${m.role}</td>
+                <td style="text-align:left;"><span class="bd-bar" style="width:${w}px; background:${m.color};"></span><strong>${s.total}</strong></td>
+                <td>${s.weekday}</td><td>${s.sat}</td><td>${s.sun}</td><td>${s.hol}</td>
+                <td style="color:${color}; font-weight:600;">${diff > 0 ? '+' : ''}${diff.toFixed(1)}</td>
+                ${s.months.map(n => `<td>${n}</td>`).join('')}
+              </tr>`;
+            }).join('')}
+            <tr class="totals">
+              <td>Total</td><td></td>
+              <td>${totals.reduce((a, b) => a + b, 0)}</td>
+              <td>${roster.reduce((a, m) => a + stats[m.id].weekday, 0)}</td>
+              <td>${roster.reduce((a, m) => a + stats[m.id].sat, 0)}</td>
+              <td>${roster.reduce((a, m) => a + stats[m.id].sun, 0)}</td>
+              <td>${roster.reduce((a, m) => a + stats[m.id].hol, 0)}</td>
+              <td></td>
+              ${months.map((x, i) => `<td>${roster.reduce((a, m) => a + stats[m.id].months[i], 0)}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }
+
     // Tab view switching
-    tabCalendarView.addEventListener('click', () => {
-      tabCalendarView.classList.add('active');
-      tabMatrixView.classList.remove('active');
-      viewCalendarWrapper.style.display = 'block';
-      viewMatrixWrapper.style.display = 'none';
-      monthTabsBar.style.display = 'flex';
-    });
-
-    tabMatrixView.addEventListener('click', () => {
-      tabMatrixView.classList.add('active');
-      tabCalendarView.classList.remove('active');
-      viewCalendarWrapper.style.display = 'none';
-      viewMatrixWrapper.style.display = 'block';
-      monthTabsBar.style.display = 'none';
-      renderMatrix();
-    });
-
+    function showView(which) {
+      const views = [
+        [tabCalendarView, viewCalendarWrapper, 'calendar'],
+        [tabMatrixView, viewMatrixWrapper, 'matrix'],
+        [tabBreakdownView, viewBreakdownWrapper, 'breakdown']
+      ];
+      views.forEach(([tab, wrap, name]) => {
+        tab.classList.toggle('active', name === which);
+        wrap.style.display = name === which ? 'block' : 'none';
+      });
+      monthTabsBar.style.display = which === 'calendar' ? 'flex' : 'none';
+      if (which === 'matrix') renderMatrix();
+      if (which === 'breakdown') renderBreakdown();
+    }
+    tabCalendarView.addEventListener('click', () => showView('calendar'));
+    tabMatrixView.addEventListener('click', () => showView('matrix'));
+    tabBreakdownView.addEventListener('click', () => showView('breakdown'));
     // Auto-Generate Schedule
     document.getElementById('btn-solve').addEventListener('click', () => {
       storage.pushUndo();
@@ -3187,6 +3294,34 @@ class StorageAdapter {
     });
 
     // Print
+    // Print All Months: render every month of the cycle, then print once
+    document.getElementById('btn-print-all').addEventListener('click', () => {
+      const cycle = getActiveCycle();
+      const savedIdx = activeMonthIdx;
+      const start = parseDate(cycle.startDate);
+      const end = parseDate(cycle.endDate);
+      const printContainer = document.getElementById('print-all-container');
+      printContainer.innerHTML = '';
+      let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (curr <= end) {
+        activeMonthIdx = curr.getMonth();
+        renderCalendar();
+        const clone = viewCalendarWrapper.querySelector('.calendar-container').cloneNode(true);
+        printContainer.appendChild(clone);
+        curr = new Date(curr.getFullYear(), curr.getMonth() + 1, 1);
+      }
+      activeMonthIdx = savedIdx;
+      renderCalendar();
+      document.body.classList.add('printing-all');
+      const cleanup = () => {
+        document.body.classList.remove('printing-all');
+        printContainer.innerHTML = '';
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    });
+
     document.getElementById('btn-print').addEventListener('click', () => {
       window.print();
     });
