@@ -71,9 +71,10 @@ export function identifyWeekends(startDateStr, endDateStr, holidays) {
 /**
  * Master 5-Stage Stratified CSP Solver
  */
-export function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}) {
+export function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}, preferredWeekends = []) {
   const assignments = { ...manualOverrides };
   const diagnostics = {};
+  const preferenceWarnings = [];
   const activeFTs = roster.filter(m => m.role === 'FT');
   const activeALTs = roster.filter(m => m.role === 'ALT');
 
@@ -94,6 +95,49 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
       }
     }
   });
+
+  // =========================================================================
+  // STAGE 0: Lock Requested ("Want to Work") Weekends
+  // =========================================================================
+  // Requested weekends are hard constraints. Everything else is scheduled around them.
+  // A request is skipped (with a warning) only if it is physically impossible:
+  // already locked manually, blackout/inactive, a second member requesting the same
+  // weekend, or the same member requesting back-to-back weekends (rest rule).
+  [...preferredWeekends]
+    .sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday))
+    .forEach(p => {
+      const w = weekends.find(x => x.friday === p.weekendFriday);
+      const mem = roster.find(m => m.id === p.memberId);
+      if (!w || !mem) return; // outside this cycle or member removed
+
+      const skip = (reason) => {
+        preferenceWarnings.push(`${mem.name} - weekend of ${w.friday}: ${reason}`);
+      };
+
+      if (weekendAssignments[w.index]) {
+        const holder = roster.find(m => m.id === weekendAssignments[w.index]);
+        if (holder && holder.id === mem.id) return;
+        return skip(`already taken by ${holder ? holder.name : 'another member'}.`);
+      }
+      if (!isMemberActive(mem, w.friday) || !isMemberActive(mem, w.sunday)) {
+        return skip('member is not active on those dates.');
+      }
+      const checkDates = [w.friday, w.saturday, w.sunday];
+      if (w.attachedMonday) checkDates.push(w.attachedMonday);
+      if (w.attachedFriday) checkDates.push(w.attachedFriday);
+      if (mem.role === 'FT' && w.phase === 2) checkDates.push(w.monday);
+      if (checkDates.some(d => isMemberBlackedOut(mem.id, d, blackouts))) {
+        return skip('member has a blackout on those dates.');
+      }
+      if (weekendAssignments[w.index - 1] === mem.id || weekendAssignments[w.index + 1] === mem.id) {
+        return skip('would be back-to-back with another weekend for the same person (rest rule).');
+      }
+
+      weekendAssignments[w.index] = mem.id;
+      if (mem.role === 'ALT') {
+        altQuotaConsumed[mem.id] = (altQuotaConsumed[mem.id] || 0) + 1;
+      }
+    });
 
   // =========================================================================
   // STAGE 1: Lock Manuals & Phase 2 Proactive Leave Lookaheads
@@ -396,6 +440,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   return {
     assignments,
     diagnostics,
+    preferenceWarnings,
     weekends
   };
 }

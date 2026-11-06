@@ -600,6 +600,7 @@ const htmlContent = `<!DOCTYPE html>
     <div class="ribbon-actions">
       <button id="btn-open-roster" class="btn btn-outline-dark">&#128101; Personnel Roster (<span id="roster-count">7</span>)</button>
       <button id="btn-open-blackouts" class="btn btn-outline-dark">&#128197; Blackouts & Leave (<span id="blackout-count">0</span>)</button>
+      <button id="btn-open-prefs" class="btn btn-outline-dark">&#11088; Requested Weekends (<span id="pref-count">0</span>)</button>
       <button id="btn-open-import" class="btn btn-outline-dark">&#128196; Import Schedule</button>
       <button id="btn-export-excel" class="btn btn-primary">&#128229; Export to Excel</button>
       <button id="btn-print" class="btn btn-outline-dark">&#128424; Print</button>
@@ -745,6 +746,40 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 3. Add Year / Schedule Block Modal -->
+    <div id="modal-prefs" class="modal modal-wide" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title">&#11088; Requested Weekends (Want to Work)</div>
+        <button class="modal-close" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:14px; color:var(--text-muted);">
+          Weekends listed here are locked in for that person when you click Auto-Generate. All other weekends are scheduled around them.
+          A request is skipped only if it is impossible (blackout, same weekend requested by two people, or back-to-back weekends for one person), and you will be told which.
+        </p>
+        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+          <div class="form-group">
+            <label class="form-label">Investigator *</label>
+            <select id="pref-member-select" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weekend (current schedule block) *</label>
+            <select id="pref-weekend-select" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <input type="text" id="pref-notes-input" class="form-input" placeholder="e.g. Swapped with Terek">
+          </div>
+          <button id="btn-save-new-pref" class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;">Add Requested Weekend</button>
+        </div>
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Requests for this block (<span id="modal-pref-count">0</span>)</div>
+        <div id="pref-items-container"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+
+    <!-- 3b. Add Year / Schedule Block Modal -->
     <div id="modal-add-cycle" class="modal" style="display:none;">
       <div class="modal-header">
         <div class="modal-title">&#128197; Add Year / Schedule Block</div>
@@ -980,6 +1015,7 @@ const htmlContent = `<!DOCTYPE html>
     // --- UI Controller & Application Bootstrap ---
     const storage = new StorageAdapter();
     window.appState = storage.state;
+    if (!window.appState.preferredWeekends) window.appState.preferredWeekends = [];
 
     let activeMonthIdx = 0; // 0=Jan
     let selectedDateForReassign = null;
@@ -1013,6 +1049,7 @@ const htmlContent = `<!DOCTYPE html>
     const modalOverlay = document.getElementById('modal-overlay');
     const modalRoster = document.getElementById('modal-roster');
     const modalBlackouts = document.getElementById('modal-blackouts');
+    const modalPrefs = document.getElementById('modal-prefs');
     const modalAddCycle = document.getElementById('modal-add-cycle');
     const modalReassign = document.getElementById('modal-reassign');
     const modalImport = document.getElementById('modal-import');
@@ -1022,6 +1059,7 @@ const htmlContent = `<!DOCTYPE html>
       modalOverlay.classList.remove('open');
       modalRoster.style.display = 'none';
       modalBlackouts.style.display = 'none';
+      modalPrefs.style.display = 'none';
       modalAddCycle.style.display = 'none';
       modalReassign.style.display = 'none';
       modalImport.style.display = 'none';
@@ -1057,6 +1095,7 @@ const htmlContent = `<!DOCTYPE html>
       const cycle = getActiveCycle();
       rosterCount.textContent = window.appState.roster.length;
       blackoutCount.textContent = window.appState.blackouts.length;
+      document.getElementById('pref-count').textContent = window.appState.preferredWeekends.length;
 
       renderMonthTabs();
       renderCalendar();
@@ -1257,13 +1296,17 @@ const htmlContent = `<!DOCTYPE html>
     document.getElementById('btn-solve').addEventListener('click', () => {
       storage.pushUndo();
       const cycle = getActiveCycle();
-      const result = solveSchedule(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.manualOverrides);
+      const result = solveSchedule(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.manualOverrides, window.appState.preferredWeekends);
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
       storage.saveState();
       renderApp();
-      showToast('Schedule successfully generated! All fatigue, rest, and quota rules applied.');
+      if (result.preferenceWarnings && result.preferenceWarnings.length) {
+        alert('Schedule generated, but these requested weekends could not be honored:\\n\\n' + result.preferenceWarnings.join('\\n'));
+      } else {
+        showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
+      }
     });
 
     // Undo / Redo
@@ -1478,6 +1521,76 @@ const htmlContent = `<!DOCTYPE html>
       renderApp();
       document.getElementById('book-notes-input').value = '';
       showToast('Blackout booked successfully.');
+    });
+
+    // -------------------------------------------------------------
+    // 2b. Requested Weekends Handlers
+    // -------------------------------------------------------------
+    function cyclePrefs() {
+      const c = getActiveCycle();
+      return window.appState.preferredWeekends.filter(p => p.weekendFriday >= c.startDate && p.weekendFriday <= c.endDate);
+    }
+
+    document.getElementById('btn-open-prefs').addEventListener('click', () => {
+      const cycle = getActiveCycle();
+      document.getElementById('pref-member-select').innerHTML = window.appState.roster.map(m =>
+        \`<option value="\${m.id}">\${m.name} (\${m.role})</option>\`).join('');
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
+      document.getElementById('pref-weekend-select').innerHTML = weekends.map(w => {
+        const hol = w.attachedMonday ? ' + Mon holiday' : (w.attachedFriday ? ' + Fri holiday' : '');
+        return \`<option value="\${w.friday}">Fri \${w.friday} to Sun \${w.sunday}\${hol}</option>\`;
+      }).join('');
+      renderPrefsList();
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalPrefs.style.display = 'flex';
+    });
+
+    function renderPrefsList() {
+      const list = document.getElementById('pref-items-container');
+      const prefs = cyclePrefs().sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday));
+      document.getElementById('modal-pref-count').textContent = prefs.length;
+      document.getElementById('pref-count').textContent = window.appState.preferredWeekends.length;
+      if (prefs.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No requested weekends for this block.</div>';
+        return;
+      }
+      list.innerHTML = prefs.map(p => {
+        const mem = window.appState.roster.find(m => m.id === p.memberId);
+        return \`
+          <div class="item-card">
+            <div>
+              <div style="font-weight:700; font-size:13px;">&#11088; \${mem ? mem.name : p.memberId}
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">\${p.notes ? \`(\${p.notes})\` : ''}</span></div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Weekend starting Fri \${p.weekendFriday}</div>
+            </div>
+            <button class="btn btn-outline-dark btn-delete-pref" data-id="\${p.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
+          </div>\`;
+      }).join('');
+      list.querySelectorAll('.btn-delete-pref').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window.appState.preferredWeekends = window.appState.preferredWeekends.filter(p => p.id !== btn.getAttribute('data-id'));
+          storage.saveState();
+          renderPrefsList();
+          showToast('Requested weekend removed. Re-run Auto-Generate to apply.');
+        });
+      });
+    }
+
+    document.getElementById('btn-save-new-pref').addEventListener('click', () => {
+      const memberId = document.getElementById('pref-member-select').value;
+      const weekendFriday = document.getElementById('pref-weekend-select').value;
+      const notes = document.getElementById('pref-notes-input').value.trim();
+      if (!memberId || !weekendFriday) { alert('Choose an investigator and a weekend.'); return; }
+      if (window.appState.preferredWeekends.some(p => p.memberId === memberId && p.weekendFriday === weekendFriday)) {
+        alert('That request already exists.');
+        return;
+      }
+      window.appState.preferredWeekends.push({ id: \`p_\${Date.now()}\`, memberId, weekendFriday, notes });
+      storage.saveState();
+      document.getElementById('pref-notes-input').value = '';
+      renderPrefsList();
+      showToast('Requested weekend added. Click Auto-Generate Schedule to apply.');
     });
 
     // -------------------------------------------------------------

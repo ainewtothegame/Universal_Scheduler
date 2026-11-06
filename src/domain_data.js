@@ -162,6 +162,7 @@ export function createInitialAppState() {
     version: 1,
     roster: [...DEFAULT_2027_ROSTER],
     blackouts: [...DEFAULT_2027_BLACKOUTS],
+    preferredWeekends: [], // { id, memberId, weekendFriday, notes }
     holidays: [...DEFAULT_2027_HOLIDAYS],
     cycles: {
       '2027-H1': {
