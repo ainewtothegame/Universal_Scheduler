@@ -316,3 +316,55 @@ console.log('PASS alternates spread out');
   // Holiday balance never overrides a hard rule: all spec rules were re-verified separately in test 7
 }
 console.log('PASS holiday balance');
+
+// 18. Clear Calendar wipes selected calendar with sibling sync and undo/redo support
+{
+  const s = new StorageAdapter();
+  s.state = D.createInitialAppState();
+  s.state.activeCycleId = '2027-H1';
+  s.state.cycles['2027-H1'].assignments = { '2027-01-05': 'polcha', '2027-01-06': 'terek' };
+  s.state.cycles['2027-H1'].manualOverrides = { '2027-01-05': true };
+  s.state.cycles['2027-FULL'].assignments = { '2027-01-05': 'polcha', '2027-01-06': 'terek', '2027-08-10': 'wolfe' };
+  s.state.cycles['2027-H2'].assignments = { '2027-08-10': 'wolfe' };
+
+  // Clear H1
+  assert(s.clearCycle('2027-H1'));
+  assert.deepStrictEqual(s.state.cycles['2027-H1'].assignments, {});
+  assert.deepStrictEqual(s.state.cycles['2027-H1'].manualOverrides, {});
+  // H1 dates removed from FULL, H2 dates preserved in FULL and H2
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-01-05'], undefined);
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-01-06'], undefined);
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-08-10'], 'wolfe');
+  assert.strictEqual(s.state.cycles['2027-H2'].assignments['2027-08-10'], 'wolfe');
+
+  // Undo restores H1 assignments
+  assert(s.undo());
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-01-05'], 'polcha');
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-01-06'], 'terek');
+  assert.strictEqual(s.state.cycles['2027-H1'].manualOverrides['2027-01-05'], true);
+
+  // Redo wipes H1 again and clears from FULL
+  assert(s.redo());
+  assert.deepStrictEqual(s.state.cycles['2027-H1'].assignments, {});
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-01-05'], undefined);
+
+  // Test clearing FULL wipes all sibling cycles for that year
+  s.state.cycles['2027-FULL'].assignments = { '2027-01-10': 'polcha', '2027-09-15': 'terek' };
+  s.state.cycles['2027-H1'].assignments = { '2027-01-10': 'polcha' };
+  s.state.cycles['2027-H2'].assignments = { '2027-09-15': 'terek' };
+  assert(s.clearCycle('2027-FULL'));
+  assert.deepStrictEqual(s.state.cycles['2027-FULL'].assignments, {});
+  assert.deepStrictEqual(s.state.cycles['2027-H1'].assignments, {});
+  assert.deepStrictEqual(s.state.cycles['2027-H2'].assignments, {});
+}
+console.log('PASS clear calendar engine and undo/redo');
+
+// 19. Built index.html contains clear calendar button, confirmation prompt, and handler
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('id="btn-clear-calendar"'), 'missing btn-clear-calendar element');
+  assert(html.includes('Clear Calendar'), 'missing Clear Calendar text');
+  assert(html.includes('storage.clearCycle('), 'missing storage.clearCycle call');
+  assert(html.includes('confirm('), 'missing confirmation prompt');
+}
+console.log('PASS clear calendar UI elements and confirmation prompt present');

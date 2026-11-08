@@ -608,6 +608,7 @@ const htmlContent = `<!DOCTYPE html>
       <button id="btn-undo" class="btn btn-outline" title="Undo (Ctrl+Z)">&#8630; Undo</button>
       <button id="btn-redo" class="btn btn-outline" title="Redo (Ctrl+Y)">&#8631; Redo</button>
       <button id="btn-solve" class="btn btn-light">&#9881; Auto-Generate Schedule</button>
+      <button id="btn-clear-calendar" class="btn btn-danger" title="Clear all shift assignments for the selected calendar">&#128465; Clear Calendar</button>
     </div>
   </header>
 
@@ -1783,6 +1784,23 @@ const htmlContent = `<!DOCTYPE html>
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
       }
+    });
+
+    // Clear Calendar
+    document.getElementById('btn-clear-calendar').addEventListener('click', () => {
+      const cycle = getActiveCycle();
+      if (!cycle) return;
+      const cycleLabel = cycle.blockType === 'FULL'
+        ? \`\${cycle.year} Full Year\`
+        : \`\${cycle.year} \${cycle.blockType} (\${cycle.startDate} to \${cycle.endDate})\`;
+
+      if (!confirm(\`Are you sure you want to clear all shift assignments for "\${cycleLabel}"? This will wipe the current calendar.\`)) {
+        return;
+      }
+
+      storage.clearCycle(cycle.id);
+      renderApp();
+      showToast(\`Calendar wiped for \${cycleLabel}.\`);
     });
 
     // Undo / Redo

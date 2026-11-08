@@ -125,6 +125,54 @@ export class StorageAdapter {
     c.manualOverrides = { ...entry.manualOverrides };
     c.updatedAt = Date.now();
     this.state.activeCycleId = entry.cycleId; // show the cycle that changed
+
+    // Synchronize deletions with sibling cycles of the same year so
+    // syncCycleAssignments does not resurrect cleared dates
+    if (this.state.cycles) {
+      Object.values(this.state.cycles).forEach(sib => {
+        if (sib.id !== c.id && sib.year === c.year && sib.assignments) {
+          for (const d of Object.keys(sib.assignments)) {
+            if (d >= c.startDate && d <= c.endDate && !c.assignments[d]) {
+              delete sib.assignments[d];
+              if (sib.manualOverrides) delete sib.manualOverrides[d];
+            }
+          }
+          sib.updatedAt = Date.now();
+        }
+      });
+    }
+
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Clears all assignments and manual overrides for a cycle and clears
+   * matching date ranges from sibling cycles of the same year.
+   */
+  clearCycle(cycleId = this.state.activeCycleId) {
+    const cycle = this.state.cycles[cycleId];
+    if (!cycle) return false;
+    this.pushUndo(cycleId);
+    cycle.assignments = {};
+    cycle.manualOverrides = {};
+    cycle.solverDiagnostics = {};
+    cycle.updatedAt = Date.now();
+
+    if (this.state.cycles) {
+      Object.values(this.state.cycles).forEach(c => {
+        if (c.id !== cycle.id && c.year === cycle.year && c.assignments) {
+          for (const d of Object.keys(c.assignments)) {
+            if (d >= cycle.startDate && d <= cycle.endDate) {
+              delete c.assignments[d];
+              if (c.manualOverrides) delete c.manualOverrides[d];
+            }
+          }
+          c.updatedAt = Date.now();
+        }
+      });
+    }
+
     this.saveState();
     return true;
   }
