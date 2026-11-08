@@ -178,6 +178,44 @@ export class StorageAdapter {
   }
 
   /**
+   * Clears assignments and manual overrides for a specific month within a cycle
+   * and clears matching dates from sibling cycles of the same year.
+   */
+  clearMonth(year, monthIdx, cycleId = this.state.activeCycleId) {
+    const cycle = this.state.cycles[cycleId];
+    if (!cycle) return false;
+    this.pushUndo(cycleId);
+
+    const mPrefix = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+    if (cycle.assignments) {
+      for (const d of Object.keys(cycle.assignments)) {
+        if (d.startsWith(mPrefix)) {
+          delete cycle.assignments[d];
+          if (cycle.manualOverrides) delete cycle.manualOverrides[d];
+        }
+      }
+    }
+    cycle.updatedAt = Date.now();
+
+    if (this.state.cycles) {
+      Object.values(this.state.cycles).forEach(c => {
+        if (c.id !== cycle.id && c.year === cycle.year && c.assignments) {
+          for (const d of Object.keys(c.assignments)) {
+            if (d.startsWith(mPrefix)) {
+              delete c.assignments[d];
+              if (c.manualOverrides) delete c.manualOverrides[d];
+            }
+          }
+          c.updatedAt = Date.now();
+        }
+      });
+    }
+
+    this.saveState();
+    return true;
+  }
+
+  /**
    * Performs undo on the cycle the entry was recorded for.
    */
   undo() {

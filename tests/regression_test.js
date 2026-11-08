@@ -365,6 +365,62 @@ console.log('PASS clear calendar engine and undo/redo');
   assert(html.includes('id="btn-clear-calendar"'), 'missing btn-clear-calendar element');
   assert(html.includes('Clear Calendar'), 'missing Clear Calendar text');
   assert(html.includes('storage.clearCycle('), 'missing storage.clearCycle call');
+  assert(html.includes('storage.clearMonth('), 'missing storage.clearMonth call');
   assert(html.includes('confirm('), 'missing confirmation prompt');
 }
 console.log('PASS clear calendar UI elements and confirmation prompt present');
+
+// 20. Clear Month wipes single month and preserves others with undo/redo
+{
+  const s = new StorageAdapter();
+  s.state = D.createInitialAppState();
+  s.state.activeCycleId = '2027-H1';
+  s.state.cycles['2027-H1'].assignments = {
+    '2027-01-15': 'polcha',
+    '2027-02-14': 'kemerer',
+    '2027-03-10': 'terek'
+  };
+  s.state.cycles['2027-FULL'].assignments = {
+    '2027-01-15': 'polcha',
+    '2027-02-14': 'kemerer',
+    '2027-03-10': 'terek'
+  };
+
+  // Clear February (monthIdx 1)
+  assert(s.clearMonth(2027, 1, '2027-H1'));
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-02-14'], undefined);
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-01-15'], 'polcha');
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-03-10'], 'terek');
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-02-14'], undefined);
+  assert.strictEqual(s.state.cycles['2027-FULL'].assignments['2027-01-15'], 'polcha');
+
+  // Undo restores February
+  assert(s.undo());
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-02-14'], 'kemerer');
+
+  // Redo wipes February again
+  assert(s.redo());
+  assert.strictEqual(s.state.cycles['2027-H1'].assignments['2027-02-14'], undefined);
+}
+console.log('PASS clear month engine and undo/redo');
+
+// 21. New UI features: Show All, dropdown autofocus, holiday emoji removal, print header suppression
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  // 1. Show All button
+  assert(html.includes('>Show All</button>'), 'missing Show All month button');
+  // 2. Dropdown focus
+  assert(html.includes('select.focus()'), 'missing select.focus() in reassignment modal');
+  // 3. Clear Calendar scope modal
+  assert(html.includes('id="modal-clear-calendar"'), 'missing modal-clear-calendar');
+  assert(html.includes('id="clear-scope-month"'), 'missing clear-scope-month radio');
+  assert(html.includes('id="clear-scope-cycle"'), 'missing clear-scope-cycle radio');
+  // 4. Holiday breakdown emoji removed
+  assert(!html.includes('&#127881; Official Holidays Coverage Breakdown'), 'holiday emoji should be removed');
+  assert(html.includes('Official Holidays Coverage Breakdown</h3>'), 'holiday header text preserved without emoji');
+  // 5. Print header suppression
+  assert(html.includes('@page {'), 'missing @page rule');
+  assert(html.includes('margin: 0;'), 'missing print margin: 0 to suppress browser header/footer');
+  assert(html.includes("document.title = '';"), 'missing title suppression during beforeprint');
+}
+console.log('PASS show-all, dropdown focus, scope modal, emoji removal, and print suppression present');

@@ -559,10 +559,18 @@ const htmlContent = `<!DOCTYPE html>
 
     /* Print Stylesheet */
     @media print {
+      @page {
+        size: landscape;
+        margin: 0;
+      }
       header, .ribbon, .month-tabs, .btn, .modal-overlay {
         display: none !important;
       }
-      body { background: #ffffff !important; }
+      body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
       main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
       .print-page-title {
         display: block !important;
@@ -575,6 +583,7 @@ const htmlContent = `<!DOCTYPE html>
       .calendar-container {
         border: none !important;
         box-shadow: none !important;
+        padding: 0.35in 0.45in !important;
         break-after: page;
         page-break-after: always;
       }
@@ -589,7 +598,6 @@ const htmlContent = `<!DOCTYPE html>
       body.printing-all #view-matrix-wrapper,
       body.printing-all #view-breakdown-wrapper { display: none !important; }
       body.printing-all #print-all-container { display: block !important; }
-      @page { size: landscape; margin: 0.5in; }
     }
   </style>
 </head>
@@ -943,6 +951,42 @@ const htmlContent = `<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- 7. Clear Calendar Scope Modal -->
+    <div id="modal-clear-calendar" class="modal" style="width:500px; display:none;" role="dialog" aria-modal="true" aria-label="Clear calendar options">
+      <div class="modal-header" style="background:var(--danger);">
+        <div class="modal-title">&#128465; Clear Shift Assignments</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:16px; color:var(--text-main); font-weight:600;">
+          Select the scope of shift assignments you want to wipe:
+        </p>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff;">
+            <input type="radio" name="clear-scope" value="month" id="clear-scope-month" checked style="margin-top:4px;">
+            <div style="flex:1;">
+              <div style="font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <span>Clear Single Month:</span>
+                <select id="clear-month-select" class="form-select" style="width:auto; padding:3px 8px; font-size:12px;"></select>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Wipes scheduled shifts for only this selected month.</div>
+            </div>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff;">
+            <input type="radio" name="clear-scope" value="cycle" id="clear-scope-cycle" style="margin-top:4px;">
+            <div style="flex:1;">
+              <div style="font-weight:700;" id="clear-cycle-label">Clear Entire Calendar Block</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Wipes all shifts across the entire active schedule block.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
+        <button id="btn-proceed-clear" class="btn btn-danger">&#128465; Clear Shifts...</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- Notification Toast -->
@@ -1123,6 +1167,7 @@ const htmlContent = `<!DOCTYPE html>
     const modalReassign = document.getElementById('modal-reassign');
     const modalImport = document.getElementById('modal-import');
     const modalAlias = document.getElementById('modal-alias');
+    const modalClearCalendar = document.getElementById('modal-clear-calendar');
 
     function closeAllModals() {
       modalOverlay.classList.remove('open');
@@ -1133,6 +1178,7 @@ const htmlContent = `<!DOCTYPE html>
       modalReassign.style.display = 'none';
       modalImport.style.display = 'none';
       modalAlias.style.display = 'none';
+      if (modalClearCalendar) modalClearCalendar.style.display = 'none';
       if (typeof resetMemberForm === 'function') resetMemberForm();
     }
 
@@ -1169,6 +1215,8 @@ const htmlContent = `<!DOCTYPE html>
             document.getElementById('btn-save-shift').click();
           } else if (modalAlias.style.display !== 'none') {
             document.getElementById('btn-confirm-alias').click();
+          } else if (modalClearCalendar && modalClearCalendar.style.display !== 'none') {
+            document.getElementById('btn-proceed-clear').click();
           }
         }
       }
@@ -1294,55 +1342,50 @@ const htmlContent = `<!DOCTYPE html>
         curr.setMonth(curr.getMonth() + 1);
       }
 
-      // If activeMonthIdx is outside the cycle's months, reset it
+      // If activeMonthIdx is outside the cycle's months and not -1 (Show All), reset it
       const validIndices = months.map(m => m.idx);
-      if (!validIndices.includes(activeMonthIdx)) {
+      if (!validIndices.includes(activeMonthIdx) && activeMonthIdx !== -1) {
         activeMonthIdx = validIndices[0];
       }
 
-      monthTabsBar.innerHTML = months.map(m => \`
-        <button class="month-tab \${m.idx === activeMonthIdx ? 'active' : ''}" data-idx="\${m.idx}">
-          \${esc(m.name)} \${m.year}
-        </button>
-      \`).join('');
+      monthTabsBar.innerHTML = \`
+        <button class="month-tab \${activeMonthIdx === -1 ? 'active' : ''}" data-idx="all">Show All</button>
+        \${months.map(m => \`
+          <button class="month-tab \${m.idx === activeMonthIdx ? 'active' : ''}" data-idx="\${m.idx}">
+            \${esc(m.name)} \${m.year}
+          </button>
+        \`).join('')}
+      \`;
 
       monthTabsBar.querySelectorAll('.month-tab').forEach(btn => {
         btn.addEventListener('click', () => {
-          activeMonthIdx = parseInt(btn.getAttribute('data-idx'));
+          const val = btn.getAttribute('data-idx');
+          activeMonthIdx = val === 'all' ? -1 : parseInt(val);
           renderApp();
         });
       });
     }
 
-    // Render 7-Column Calendar Grid
-    function renderCalendar() {
-      const cycle = getActiveCycle();
-      const year = cycle.year;
+    function renderSingleMonthHtml(cycle, targetYear, targetMonthIdx, conflicts) {
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      calendarMonthTitle.textContent = \`\${monthNames[activeMonthIdx]} \${year}\`;
+      const monthTitle = \`\${monthNames[targetMonthIdx]} \${targetYear}\`;
 
-      // Evaluate Conflicts
-      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.assignments);
-
-      let hasExemption = false;
-
-      // Find first day of month and build grid
-      const firstDay = new Date(year, activeMonthIdx, 1);
-      const lastDay = new Date(year, activeMonthIdx + 1, 0);
-
+      const firstDay = new Date(targetYear, targetMonthIdx, 1);
+      const lastDay = new Date(targetYear, targetMonthIdx + 1, 0);
       const firstDow = firstDay.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
       const mondayOffset = firstDow === 0 ? -6 : (1 - firstDow);
       let weekMonday = addDays(firstDay, mondayOffset);
 
       let cellsHtml = '';
       let assignedCount = 0;
-      let totalMonthDays = lastDay.getDate();
+      const totalMonthDays = lastDay.getDate();
+      let hasExemption = false;
 
       while (weekMonday <= lastDay) {
         for (let i = 0; i < 7; i++) {
           const d = addDays(weekMonday, i);
           const dStr = formatDate(d);
-          const isCurrentMonth = d.getMonth() === activeMonthIdx;
+          const isCurrentMonth = d.getMonth() === targetMonthIdx;
           const dow = d.getDay();
           const isWeekend = (dow === 0 || dow === 6);
 
@@ -1350,10 +1393,7 @@ const htmlContent = `<!DOCTYPE html>
           const member = window.appState.roster.find(m => m.id === assignedId);
           if (isCurrentMonth && assignedId) assignedCount++;
 
-          // Check holidays
           const holiday = window.appState.holidays.find(h => h.date === dStr);
-
-          // Check conflicts
           const dayConflicts = conflicts[dStr] || [];
           const hasError = dayConflicts.some(c => c.type === 'ERROR');
           const hasWarning = dayConflicts.some(c => c.type === 'WARNING');
@@ -1398,12 +1438,53 @@ const htmlContent = `<!DOCTYPE html>
         weekMonday = addDays(weekMonday, 7);
       }
 
-      calendarDaysGrid.innerHTML = cellsHtml;
-      calendarSummaryStat.textContent = \`Staffed: \${assignedCount} / \${totalMonthDays} Days\`;
-      exemptionNote.style.display = hasExemption ? 'block' : 'none';
+      return \`
+        <div class="calendar-container" style="margin-bottom:24px;">
+          <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
+          <div class="calendar-header">
+            <div class="calendar-title">\${monthTitle}</div>
+            <div style="font-size: 13px; color: var(--text-muted);">Staffed: \${assignedCount} / \${totalMonthDays} Days</div>
+          </div>
+          <div class="calendar-grid">
+            <div class="dow-header">Monday</div>
+            <div class="dow-header">Tuesday</div>
+            <div class="dow-header">Wednesday</div>
+            <div class="dow-header">Thursday</div>
+            <div class="dow-header">Friday</div>
+            <div class="dow-header">Saturday</div>
+            <div class="dow-header">Sunday</div>
+          </div>
+          <div class="calendar-grid">\${cellsHtml}</div>
+          <div class="calendar-footer">
+            <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. Click any date cell to manually adjust shift assignment.</div>
+            <div style="color:var(--danger); font-weight:600; display:\${hasExemption ? 'block' : 'none'};">* Administrative Exemption: Manual Alternate Weekday Assignment</div>
+          </div>
+        </div>
+      \`;
+    }
+
+    // Render 7-Column Calendar Grid
+    function renderCalendar() {
+      const cycle = getActiveCycle();
+      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.assignments);
+      const start = parseDate(cycle.startDate);
+      const end = parseDate(cycle.endDate);
+
+      if (activeMonthIdx === -1) {
+        const monthHtmls = [];
+        let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+        const last = new Date(end.getFullYear(), end.getMonth(), 1);
+        while (curr <= last) {
+          monthHtmls.push(renderSingleMonthHtml(cycle, curr.getFullYear(), curr.getMonth(), conflicts));
+          curr.setMonth(curr.getMonth() + 1);
+        }
+        viewCalendarWrapper.innerHTML = monthHtmls.join('');
+      } else {
+        viewCalendarWrapper.innerHTML = renderSingleMonthHtml(cycle, cycle.year, activeMonthIdx, conflicts);
+      }
 
       // Cell click handler for reassigning
-      calendarDaysGrid.querySelectorAll('.day-cell').forEach(cell => {
+      viewCalendarWrapper.querySelectorAll('.day-cell').forEach(cell => {
         cell.addEventListener('click', () => {
           const dateStr = cell.getAttribute('data-date');
           openReassignModal(dateStr);
@@ -1630,7 +1711,7 @@ const htmlContent = `<!DOCTYPE html>
         <div style="margin-top:24px; padding:20px; background:#ffffff; border:1px solid var(--border-color); border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
             <div>
-              <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:2px;">&#127881; Official Holidays Coverage Breakdown</h3>
+              <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:2px;">Official Holidays Coverage Breakdown</h3>
               <div style="font-size:12px; color:var(--text-muted);">List of members and holidays worked for active block (\${cycle.year} \${cycle.blockType === 'FULL' ? 'Full Year' : cycle.blockType}). July 4th is celebrated strictly on July 4th.</div>
             </div>
             <div style="font-size:12px; font-weight:600; background:#f1f5f9; padding:4px 10px; border-radius:6px;">
@@ -1794,13 +1875,81 @@ const htmlContent = `<!DOCTYPE html>
         ? \`\${cycle.year} Full Year\`
         : \`\${cycle.year} \${cycle.blockType} (\${cycle.startDate} to \${cycle.endDate})\`;
 
-      if (!confirm(\`Are you sure you want to clear all shift assignments for "\${cycleLabel}"? This will wipe the current calendar.\`)) {
-        return;
+      document.getElementById('clear-cycle-label').textContent = \`Clear Entire Calendar Block (\${cycleLabel})\`;
+
+      // Populate month options
+      const start = parseDate(cycle.startDate);
+      const end = parseDate(cycle.endDate);
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthSelect = document.getElementById('clear-month-select');
+      const monthOptions = [];
+      let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+      const last = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (curr <= last) {
+        const mIdx = curr.getMonth();
+        const y = curr.getFullYear();
+        monthOptions.push({
+          val: \`\${y}-\${mIdx}\`,
+          label: \`\${monthNames[mIdx]} \${y}\`,
+          idx: mIdx,
+          year: y
+        });
+        curr.setMonth(curr.getMonth() + 1);
+      }
+      monthSelect.innerHTML = monthOptions.map(opt => \`
+        <option value="\${opt.val}">\${esc(opt.label)}</option>
+      \`).join('');
+
+      // Pre-select current month if single month view active
+      if (activeMonthIdx !== -1) {
+        const match = monthOptions.find(opt => opt.idx === activeMonthIdx);
+        if (match) monthSelect.value = match.val;
+        document.getElementById('clear-scope-month').checked = true;
+      } else {
+        document.getElementById('clear-scope-cycle').checked = true;
       }
 
-      storage.clearCycle(cycle.id);
-      renderApp();
-      showToast(\`Calendar wiped for \${cycleLabel}.\`);
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalClearCalendar.style.display = 'flex';
+    });
+
+    document.getElementById('btn-proceed-clear').addEventListener('click', () => {
+      const cycle = getActiveCycle();
+      if (!cycle) return;
+      const isMonth = document.getElementById('clear-scope-month').checked;
+
+      if (isMonth) {
+        const monthSelect = document.getElementById('clear-month-select');
+        const selectedVal = monthSelect.value;
+        const [yStr, mStr] = selectedVal.split('-');
+        const y = parseInt(yStr);
+        const mIdx = parseInt(mStr);
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthLabel = \`\${monthNames[mIdx]} \${y}\`;
+
+        if (!confirm(\`Are you sure you want to clear all shift assignments for \${monthLabel}? This will wipe the schedule for this month.\`)) {
+          return;
+        }
+
+        storage.clearMonth(y, mIdx, cycle.id);
+        closeAllModals();
+        renderApp();
+        showToast(\`Cleared shifts for \${monthLabel}.\`);
+      } else {
+        const cycleLabel = cycle.blockType === 'FULL'
+          ? \`\${cycle.year} Full Year\`
+          : \`\${cycle.year} \${cycle.blockType} (\${cycle.startDate} to \${cycle.endDate})\`;
+
+        if (!confirm(\`Are you sure you want to clear all shift assignments for "\${cycleLabel}"? This will wipe the entire calendar block.\`)) {
+          return;
+        }
+
+        storage.clearCycle(cycle.id);
+        closeAllModals();
+        renderApp();
+        showToast(\`Cleared all shifts for \${cycleLabel}.\`);
+      }
     });
 
     // Undo / Redo
@@ -2438,11 +2587,16 @@ const htmlContent = `<!DOCTYPE html>
       }
 
       select.onchange = updatePreview;
+      select.oninput = updatePreview;
+      select.onkeyup = updatePreview;
       updatePreview();
 
       closeAllModals();
       modalOverlay.classList.add('open');
       modalReassign.style.display = 'flex';
+      setTimeout(() => {
+        select.focus();
+      }, 0);
     }
 
     document.getElementById('btn-save-shift').addEventListener('click', () => {
@@ -2638,6 +2792,15 @@ const htmlContent = `<!DOCTYPE html>
 
     document.getElementById('btn-print').addEventListener('click', () => {
       window.print();
+    });
+
+    // Suppress browser title/timestamp in print header
+    window.addEventListener('beforeprint', () => {
+      window._savedDocTitle = document.title;
+      document.title = '';
+    });
+    window.addEventListener('afterprint', () => {
+      document.title = window._savedDocTitle || 'PSP Fire Marshal On-Call Schedule Generator';
     });
 
     // -------------------------------------------------------------
