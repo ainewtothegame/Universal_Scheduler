@@ -489,3 +489,30 @@ console.log('PASS H2 balances against H1 and respects boundary');
   assert(html.includes('Do you want to manually overwrite this rule'), 'missing overwrite confirmation prompt');
 }
 console.log('PASS manual assignment violation check and overwrite prompt present');
+
+// 25. Rules README, User Guide, Menu Bar Single Line, and Refract Theme
+{
+  const rules = fs.readFileSync(new URL('../SCHEDULE_RULES.md', import.meta.url), 'utf8');
+  assert(rules.includes('Mandatory Days Off (Thursday through Sunday)'), 'missing rest days in rules readme');
+  assert(rules.includes('Quota per 6-Month Block'), 'missing alternate quota in rules readme');
+  assert(rules.includes('Attached vs Standalone Holidays') || rules.includes('Attached vs. Standalone Holidays'), 'missing holiday rules');
+
+  const guide = fs.readFileSync(new URL('../USER_GUIDE.md', import.meta.url), 'utf8');
+  assert(guide.includes('What the Dots on the Calendar Mean'), 'missing dots section in guide');
+  assert(guide.includes('Red Dot'), 'missing Red Dot in guide');
+  assert(guide.includes('Amber Dot'), 'missing Amber Dot in guide');
+  assert(guide.includes('Blue Dot'), 'missing Blue Dot in guide');
+
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('id="btn-open-guide"'), 'missing btn-open-guide button');
+  assert(html.includes('id="btn-open-rules"'), 'missing btn-open-rules button');
+  assert(html.includes('id="modal-guide"'), 'missing modal-guide element');
+  assert(html.includes('id="modal-rules"'), 'missing modal-rules element');
+  assert(html.includes('theme: Refract'), 'missing Refract theme stamp');
+  assert(html.includes('Funnel Display'), 'missing Funnel Display font');
+  assert(html.includes('Funnel Sans'), 'missing Funnel Sans font');
+  assert(html.includes('--color-paper'), 'missing Refract paper token');
+  assert(html.includes('--color-ink'), 'missing Refract ink token');
+}
+console.log('PASS READMEs, how-to-use & rules buttons, single-line menu, and Refract theme verified');
+

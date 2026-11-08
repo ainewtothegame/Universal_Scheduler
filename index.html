@@ -3,85 +3,191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pennsylvania State Police Troop H Fire Marshal on-call schedule generator, fatigue risk management, and duty assignment planner.">
   <title>PSP Fire Marshal On-Call Schedule Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600&family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+/* Hallmark · shape: Workbench · genre: atmospheric · theme: Refract (by request) · job: try · draw: 7f3a2c
+ * hero: Stage · nav: edge-aligned · footer: mast · imagery: none · signature: caustics light band · refract: water/pool
+ * axes: light/grotesk-sans/cool · posture: restrained · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P9 H9 E9 S9 R9 V9 · weakest: none, refined all panels and ribbons */
     :root {
-      --primary: #1e3a8a;
-      --primary-hover: #172554;
-      --bg-main: #f8fafc;
-      --card-bg: #ffffff;
-      --border-color: #cbd5e1;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --danger: #dc2626;
-      --danger-hover: #b91c1c;
-      --warning: #d97706;
-      --success: #16a34a;
-      --info: #0284c7;
+      color-scheme: light;
+      --color-paper: oklch(98.2% 0.006 95);
+      --color-paper-2: oklch(96.4% 0.006 95);
+      --color-paper-3: oklch(93.6% 0.008 95);
+      --color-ink: oklch(23% 0.035 245);
+      --color-ink-2: oklch(36% 0.035 245);
+      --color-muted: oklch(50% 0.025 240);
+      --color-rule: oklch(89.5% 0.008 230);
+      --color-rule-2: oklch(93.5% 0.006 230);
+      --color-accent: oklch(50% 0.12 234);
+      --color-accent-hi: oklch(44% 0.12 236);
+      --color-accent-ink: oklch(99% 0.003 95);
+      --color-accent-soft: oklch(94% 0.025 220);
+      --color-focus: oklch(56% 0.14 234);
+      --color-shade: oklch(86% 0.05 212);
+      --color-shade-2: oklch(74% 0.07 220);
+      --color-light: oklch(99.7% 0.004 95);
+      --spec-1: oklch(78% 0.15 32);
+      --spec-2: oklch(90% 0.15 105);
+      --spec-3: oklch(82% 0.13 175);
+      --spec-4: oklch(66% 0.15 270);
+      --caustic-glow-1: oklch(50% 0.12 234 / 0.45);
+      --caustic-glow-2: oklch(82% 0.13 175 / 0.2);
+      --caustic-modal-1: oklch(50% 0.12 234 / 0.4);
+      --caustic-modal-2: oklch(82% 0.13 175 / 0.15);
+      --edge-light: inset 0 1px 0 oklch(100% 0 0 / 0.9), inset 0 0 0 1px oklch(100% 0 0 / 0.55);
+      --shadow-card: 18px 28px 48px -26px oklch(52% 0.09 220 / 0.22), 2px 3px 6px -2px oklch(40% 0.05 230 / 0.08);
+      --shadow-cast: 28px 40px 70px -30px oklch(60% 0.11 212 / 0.32);
+      --shadow-btn-light: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-btn-dark: 0 1px 2px rgba(0,0,0,0.02);
+      --shadow-tab-active: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-chip: 0 1px 2px rgba(0,0,0,0.08);
+      --shadow-subtle: 0 1px 3px rgba(0,0,0,0.05);
+      --font-display: "Funnel Display", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --font-body: "Funnel Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --radius-card: 20px;
+      --radius-inner: 10px;
+      --radius-pill: 999px;
+      --rule-hair: 1px;
+      --tracking-display: -0.032em;
+      --display-weight: 500;
+
+      /* Semantic Token Mappings */
+      --primary: var(--color-ink);
+      --primary-hover: var(--color-ink-2);
+      --bg-main: var(--color-paper);
+      --card-bg: var(--color-light);
+      --border-color: var(--color-rule);
+      --text-main: var(--color-ink);
+      --text-muted: var(--color-muted);
+      --danger: oklch(52% 0.22 25);
+      --danger-hover: oklch(44% 0.22 25);
+      --danger-soft: oklch(95% 0.04 25);
+      --danger-border: oklch(75% 0.15 25);
+      --danger-text: oklch(45% 0.2 25);
+      --warning: oklch(68% 0.17 65);
+      --warning-soft: oklch(96% 0.04 85);
+      --warning-soft-border: oklch(88% 0.08 85);
+      --warning-border: oklch(75% 0.14 75);
+      --warning-text: oklch(40% 0.12 70);
+      --success: oklch(52% 0.15 150);
+      --success-hover: oklch(46% 0.15 150);
+      --success-soft: oklch(96% 0.04 150);
+      --success-border: oklch(88% 0.08 150);
+      --success-text: oklch(38% 0.12 150);
+      --info: var(--color-accent);
+      --info-text: oklch(42% 0.12 234);
+      --color-print-ink: #000000;
+      --color-print-paper: #ffffff;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      overflow-x: clip;
+    }
+
+    ::selection {
+      background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+      color: var(--color-ink);
+    }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: var(--font-body);
       background: var(--bg-main);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      line-height: 1.55;
+      caret-color: var(--color-accent);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Top Navigation Bar */
+    :focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Top Navigation Bar with Refract caustics sheen */
     header {
-      background: var(--primary);
-      color: #ffffff;
-      padding: 12px 24px;
+      background: var(--color-ink);
+      background-image:
+        radial-gradient(ellipse at 85% 0%, var(--caustic-glow-1) 0%, transparent 65%),
+        radial-gradient(ellipse at 15% 100%, var(--caustic-glow-2) 0%, transparent 50%);
+      color: var(--color-light);
+      padding: 10px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-card);
       position: sticky;
       top: 0;
       z-index: 50;
       gap: 16px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    header::-webkit-scrollbar { display: none; }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-shrink: 0;
     }
 
     .brand-title {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: var(--tracking-display);
+      overflow-wrap: break-word;
+      min-width: 0;
     }
 
     .brand-badge {
+      font-family: var(--font-body);
       font-size: 11px;
-      background: rgba(255,255,255,0.2);
-      padding: 3px 8px;
-      border-radius: 9999px;
+      background: color-mix(in oklab, var(--color-light) 15%, transparent);
+      border: 1px solid color-mix(in oklab, var(--color-light) 25%, transparent);
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
       text-transform: uppercase;
       font-weight: 600;
+      letter-spacing: 0.04em;
     }
 
     .header-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
     }
 
     .cycle-select {
-      background: #ffffff;
-      color: var(--text-main);
+      background: var(--color-light);
+      color: var(--color-ink);
       border: 1px solid var(--border-color);
-      padding: 7px 12px;
-      border-radius: 6px;
-      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-body);
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       outline: none;
@@ -91,134 +197,167 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
       cursor: pointer;
       border: 1px solid transparent;
-      transition: all 0.15s ease;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
       white-space: nowrap;
     }
 
     .btn:active { transform: scale(0.98); }
 
     .btn-light {
-      background: #ffffff;
-      color: var(--primary);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      background: var(--color-light);
+      color: var(--color-ink);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-btn-light);
     }
-    .btn-light:hover { background: #f1f5f9; }
+    .btn-light:hover {
+      background: var(--color-paper-2);
+      border-color: var(--color-rule-2);
+    }
 
     .btn-primary {
-      background: var(--primary);
-      color: #ffffff;
+      background: var(--color-accent);
+      color: var(--color-accent-ink);
+      box-shadow: var(--shadow-card);
     }
-    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:hover {
+      background: var(--color-accent-hi);
+    }
 
     .btn-success {
       background: var(--success);
-      color: #ffffff;
+      color: var(--color-light);
     }
-    .btn-success:hover { background: #15803d; }
+    .btn-success:hover {
+      background: var(--success-hover);
+    }
 
     .btn-danger {
       background: var(--danger);
-      color: #ffffff;
+      color: var(--color-light);
+      box-shadow: var(--shadow-card);
     }
-    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
 
     .btn-outline {
       background: transparent;
-      border-color: rgba(255,255,255,0.4);
-      color: #ffffff;
+      border-color: color-mix(in oklab, var(--color-light) 30%, transparent);
+      color: var(--color-light);
     }
-    .btn-outline:hover { background: rgba(255,255,255,0.1); }
+    .btn-outline:hover {
+      background: color-mix(in oklab, var(--color-light) 12%, transparent);
+    }
 
     .btn-outline-dark {
-      background: #ffffff;
+      background: var(--color-light);
       border-color: var(--border-color);
-      color: var(--text-main);
+      color: var(--color-ink);
+      box-shadow: var(--shadow-btn-dark);
     }
-    .btn-outline-dark:hover { background: #f1f5f9; }
+    .btn-outline-dark:hover {
+      background: var(--color-accent-soft);
+      border-color: var(--color-accent);
+    }
 
-    /* Action Ribbon */
+    /* Single-Line Action Ribbon */
     .ribbon {
-      background: #ffffff;
+      background: var(--color-light);
       border-bottom: 1px solid var(--border-color);
-      padding: 10px 24px;
+      padding: 6px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .ribbon::-webkit-scrollbar { display: none; }
 
     .tab-group {
       display: flex;
-      background: #f1f5f9;
+      background: var(--color-paper-2);
       padding: 3px;
-      border-radius: 8px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-color);
       gap: 2px;
+      flex-shrink: 0;
     }
 
     .tab-btn {
-      padding: 6px 14px;
+      padding: 5px 12px;
       border: none;
       background: transparent;
       color: var(--text-muted);
-      font-weight: 600;
-      font-size: 13px;
-      border-radius: 6px;
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 12px;
+      border-radius: var(--radius-pill);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: background 0.15s ease, color 0.15s ease;
+      white-space: nowrap;
     }
 
     .tab-btn.active {
-      background: #ffffff;
-      color: var(--primary);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      background: var(--color-light);
+      color: var(--color-ink);
+      box-shadow: var(--shadow-tab-active);
     }
 
     .ribbon-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 4px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
     }
 
     /* Month Navigation Tabs */
     .month-tabs {
-      background: #ffffff;
+      background: var(--color-paper-2);
       border-bottom: 1px solid var(--border-color);
-      padding: 0 24px;
+      padding: 0 16px;
       display: flex;
+      align-items: center;
       overflow-x: auto;
       gap: 4px;
+      scrollbar-width: none;
     }
+    .month-tabs::-webkit-scrollbar { display: none; }
 
     .month-tab {
-      padding: 10px 16px;
+      padding: 8px 14px;
       border: none;
       background: transparent;
       color: var(--text-muted);
+      font-family: var(--font-display);
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
       border-bottom: 3px solid transparent;
       white-space: nowrap;
+      transition: color 0.15s ease, border-color 0.15s ease;
     }
 
     .month-tab:hover { color: var(--text-main); }
     .month-tab.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+      font-weight: 600;
     }
 
     /* Main Container */
     main {
       flex: 1;
-      padding: 24px;
+      padding: 20px 24px;
       max-width: 1440px;
       margin: 0 auto;
       width: 100%;
@@ -228,23 +367,28 @@
     .calendar-container {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-radius: var(--radius-card);
+      box-shadow: var(--edge-light), var(--shadow-card);
       overflow: hidden;
     }
 
     .calendar-header {
-      padding: 16px 20px;
+      padding: 14px 20px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #f8fafc;
+      background: var(--color-paper);
     }
 
     .calendar-title {
-      font-size: 18px;
-      font-weight: 700;
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: var(--tracking-display);
+      color: var(--color-ink);
+      overflow-wrap: break-word;
+      min-width: 0;
     }
 
     .calendar-grid {
@@ -256,39 +400,41 @@
     .dow-header {
       padding: 10px;
       text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      background: #f1f5f9;
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--color-paper-2);
       color: var(--text-muted);
       border-right: 1px solid var(--border-color);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-color);
+      text-transform: none;
+      letter-spacing: 0.02em;
     }
     .dow-header:last-child { border-right: none; }
 
     .day-cell {
-      min-height: 110px;
+      min-height: 112px;
       border-right: 1px solid var(--border-color);
       border-bottom: 1px solid var(--border-color);
       padding: 8px;
-      background: #ffffff;
+      background: var(--card-bg);
       display: flex;
       flex-direction: column;
       position: relative;
       cursor: pointer;
-      transition: background 0.1s;
+      transition: background 0.12s ease;
     }
 
-    .day-cell:hover { background: #f8fafc; }
+    .day-cell:hover { background: var(--color-paper); }
     .day-cell:nth-child(7n) { border-right: none; }
 
     .day-cell.other-month {
-      background: #fbfcfe;
+      background: var(--color-paper-3);
       opacity: 0.45;
     }
 
     .day-cell.weekend-col {
-      background: #fafbfe;
+      background: color-mix(in oklab, var(--color-paper-2) 60%, var(--card-bg));
     }
 
     .day-top {
@@ -299,38 +445,46 @@
     }
 
     .day-num {
+      font-family: var(--font-body);
       font-size: 13px;
       font-weight: 700;
       color: var(--text-main);
+      font-variant-numeric: tabular-nums;
     }
 
     .holiday-pill {
       font-size: 9px;
       font-weight: 700;
-      padding: 1px 5px;
-      border-radius: 4px;
+      padding: 2px 6px;
+      border-radius: var(--radius-pill);
       line-height: 1.25;
       text-align: right;
       max-width: 100px;
     }
-    .holiday-pill.premium { background: #fee2e2; color: #b91c1c; }
-    .holiday-pill.standard { background: #e0e7ff; color: #3730a3; }
+    .holiday-pill.premium {
+      background: color-mix(in oklab, var(--danger) 16%, transparent);
+      color: var(--danger);
+    }
+    .holiday-pill.standard {
+      background: color-mix(in oklab, var(--color-accent) 18%, transparent);
+      color: var(--color-accent);
+    }
 
     .assignment-chip {
       margin-top: auto;
       padding: 6px 8px;
-      border-radius: 6px;
+      border-radius: var(--radius-inner);
       font-size: 12px;
-      font-weight: 700;
-      color: #ffffff;
+      font-weight: 600;
+      color: var(--color-light);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-chip);
     }
 
     .unassigned-chip {
-      background: #f1f5f9;
+      background: var(--color-paper-2);
       color: var(--danger);
       border: 1px dashed var(--danger);
       box-shadow: none;
@@ -358,7 +512,7 @@
       padding: 12px 20px;
       font-size: 12px;
       color: var(--text-muted);
-      background: #f8fafc;
+      background: var(--color-paper);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -370,7 +524,7 @@
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.65);
+      background: color-mix(in oklab, var(--color-ink) 70%, transparent);
       z-index: 100;
       display: none;
       align-items: center;
@@ -380,9 +534,9 @@
     .modal-overlay.open { display: flex; }
 
     .modal {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+      background: var(--card-bg);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-cast);
       max-width: 650px;
       width: 100%;
       max-height: 90vh;
@@ -392,24 +546,34 @@
       animation: modalFadeIn 0.15s ease-out;
     }
 
-    .modal-wide { max-width: 800px; }
+    .modal-wide { max-width: 860px; }
 
     @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.96); }
+      from { opacity: 0; transform: scale(0.97); }
       to { opacity: 1; transform: scale(1); }
     }
 
     .modal-header {
-      padding: 16px 20px;
-      background: var(--primary);
-      color: #ffffff;
+      padding: 14px 20px;
+      background: var(--color-ink);
+      background-image:
+        radial-gradient(ellipse at 85% 0%, var(--caustic-modal-1) 0%, transparent 60%),
+        radial-gradient(ellipse at 15% 100%, var(--caustic-modal-2) 0%, transparent 50%);
+      color: var(--color-light);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: var(--tracking-display);
+      overflow-wrap: break-word;
+      min-width: 0;
+    }
     .modal-close {
-      background: none; border: none; color: #ffffff; font-size: 22px; cursor: pointer;
+      background: none; border: none; color: var(--color-light); font-size: 22px; cursor: pointer;
       line-height: 1; padding: 0 4px;
     }
     .modal-close:hover { opacity: 0.8; }
@@ -422,7 +586,7 @@
 
     .modal-footer {
       padding: 12px 20px;
-      background: #f8fafc;
+      background: var(--color-paper);
       border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: flex-end;
@@ -435,7 +599,7 @@
     .form-label {
       display: block;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--text-main);
       margin-bottom: 4px;
     }
@@ -443,13 +607,16 @@
       width: 100%;
       padding: 8px 12px;
       border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border-radius: var(--radius-inner);
+      font-family: var(--font-body);
       font-size: 13px;
+      background: var(--card-bg);
+      color: var(--text-main);
       outline: none;
     }
     .form-input:focus, .form-select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(30,58,138,0.15);
+      border-color: var(--color-focus);
+      box-shadow: 0 0 0 2px var(--color-accent-soft);
     }
 
     .form-row {
@@ -459,9 +626,9 @@
     }
 
     .item-card {
-      background: #ffffff;
+      background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: var(--radius-inner);
       padding: 12px;
       margin-bottom: 10px;
       display: flex;
@@ -482,7 +649,7 @@
       border: 2px solid transparent;
     }
     .color-swatch.selected {
-      border-color: #0f172a;
+      border-color: var(--color-ink);
       transform: scale(1.1);
     }
 
@@ -497,20 +664,20 @@
       padding: 10px 12px;
       text-align: left;
     }
-    .matrix-table th { background: #f1f5f9; font-weight: 700; }
+    .matrix-table th { background: var(--color-paper-2); font-weight: 600; }
 
     /* Alert Banner */
     .toast {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: #0f172a;
-      color: #ffffff;
+      background: var(--color-ink);
+      color: var(--color-light);
       padding: 12px 20px;
-      border-radius: 8px;
+      border-radius: var(--radius-inner);
       font-size: 13px;
       font-weight: 600;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-cast);
       z-index: 200;
       display: none;
       align-items: center;
@@ -521,9 +688,9 @@
     .print-page-title { display: none; }
     .breakdown-table { width:100%; border-collapse:collapse; font-size:13px; }
     .breakdown-table th, .breakdown-table td { border:1px solid var(--border-color); padding:8px 10px; text-align:center; }
-    .breakdown-table th { background:#f1f5f9; font-weight:700; }
+    .breakdown-table th { background:var(--color-paper-2); font-weight:600; }
     .breakdown-table td:first-child, .breakdown-table th:first-child { text-align:left; }
-    .breakdown-table tr.totals td { background:#f8fafc; font-weight:700; }
+    .breakdown-table tr.totals td { background:var(--color-paper-3); font-weight:700; }
     .bd-bar { display:inline-block; height:10px; border-radius:3px; vertical-align:middle; margin-right:6px; }
 
     /* Print Stylesheet */
@@ -536,7 +703,8 @@
         display: none !important;
       }
       body {
-        background: #ffffff !important;
+        background: var(--color-print-paper) !important;
+        color: var(--color-print-ink) !important;
         margin: 0 !important;
         padding: 0 !important;
       }
@@ -547,7 +715,7 @@
         font-size: 20px !important;
         font-weight: 700 !important;
         padding: 4px 0 10px 0 !important;
-        color: #000000 !important;
+        color: var(--color-print-ink) !important;
       }
       .calendar-container {
         border: none !important;
@@ -556,11 +724,11 @@
         break-after: page;
         page-break-after: always;
       }
-      .day-cell { min-height: 90px !important; border: 1px solid #000000 !important; }
+      .day-cell { min-height: 90px !important; border: 1px solid var(--color-print-ink) !important; }
       .assignment-chip {
-        color: #000000 !important;
+        color: var(--color-print-ink) !important;
         background: transparent !important;
-        border: 1px solid #000000 !important;
+        border: 1px solid var(--color-print-ink) !important;
         font-weight: 700 !important;
       }
       body.printing-all #view-calendar-wrapper,
@@ -589,7 +757,7 @@
     </div>
   </header>
 
-  <!-- Action Ribbon -->
+  <!-- Action Ribbon (Single-Line Compact Menu) -->
   <div class="ribbon">
     <div class="tab-group">
       <button id="tab-calendar-view" class="tab-btn active">7-Column Calendar</button>
@@ -597,16 +765,19 @@
       <button id="tab-breakdown-view" class="tab-btn">Shift Breakdown</button>
     </div>
     <div class="ribbon-actions">
-      <button id="btn-open-roster" class="btn btn-outline-dark">&#128101; Personnel Roster (<span id="roster-count">7</span>)</button>
-      <button id="btn-open-blackouts" class="btn btn-outline-dark">&#128197; Blackouts & Leave (<span id="blackout-count">0</span>)</button>
-      <button id="btn-open-prefs" class="btn btn-outline-dark">&#11088; Requested Weekends (<span id="pref-count">0</span>)</button>
-      <button id="btn-open-import" class="btn btn-outline-dark">&#128196; Import Schedule</button>
-      <button id="btn-export-excel" class="btn btn-primary">&#128229; Export to Excel</button>
-      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Export Backup (JSON)</button>
-      <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore Backup</button>
+      <button id="btn-open-roster" class="btn btn-outline-dark" title="Personnel Roster">&#128101; Roster (<span id="roster-count">7</span>)</button>
+      <button id="btn-open-blackouts" class="btn btn-outline-dark" title="Blackouts & Leave">&#128197; Blackouts (<span id="blackout-count">0</span>)</button>
+      <button id="btn-open-prefs" class="btn btn-outline-dark" title="Requested Weekends">&#11088; Requests (<span id="pref-count">0</span>)</button>
+      <button id="btn-open-import" class="btn btn-outline-dark" title="Import Schedule from CSV">&#128196; Import</button>
+      <button id="btn-export-excel" class="btn btn-primary" title="Export current schedule to Excel (XLSX)">&#128229; Export Excel</button>
+      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
+      <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
       <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
-      <button id="btn-print" class="btn btn-outline-dark">&#128424; Print</button>
-      <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All Months</button>
+      <button id="btn-print" class="btn btn-outline-dark" title="Print current month view">&#128424; Print</button>
+      <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All</button>
+      <div style="height: 18px; width: 1px; background: var(--border-color); margin: 0 3px; flex-shrink: 0;"></div>
+      <button id="btn-open-guide" class="btn btn-outline-dark" title="Interactive Calendar User Guide">&#128214; How to Use</button>
+      <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules & Constraints Specification">&#128203; Schedule Rules</button>
     </div>
   </div>
 
@@ -671,7 +842,7 @@
       </div>
       <div class="modal-body">
         <!-- Add Member Form -->
-        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+        <div style="background:var(--color-paper-2); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
           <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
           <div class="form-row">
             <div class="form-group">
@@ -734,11 +905,11 @@
           </div>
         </div>
 
-        <div id="alt-weekends-manager-block" style="background:#fffbeb; padding:14px 16px; border-radius:8px; margin-bottom:20px; border:1px solid #fde68a;">
+        <div id="alt-weekends-manager-block" style="background:var(--warning-soft); padding:14px 16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--warning-soft-border);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
             <div>
-              <div style="font-weight:700; font-size:13px; color:#92400e;">Alternate Fire Marshals &mdash; Weekends Per 6 Months</div>
-              <div style="font-size:11px; color:#b45309;">Adjust the number of weekends each Alternate Fire Marshal is scheduled per 6-month block (default: 3).</div>
+              <div style="font-weight:700; font-size:13px; color:var(--warning-text);">Alternate Fire Marshals: Weekends Per 6 Months</div>
+              <div style="font-size:11px; color:var(--warning-border);">Adjust the number of weekends each Alternate Fire Marshal is scheduled per 6-month block (default: 3).</div>
             </div>
           </div>
           <div id="alt-quota-controls-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px;"></div>
@@ -759,7 +930,7 @@
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
-        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+        <div style="background:var(--color-paper-2); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
           <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Book New Leave / Blackout Range</div>
           <div class="form-group">
             <label class="form-label">Investigator *</label>
@@ -801,7 +972,7 @@
           Weekends listed here are locked in for that person when you click Auto-Generate. All other weekends are scheduled around them.
           A request is skipped only if it is impossible (blackout, same weekend requested by two people, or back-to-back weekends for one person), and you will be told which.
         </p>
-        <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+        <div style="background:var(--color-paper-2); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
           <div class="form-group">
             <label class="form-label">Investigator *</label>
             <select id="pref-member-select" class="form-select"></select>
@@ -841,12 +1012,12 @@
         <div class="form-group">
           <label class="form-label">Schedule Block Type *</label>
           <select id="new-cycle-block" class="form-select">
-            <option value="FULL">Full Calendar Year (Jan 1 – Dec 31)</option>
-            <option value="H1">First Half / H1 (Jan 1 – Jun 30)</option>
-            <option value="H2">Second Half / H2 (Jul 1 – Dec 31)</option>
+            <option value="FULL">Full Calendar Year (Jan 1 to Dec 31)</option>
+            <option value="H1">First Half / H1 (Jan 1 to Jun 30)</option>
+            <option value="H2">Second Half / H2 (Jul 1 to Dec 31)</option>
           </select>
         </div>
-        <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:14px;">
+        <div style="background:var(--color-paper); padding:12px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:14px;">
           <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
             <input type="checkbox" id="new-cycle-carry-roster" checked>
             Carry forward current active personnel roster
@@ -870,7 +1041,7 @@
           <label class="form-label">Assign Duty Investigator</label>
           <select id="reassign-member-select" class="form-select"></select>
         </div>
-        <div id="reassign-conflict-preview" style="padding:10px; border-radius:6px; background:#f8fafc; font-size:12px; min-height:40px;">
+        <div id="reassign-conflict-preview" style="padding:10px; border-radius:6px; background:var(--color-paper); font-size:12px; min-height:40px;">
           Select an investigator to evaluate fatigue rest rules.
         </div>
       </div>
@@ -888,7 +1059,7 @@
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
-        <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:#f8fafc; cursor:pointer;" id="drop-zone">
+        <div style="border: 2px dashed var(--border-color); border-radius:10px; padding:30px 20px; text-align:center; background:var(--color-paper); cursor:pointer;" id="drop-zone">
           <div style="font-size:36px; margin-bottom:8px;">&#128194;</div>
           <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Drag & Drop Excel (.xlsx) or CSV Schedule</div>
           <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Supports standard 7-Column Barracks Calendars and 2-Column Date Lists</div>
@@ -931,7 +1102,7 @@
           Select the scope of shift assignments you want to wipe:
         </p>
         <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
-          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff;">
+          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:var(--card-bg);">
             <input type="radio" name="clear-scope" value="month" id="clear-scope-month" checked style="margin-top:4px;">
             <div style="flex:1;">
               <div style="font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px;">
@@ -941,7 +1112,7 @@
               <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Wipes scheduled shifts for only this selected month.</div>
             </div>
           </label>
-          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff;">
+          <label style="display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:var(--card-bg);">
             <input type="radio" name="clear-scope" value="cycle" id="clear-scope-cycle" style="margin-top:4px;">
             <div style="flex:1;">
               <div style="font-weight:700;" id="clear-cycle-label">Clear Entire Calendar Block</div>
@@ -952,7 +1123,35 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
-        <button id="btn-proceed-clear" class="btn btn-danger">&#128465; Clear Shifts...</button>
+        <button id="btn-proceed-clear" class="btn btn-danger">&#128465; Clear Shifts…</button>
+      </div>
+    </div>
+
+    <!-- 8. How to Use Modal -->
+    <div id="modal-guide" class="modal modal-wide" style="display:none; max-width:880px;" role="dialog" aria-modal="true" aria-label="How to use calendar manual">
+      <div class="modal-header">
+        <div class="modal-title">&#128214; On-Call Calendar: User Guide &amp; Feature Manual</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
+        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">On-Call Calendar User Guide and Feature Manual</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">Welcome to the Troop H Fire Marshal On-Call Schedule Generator. This guide explains every feature, button, visual indicator, and workflow available in the application.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">1. Interface Overview</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The application is structured into four main operational areas:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Top Header: Cycle selection, block management, undo/redo, automatic generation, and clearing.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Action Ribbon (Single-Line Menu): Quick access to personnel, blackouts, weekend requests, import/export, printing, and reference documentation.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> View Tabs and Month Navigation: Switch between 7-Column Calendar, Matrix Overview, and Shift Breakdown views, with month tabs and a continuous Show All Months scrolling option.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> Interactive Calendar Grid: The main schedule workspace where shifts, holidays, and conflict indicators are displayed and editable.</div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">2. What the Dots on the Calendar Mean</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">Each day cell in the calendar can display small circular status dots in the upper-right corner. These provide instant visual feedback on rule compliance:</p><div style="overflow-x:auto; margin:12px 0;"><table class="matrix-table" style="width:100%; font-size:12px; border-collapse:collapse;"><thead><tr><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Dot Indicator</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Classification</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Rule Definition and Triggers</th></tr></thead><tbody><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Red Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Error / Hard Conflict</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Contractual or Safety Violation:<br>1. Blackout Clash: Member is scheduled on an approved leave day.<br>2. Tenure Boundary: Member is assigned before start date or after departure date.<br>3. Post-Weekend Rest: An investigator who worked the prior weekend was scheduled during mandatory recovery days (Thursday-Sunday, or Wednesday).<br>4. Alternate Weekday: An Alternate was assigned to routine Mon-Thu weekday shifts without administrative exemption.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Amber Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Warning / Soft Breach</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Operational Warning:<br>1. Consecutive Weekend: Member is assigned to back-to-back weekends.<br>2. Alternate Quota Exceeded: Alternate exceeds their 6-month weekend limit (default: 3).<br>3. Unassigned Day: A day has no investigator assigned.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Blue Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Attention / Multi-Shift</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Workload Concentration:<br>A Full-Time investigator is assigned to 2 or more weekday shifts within the same Monday-Thursday work week.</td></tr></tbody></table></div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">3. Calendar Day Elements</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Day Number: Calendar date. Greyed out if outside the active month.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Holiday Pill:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Red Pill (Premium): Major holidays (such as Thanksgiving, Christmas, New Year's Day, Memorial Day, Labor Day, July 4th).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Blue Pill (Standard): Official state holidays (such as Presidents' Day, MLK Day, Columbus Day, Veterans Day, Juneteenth).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Note: July 4th is celebrated strictly on July 4th and never shifted to an observed weekday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Shift Assignment Chip:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Displays the investigator last name and role (FT for Full-Time, ALT for Alternate).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Background color matches the member assigned color badge.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Days with no coverage display a grey UNASSIGNED chip.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">4. Top Header Controls</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Cycle Selector: Choose between:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">2027 H1: January 1 to June 30 (181 days).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">2027 H2: July 1 to December 31 (184 days).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">2027 FULL: Entire calendar year (365 days).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Add Year / Block: Create a new annual schedule block or multi-month cycle.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Undo (Ctrl+Z) and Redo (Ctrl+Y): Step backward or forward through schedule edits, generation runs, or clears.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Auto-Generate Schedule:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Runs the 5-Stage Stratified Constraint Satisfaction Problem (CSP) solver.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Automatically respects blackouts, requests, rest days, alternate quotas, and holiday fairness.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When run on FULL Year, it locks and preserves existing H1 and H2 shifts and only fills unassigned days.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When run on H2, it looks back at H1 to balance annual workloads and prevent boundary rest violations.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Clear Calendar:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Displays a modal asking whether to clear:</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Current Month Only: Clears only the active month.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Entire Selected Calendar: Wipes all assignments for the active cycle.</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Requires explicit confirmation and is fully undoable with Ctrl+Z.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">5. Action Ribbon (Single-Line Menu)</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Personnel Roster: Add, edit, or remove investigators. Configure Full-Time vs Alternate roles, active date ranges, and custom Alternate weekend quotas.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Blackouts and Leave: Record approved vacations, military duty, training, or medical leave.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Requested Weekends: Record investigator preferred weekend duty. The dropdown displays current scheduled and requested counts for each investigator.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Import Schedule: Import schedules from CSV files. If historical files contain former staff names (such as Keebaugh or Riley), an Alias Mapping modal automatically prompts to link or substitute them.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Export to Excel: Download the active schedule as a professionally formatted spreadsheet.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Export Backup (JSON): Save the entire system state (roster, blackouts, requests, and all cycles) as a single JSON file.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Restore Backup: Restore complete system state from a previously saved JSON file.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Print: Print the current month view.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Print All Months: Print all months in the active cycle sequentially, with clean page breaks between months.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">How to Use: Opens this interactive guide.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Schedule Rules: Opens the comprehensive schedule rules and constraints document.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">6. How to Edit Shifts Manually</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Click on any calendar day.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> The Duty Assignment Modal appears.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> The investigator dropdown autofocuses immediately:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Press the first letter of a name (or use Up/Down arrow keys) to select an investigator.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Live validation checks for blackout conflicts, post-weekend rest violations, or role restrictions.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> Press Enter to save the assignment (or press Escape to cancel).</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> Rule Violation Warning: If assigning someone who worked the prior weekend to Thursday-Sunday, or violating an approved blackout, a warning prompt appears requiring explicit confirmation to overwrite.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">6.</strong> Click Clear Shift to leave the day unassigned.</div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">7. Printing the Schedule</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Click Print (current month) or Print All (entire cycle).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The print output automatically formats for clean 8.5 x 11 paper:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Header displays: Troop H Fire Marshal Unit Schedule centered at the top of each page.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Navigation bars, buttons, browser timestamps, and web headers are automatically suppressed.</li></ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeAllModals()">Close Guide</button>
+      </div>
+    </div>
+
+    <!-- 9. Schedule Rules Modal -->
+    <div id="modal-rules" class="modal modal-wide" style="display:none; max-width:880px;" role="dialog" aria-modal="true" aria-label="Schedule rules and constraints">
+      <div class="modal-header">
+        <div class="modal-title">&#128203; Troop H Fire Marshal: Schedule Rules &amp; Invariants</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
+        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">Scheduling Rules, Contractual Constraints, and Invariant Specification</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">This document details all contractual rules, operational constraints, and algorithmic invariants implemented within the PSP Fire Marshal On-Call Schedule Generator.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">1. Unit Structure and Roles</h3><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Full-Time (FT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Core Personnel: Primary investigators responsible for overall operational readiness and emergency fire investigations across the Troop H coverage area.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope: Full-time members are eligible for on-call duty on all calendar days: regular weekdays (Monday through Thursday night shifts), standard weekends, and official state holidays.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Wolfe, Polcha, Terek, Kemerer.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Alternate (ALT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Relief Personnel: Auxiliary investigators who provide relief coverage to prevent fatigue among full-time investigators.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend-Only Restriction: Alternates may only be assigned to Friday-Sunday weekend duty and attached Monday holidays (such as Labor Day or Memorial Day) when covering that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No Mon-Thu Weekday Duty: Alternates are strictly barred from working routine Monday through Thursday weekday night shifts unless granted an administrative exemption.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quota per 6-Month Block:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standard quota: 3 weekends per 6-month block (H1: Jan-Jun, H2: Jul-Dec), totaling 6 weekends per full calendar year.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quotas are individually customizable in the Personnel Roster.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Spacing / Dispersion Rule:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate weekends are distributed evenly across each 6-month block (approximately once every 4 to 5 weeks).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternates must never be scheduled on back-to-back weekends or consecutive weeks.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Chester, Zeiders, Reed.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Tenure and Active Window</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Each investigator possesses an <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeStart</code> date and an optional <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeEnd</code> date.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No shifts may be assigned to any member outside their active service window.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Members retired or reassigned prior to a cycle start are automatically excluded from that cycle.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">2. Shift and Weekend Definitions</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekday Shift: 15 hours of on-call duty covering 17:00 to 08:00 the following morning (Monday, Tuesday, Wednesday, and Thursday nights).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend Shift Block: 63 consecutive hours from Friday at 17:00 through Monday at 08:00.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">A weekend is staffed as an atomic block: the same investigator covers Friday night, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">An attached holiday (such as Good Friday or Memorial Day) extends the weekend block to 87 hours under the same investigator.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">3. Post-Weekend Rest and Days Off (Crucial Invariant)</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To guarantee officer recovery following high-tempo 72-hour weekend duty, mandatory rest days are enforced:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Mandatory Days Off (Thursday through Sunday):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Any investigator who works a weekend is strictly off duty on the immediately following Thursday, Friday, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Under no circumstances will the automatic solver schedule an investigator on these four recovery days.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Wednesday Recovery Protection:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The Wednesday immediately following a weekend shift is designated as a compensatory rest day; the weekend worker cannot be assigned Wednesday on-call duty.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Manual Override Warning:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">If a supervisor attempts to manually assign an investigator to Thursday, Friday, Saturday, or Sunday following their weekend duty, the system immediately flags the rule violation and requires an explicit confirmation prompt to overwrite.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">4. Week-Shaping Before Weekend Duty</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To prevent pre-weekend fatigue for full-time investigators:</p><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Tuesday: Assigned to another investigator.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Wednesday: Assigned to the upcoming weekend worker (pre-weekend alignment).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Thursday: Assigned to a different investigator (the upcoming weekend worker is given Thursday night off so they are fully rested for Friday 17:00 duty).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">5. Consecutive Weekend Invariant</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Zero Consecutive Weekends: Under no condition may any investigator (FT or ALT) work two consecutive calendar weekends.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Cross-Cycle Continuity: This rule is strictly enforced across the June 30 / July 1 boundary between H1 and H2. The member working the final weekend of June (such as June 25-27) cannot work the first weekend of July (July 2-4).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">6. Proactive Lookahead Alternate Coverage</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When a full-time investigator has an approved blackout or leave starting on a Monday:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">An Alternate investigator is proactively scheduled for the preceding weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">This prevents the departing full-time investigator from working a grueling weekend shift immediately prior to their scheduled leave.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">7. Official State Holidays</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The schedule recognizes 11 Official Pennsylvania State Holidays:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> New Year's Day (January 1)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Martin Luther King Jr. Day (3rd Monday in January)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Presidents' Day (3rd Monday in February)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> Good Friday (Friday before Easter)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> Memorial Day (Last Monday in May)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">6.</strong> Juneteenth National Independence Day (June 19)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">7.</strong> Independence Day (July 4: celebrated strictly on July 4th, never shifted)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">8.</strong> Labor Day (1st Monday in September)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">9.</strong> Columbus Day (2nd Monday in October)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">10.</strong> Veterans Day (November 11)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">11.</strong> Thanksgiving Day (4th Thursday in November)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">12.</strong> Christmas Day (December 25)</div><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Attached vs Standalone Holidays</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Attached Holidays: A holiday falling on a Friday or Monday is attached to the adjacent weekend and is covered by the investigator working that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standalone Holidays: Mid-week holidays (such as Thanksgiving Thursday or midweek July 4th) are distributed equitably among Full-Time investigators as the final stage of scheduling.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">8. Blackouts vs Requested Weekends Precedence</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Blackouts (Approved Leave):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Absolute highest priority hard constraint.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver will never assign an investigator to any date covered by an approved blackout.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Requested Weekends:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored in Stage 1 of schedule generation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored on a first-come basis, provided the request does not conflict with an approved blackout or cause a consecutive-weekend violation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate requests are capped at their assigned block quota (default: 3).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">9. Full-Year Synchronization and Cross-Half Balancing</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Full-Year (<code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">FULL</code>) Autogenerate Preservation:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When Autogenerate Schedule is executed on the FULL year view, shifts previously scheduled in H1 or H2 are automatically locked and preserved.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver fills only unassigned days, preventing accidental overwrites.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> H2 Balancing Against H1:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When generating H2 (July through December), the solver analyzes H1 assignments.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Total weekends, holidays, and weekday loads are calculated across both halves to ensure annual workload parity.</li></ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeAllModals()">Close Rules</button>
       </div>
     </div>
 
@@ -2842,6 +3041,8 @@ class StorageAdapter {
     const modalImport = document.getElementById('modal-import');
     const modalAlias = document.getElementById('modal-alias');
     const modalClearCalendar = document.getElementById('modal-clear-calendar');
+    const modalGuide = document.getElementById('modal-guide');
+    const modalRules = document.getElementById('modal-rules');
 
     function closeAllModals() {
       modalOverlay.classList.remove('open');
@@ -2853,6 +3054,8 @@ class StorageAdapter {
       modalImport.style.display = 'none';
       modalAlias.style.display = 'none';
       if (modalClearCalendar) modalClearCalendar.style.display = 'none';
+      if (modalGuide) modalGuide.style.display = 'none';
+      if (modalRules) modalRules.style.display = 'none';
       if (typeof resetMemberForm === 'function') resetMemberForm();
     }
 
@@ -3194,7 +3397,7 @@ class StorageAdapter {
                   <td>Weekend ${w.index + 1}</td>
                   <td>${w.friday} &rarr; ${w.sunday}</td>
                   <td><strong>${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
-                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${mem?.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${mem?.role === 'FT' ? '#0369a1' : '#b45309'}">${mem?.role || '-'}</span></td>
+                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">${mem?.role || '-'}</span></td>
                   <td>${hol}</td>
                   <td>${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
                 </tr>
@@ -3303,10 +3506,10 @@ class StorageAdapter {
       const isOverallBalanced = ftBalanced && altBalanced && unassigned === 0;
 
       container.innerHTML = `
-        <div style="margin-bottom:16px; padding:12px 16px; border-radius:8px; font-size:13px; background:${isOverallBalanced ? '#dcfce7' : '#fef3c7'}; color:${isOverallBalanced ? '#166534' : '#92400e'}; border:1px solid ${isOverallBalanced ? '#bbf7d0' : '#fde68a'};">
+        <div style="margin-bottom:16px; padding:12px 16px; border-radius:8px; font-size:13px; background:${isOverallBalanced ? 'var(--success-soft)' : 'var(--warning-soft)'}; color:${isOverallBalanced ? 'var(--success-text)' : 'var(--warning-text)'}; border:1px solid ${isOverallBalanced ? 'var(--success-border)' : 'var(--warning-soft-border)'};">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
             <span>${isOverallBalanced ? '&#10003; Shifts are evenly distributed across all active investigators' : '&#9888; Shift Distribution Summary'}</span>
-            ${unassigned > 0 ? `<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">${unassigned} Unassigned Days</span>` : '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">100% Fully Staffed</span>'}
+            ${unassigned > 0 ? `<span style="background:var(--danger-soft); color:var(--danger-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">${unassigned} Unassigned Days</span>` : '<span style="background:var(--success-soft); color:var(--success-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">100% Fully Staffed</span>'}
           </div>
           <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12px;">
             <div><strong>Full-Time (FT):</strong> Avg ${ftAvg.toFixed(1)} shifts &bull; Min: ${ftMin} &bull; Max: ${ftMax} &bull; Spread: ${ftSpread}</div>
@@ -3342,7 +3545,7 @@ class StorageAdapter {
                 const w = maxOverall ? Math.round((s.total / maxOverall) * 70) : 0;
                 return `<tr>
                   <td><strong>${esc(m.name)}</strong></td>
-                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'};">${m.role}</span></td>
+                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">${m.role}</span></td>
                   <td style="text-align:left;"><span class="bd-bar" style="width:${w}px; background:${m.color};"></span><strong>${s.total}</strong></td>
                   <td>${s.weekday}</td>
                   <td>${s.sat}</td>
@@ -3355,7 +3558,7 @@ class StorageAdapter {
                     ${s.holidaysWorked.length > 0 ? `
                       <div style="display:flex; flex-wrap:wrap; gap:3px;">
                         ${s.holidaysWorked.map(h => `
-                          <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #fde68a;" title="${esc(h.name)} (${h.dow}, ${h.date})">
+                          <span style="font-size:10px; background:var(--warning-soft); color:var(--warning-text); padding:1px 5px; border-radius:3px; border:1px solid var(--warning-soft-border);" title="${esc(h.name)} (${h.dow}, ${h.date})">
                             ${esc(h.name)} <span style="opacity:0.75;">${h.date.slice(5)}</span>
                           </span>
                         `).join('')}
@@ -3382,13 +3585,13 @@ class StorageAdapter {
         </div>
 
         <!-- Official Holidays Coverage Breakdown -->
-        <div style="margin-top:24px; padding:20px; background:#ffffff; border:1px solid var(--border-color); border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="margin-top:24px; padding:20px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:10px; box-shadow:var(--shadow-subtle);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
             <div>
               <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:2px;">Official Holidays Coverage Breakdown</h3>
               <div style="font-size:12px; color:var(--text-muted);">List of members and holidays worked for active block (${cycle.year} ${cycle.blockType === 'FULL' ? 'Full Year' : cycle.blockType}). July 4th is celebrated strictly on July 4th.</div>
             </div>
-            <div style="font-size:12px; font-weight:600; background:#f1f5f9; padding:4px 10px; border-radius:6px;">
+            <div style="font-size:12px; font-weight:600; background:var(--color-paper-2); padding:4px 10px; border-radius:6px;">
               ${cycleHolidays.length} Official Holidays in Block
             </div>
           </div>
@@ -3398,12 +3601,12 @@ class StorageAdapter {
             ${roster.map(m => {
               const s = stats[m.id];
               return `
-                <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; background:#f8fafc;">
+                <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; background:var(--color-paper);">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${m.color};"></span>
                       <strong style="font-size:13px;">${esc(m.name)}</strong>
-                      <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'};">${m.role}</span>
+                      <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">${m.role}</span>
                     </div>
                     <span style="font-size:12px; font-weight:700; color:${s.hol > 0 ? 'var(--primary)' : 'var(--text-muted)'};">
                       ${s.hol} ${s.hol === 1 ? 'Holiday' : 'Holidays'}
@@ -3412,7 +3615,7 @@ class StorageAdapter {
                   ${s.holidaysWorked.length > 0 ? `
                     <div style="display:flex; flex-direction:column; gap:4px;">
                       ${s.holidaysWorked.map(h => `
-                        <div style="font-size:11px; padding:4px 8px; border-radius:4px; background:#ffffff; border:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+                        <div style="font-size:11px; padding:4px 8px; border-radius:4px; background:var(--card-bg); border:1px solid var(--color-rule); display:flex; justify-content:space-between;">
                           <strong>${esc(h.name)}</strong>
                           <span style="color:var(--text-muted); font-weight:600;">${h.dow} ${h.date}</span>
                         </div>
@@ -3458,7 +3661,7 @@ class StorageAdapter {
                         ` : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>'}
                       </td>
                       <td>
-                        ${worker ? `<span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; background:${worker.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${worker.role === 'FT' ? '#0369a1' : '#b45309'};">${worker.role}</span>` : '-'}
+                        ${worker ? `<span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; background:${worker.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${worker.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">${worker.role}</span>` : '-'}
                       </td>
                       <td>
                         ${worker ? '<span style="color:var(--success); font-weight:600;">&#10003; Assigned</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}
@@ -3672,6 +3875,20 @@ class StorageAdapter {
     });
 
     // -------------------------------------------------------------
+
+    // Guide and Rules Modals
+    document.getElementById('btn-open-guide').addEventListener('click', () => {
+      closeAllModals();
+      modalGuide.style.display = 'flex';
+      modalOverlay.classList.add('open');
+    });
+
+    document.getElementById('btn-open-rules').addEventListener('click', () => {
+      closeAllModals();
+      modalRules.style.display = 'flex';
+      modalOverlay.classList.add('open');
+    });
+
     // 1. Roster Manager Handlers
     // -------------------------------------------------------------
     document.getElementById('btn-open-roster').addEventListener('click', () => {
@@ -3709,7 +3926,7 @@ class StorageAdapter {
               <div>
                 <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
                   ${esc(m.name)}
-                  <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:${m.role === 'FT' ? '#e0f2fe' : '#fef3c7'}; color:${m.role === 'FT' ? '#0369a1' : '#b45309'}">${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
+                  <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
                   Active: ${m.activeStart} ${m.activeEnd ? ('to ' + m.activeEnd) : '(Indefinite)'}
@@ -3721,7 +3938,7 @@ class StorageAdapter {
             </div>
             <div style="display:flex; gap:6px;">
               <button class="btn btn-outline-dark btn-edit-member" data-id="${m.id}" style="color:var(--primary); border-color:var(--primary); padding:4px 10px; font-size:12px;">Edit</button>
-              <button class="btn btn-outline-dark btn-remove-member" data-id="${m.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 10px; font-size:12px;">Remove</button>
+              <button class="btn btn-outline-dark btn-remove-member" data-id="${m.id}" style="color:var(--danger); border-color:var(--danger-border); padding:4px 10px; font-size:12px;">Remove</button>
             </div>
           </div>
         `).join('');
@@ -3734,14 +3951,14 @@ class StorageAdapter {
               Ended / Past Members for this block (${endedMembers.length} removed from active menu):
             </div>
             ${endedMembers.map(m => `
-              <div class="item-card" style="opacity:0.75; background:#f8fafc; border:1px dashed var(--border-color);">
+              <div class="item-card" style="opacity:0.75; background:var(--color-paper); border:1px dashed var(--border-color);">
                 <div>
                   <div style="font-weight:700; font-size:13px; color:var(--text-muted);">${esc(m.name)} (${m.role})</div>
                   <div style="font-size:11px; color:var(--danger);">End Date: ${m.activeEnd} (before block start ${cycle.startDate})</div>
                 </div>
                 <div style="display:flex; gap:6px;">
                   <button class="btn btn-outline-dark btn-edit-member" data-id="${m.id}" style="font-size:11px; padding:3px 8px;">Edit End Date</button>
-                  <button class="btn btn-outline-dark btn-remove-member" data-id="${m.id}" style="color:var(--danger); border-color:#fca5a5; font-size:11px; padding:3px 8px;">Remove</button>
+                  <button class="btn btn-outline-dark btn-remove-member" data-id="${m.id}" style="color:var(--danger); border-color:var(--danger-border); font-size:11px; padding:3px 8px;">Remove</button>
                 </div>
               </div>
             `).join('')}
@@ -3774,11 +3991,11 @@ class StorageAdapter {
               : '';
             const quotaVal = (alt.weekendsPerSixMonths !== undefined && alt.weekendsPerSixMonths !== null) ? alt.weekendsPerSixMonths : 3;
             return `
-              <div style="background:#ffffff; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="background:var(--card-bg); border:1px solid var(--warning-soft-border); border-radius:6px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:${alt.color}; display:inline-block;"></span>
                   <span>${esc(alt.name)}</span>
-                  <span title="Weekends scheduled for ${esc(alt.name)} in the selected block${split ? ' (' + split.replace('&middot;', ',') + ')' : ''}" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700;">${total} scheduled${split ? ' <span style="font-weight:600; opacity:0.8;">(' + split + ')</span>' : ''}</span>
+                  <span title="Weekends scheduled for ${esc(alt.name)} in the selected block${split ? ' (' + split.replace('&middot;', ',') + ')' : ''}" style="background:var(--warning-soft); color:var(--warning-text); border:1px solid var(--warning-soft-border); border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700;">${total} scheduled${split ? ' <span style="font-weight:600; opacity:0.8;">(' + split + ')</span>' : ''}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                   <input type="number" class="form-input alt-quick-quota-input" data-id="${alt.id}" value="${quotaVal}" min="0" max="26" style="width:64px; padding:4px 6px; text-align:center; font-weight:700;">
@@ -3995,7 +4212,7 @@ class StorageAdapter {
                 ${b.startDate} &rarr; ${b.endDate}
               </div>
             </div>
-            <button class="btn btn-outline-dark btn-delete-blackout" data-id="${b.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
+            <button class="btn btn-outline-dark btn-delete-blackout" data-id="${b.id}" style="color:var(--danger); border-color:var(--danger-border); padding:4px 8px; font-size:11px;">Delete</button>
           </div>
         `;
       }).join('');
@@ -4132,7 +4349,7 @@ class StorageAdapter {
                 <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">${p.notes ? ('(' + esc(p.notes) + ')') : ''}</span></div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Weekend starting Fri ${p.weekendFriday}</div>
             </div>
-            <button class="btn btn-outline-dark btn-delete-pref" data-id="${p.id}" style="color:var(--danger); border-color:#fca5a5; padding:4px 8px; font-size:11px;">Delete</button>
+            <button class="btn btn-outline-dark btn-delete-pref" data-id="${p.id}" style="color:var(--danger); border-color:var(--danger-border); padding:4px 8px; font-size:11px;">Delete</button>
           </div>`;
       }).join('');
 
@@ -4466,7 +4683,7 @@ class StorageAdapter {
       const allRosterAndHistorical = [...window.appState.roster, ...HISTORICAL_MEMBERS];
 
       list.innerHTML = unmatched.map(alias => `
-        <div style="margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border-color);">
+        <div style="margin-bottom:14px; background:var(--color-paper); padding:12px; border-radius:8px; border:1px solid var(--border-color);">
           <div style="font-weight:700; margin-bottom:6px;">Unmatched Alias: <span style="color:var(--danger)">${esc(alias)}</span></div>
           <select class="form-select alias-select" data-alias="${esc(alias)}">
             <option value="">-- Leave Unassigned --</option>
