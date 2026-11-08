@@ -71,7 +71,7 @@ export function identifyWeekends(startDateStr, endDateStr, holidays) {
 /**
  * Master 5-Stage Stratified CSP Solver
  */
-export function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}, preferredWeekends = []) {
+export function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {}, preferredWeekends = [], context = {}) {
   // Only real member ids count as locked shifts; ignore legacy boolean flags (`true`) that older
   // versions of the UI stored here, which would otherwise be written into the schedule as a "member".
   const lockedShifts = {};
@@ -82,6 +82,22 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   const scheduleNotices = []; // things the user should act on that are not skipped requests
   const activeFTs = roster.filter(m => m.role === 'FT');
   const activeALTs = roster.filter(m => m.role === 'ALT');
+
+  // Prior period context (e.g. H1 when solving H2)
+  const priorAssignments = context.priorAssignments || {};
+  let priorLastWeekendWorker = null;
+  let priorLastWeekendFriday = null;
+  const priorDays = Object.keys(priorAssignments).filter(d => d < cycle.startDate).sort();
+  if (priorDays.length > 0) {
+    const priorStartDate = priorDays[0];
+    const priorEndDate = priorDays[priorDays.length - 1];
+    const priorWeekends = identifyWeekends(priorStartDate, priorEndDate, holidays);
+    if (priorWeekends.length > 0) {
+      const lastPW = priorWeekends[priorWeekends.length - 1];
+      priorLastWeekendWorker = priorAssignments[lastPW.saturday] || priorAssignments[lastPW.friday];
+      priorLastWeekendFriday = lastPW.friday;
+    }
+  }
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
   const halfOf = (w) => w.friday.slice(0, 4) + (w.friday.slice(5) < '07-01' ? 'H1' : 'H2');
@@ -148,7 +164,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
       if (checkDates.some(d => isMemberBlackedOut(mem.id, d, blackouts))) {
         return skip('member has a blackout on those dates.');
       }
-      if (weekendAssignments[w.index - 1] === mem.id || weekendAssignments[w.index + 1] === mem.id) {
+      if (weekendAssignments[w.index - 1] === mem.id || weekendAssignments[w.index + 1] === mem.id || (w.index === 0 && priorLastWeekendWorker === mem.id)) {
         return skip('would be back-to-back with another weekend for the same person (rest rule).');
       }
 
@@ -279,6 +295,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
           if (!isMemberActive(alt, w.friday)) return false;
           // Never two consecutive weekends for the same person
           if (w.index > 0 && currentAssignments[w.index - 1] === alt.id) return false;
+          if (w.index === 0 && priorLastWeekendWorker === alt.id) return false;
           if (w.index < weekends.length - 1 && currentAssignments[w.index + 1] === alt.id) return false;
           const datesToCheck = [w.friday, w.saturday, w.sunday];
           if (w.attachedMonday) datesToCheck.push(w.attachedMonday);
@@ -331,6 +348,14 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // =========================================================================
   const ftWeekendCounts = {};
   activeFTs.forEach(ft => { ftWeekendCounts[ft.id] = 0; });
+  // Include prior period weekend counts if available (e.g. H1 when solving H2)
+  if (priorDays.length > 0) {
+    const priorWeekends = identifyWeekends(priorDays[0], priorDays[priorDays.length - 1], holidays);
+    priorWeekends.forEach(pw => {
+      const wId = priorAssignments[pw.saturday] || priorAssignments[pw.friday];
+      if (ftWeekendCounts[wId] !== undefined) ftWeekendCounts[wId]++;
+    });
+  }
   // Count already assigned weekends
   Object.values(weekendAssignments).forEach(mId => {
     if (ftWeekendCounts[mId] !== undefined) ftWeekendCounts[mId]++;
@@ -350,6 +375,15 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   };
   const ftHolidayLoad = {};
   activeFTs.forEach(ft => { ftHolidayLoad[ft.id] = 0; });
+  // Include prior period holiday load if available
+  if (priorDays.length > 0) {
+    holidays.forEach(h => {
+      if (h.date < cycle.startDate) {
+        const wId = priorAssignments[h.date];
+        if (ftHolidayLoad[wId] !== undefined) ftHolidayLoad[wId] += holidayWeight(h);
+      }
+    });
+  }
   weekends.forEach(w => {
     const id = weekendAssignments[w.index];
     if (ftHolidayLoad[id] !== undefined) ftHolidayLoad[id] += weekendHolidayWeight(w);
@@ -398,6 +432,7 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
       if (!isMemberActive(ft, w.friday) || !isMemberActive(ft, w.sunday)) return false;
       // Non-consecutive rule
       if (prevWorker === ft.id || nextWorker === ft.id) return false;
+      if (w.index === 0 && priorLastWeekendWorker === ft.id) return false;
       // Blackout check (Fri, Sat, Sun, and attached Mon or Phase 2 Mon)
       const checkDates = [w.friday, w.saturday, w.sunday];
       if (w.attachedMonday) checkDates.push(w.attachedMonday);
@@ -486,6 +521,16 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   // =========================================================================
   const weekdayCounts = {};
   activeFTs.forEach(ft => { weekdayCounts[ft.id] = 0; });
+  if (priorDays.length > 0) {
+    Object.entries(priorAssignments).forEach(([d, id]) => {
+      const dow = getDayOfWeek(d);
+      if (dow >= 1 && dow <= 4 && weekdayCounts[id] !== undefined) weekdayCounts[id]++;
+    });
+  }
+  Object.entries(assignments).forEach(([d, id]) => {
+    const dow = getDayOfWeek(d);
+    if (dow >= 1 && dow <= 4 && weekdayCounts[id] !== undefined) weekdayCounts[id]++;
+  });
 
   weekends.forEach(w => {
     const workerId = weekendAssignments[w.index];
@@ -541,9 +586,17 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   };
   // Holiday balance for mid-week holidays (Election Day, Veterans Day, Thanksgiving): a tiny
   // tiebreak that can never outweigh a whole shift of weekday load.
-  const holidayLoadNow = (ftId, exceptDate) => holidays
-    .filter(h => h.date !== exceptDate && assignments[h.date] === ftId)
-    .reduce((sum, h) => sum + holidayWeight(h), 0);
+  const holidayLoadNow = (ftId, exceptDate) => {
+    let sum = 0;
+    if (priorDays.length > 0) {
+      sum += holidays.filter(h => h.date < cycle.startDate && priorAssignments[h.date] === ftId)
+        .reduce((s, h) => s + holidayWeight(h), 0);
+    }
+    sum += holidays
+      .filter(h => h.date >= cycle.startDate && h.date <= cycle.endDate && h.date !== exceptDate && assignments[h.date] === ftId)
+      .reduce((s, h) => s + holidayWeight(h), 0);
+    return sum;
+  };
   const effectiveLoad = (ft, dow, dateStr) => {
     let load = (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
     if (dateStr && holidays.some(h => h.date === dateStr)) load += 0.01 * holidayLoadNow(ft.id, dateStr);
@@ -578,7 +631,10 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
       const daysSinceFriday = (dow + 2) % 7; // Mon(1)->3 days, Tue(2)->4, Wed(3)->5, Thu(4)->6
       const prevFri = formatDate(addDays(dateStr, -daysSinceFriday));
       const prevWeekend = weekends.find(w => w.friday === prevFri);
-      const prevWorkerId = prevWeekend ? weekendAssignments[prevWeekend.index] : null;
+      let prevWorkerId = prevWeekend ? weekendAssignments[prevWeekend.index] : null;
+      if (!prevWorkerId && prevFri === priorLastWeekendFriday) {
+        prevWorkerId = priorLastWeekendWorker;
+      }
       const prevWorker = prevWorkerId ? roster.find(m => m.id === prevWorkerId) : null;
 
       const isPhase1 = dateStr < '2027-03-01';

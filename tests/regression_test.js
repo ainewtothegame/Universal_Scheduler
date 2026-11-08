@@ -1,6 +1,6 @@
 import assert from 'assert';
 import fs from 'fs';
-import { solveSchedule } from '../src/csp_solver.js';
+import { solveSchedule, identifyWeekends } from '../src/csp_solver.js';
 import { evaluateScheduleConflicts } from '../src/conflict_engine.js';
 import { parseCsv } from '../src/excel_engine.js';
 import { StorageAdapter } from '../src/storage_adapter.js';
@@ -424,3 +424,68 @@ console.log('PASS clear month engine and undo/redo');
   assert(html.includes("document.title = '';"), 'missing title suppression during beforeprint');
 }
 console.log('PASS show-all, dropdown focus, scope modal, emoji removal, and print suppression present');
+
+// 22. FULL year autogenerate preserves existing H1 and H2 assignments
+{
+  const cFull = cycles[2]; // FULL
+  const cH1 = cycles[0]; // H1
+  // Solve H1 first
+  const rH1 = solveSchedule(cH1, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, []);
+  // Lock H1 assignments into FULL
+  const locked = { ...rH1.assignments };
+  const rFull = solveSchedule(cFull, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, locked, []);
+  // Every day in H1 must match rH1 exactly
+  for (const [d, memberId] of Object.entries(rH1.assignments)) {
+    assert.strictEqual(rFull.assignments[d], memberId, `H1 assignment on ${d} changed in FULL`);
+  }
+  // And H2 days must now be assigned
+  assert.strictEqual(Object.keys(rFull.assignments).length, 365, 'Entire year must be assigned');
+}
+console.log('PASS FULL year preserves existing H1 assignments');
+
+// 23. H2 autogenerate balances against H1 assignments across the boundary
+{
+  const cH1 = cycles[0]; // H1
+  const cH2 = cycles[1]; // H2
+  const rH1 = solveSchedule(cH1, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, []);
+  
+  // Find who worked the last weekend of H1 (June 25-27, 2027)
+  const lastH1Worker = rH1.assignments['2027-06-26'];
+  assert(lastH1Worker, 'Last weekend of H1 must be assigned');
+
+  // Solve H2 with prior H1 context
+  const rH2 = solveSchedule(cH2, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, [], {
+    priorAssignments: rH1.assignments
+  });
+
+  // 1. Boundary check: Last H1 worker cannot work first weekend of H2 (July 2-4)
+  assert.notStrictEqual(rH2.assignments['2027-07-03'], lastH1Worker, 'Last H1 worker cannot work first weekend of H2');
+
+  // 2. Boundary rest: If last H1 worker is FT, cannot work Thursday July 1
+  const mem = D.DEFAULT_2027_ROSTER.find(m => m.id === lastH1Worker);
+  if (mem && mem.role === 'FT') {
+    assert.notStrictEqual(rH2.assignments['2027-07-01'], lastH1Worker, 'FT last weekend worker cannot work July 1 (rest)');
+  }
+
+  // 3. FT Weekend counts across the whole year must be balanced
+  const combined = { ...rH1.assignments, ...rH2.assignments };
+  const allWeekends = identifyWeekends('2027-01-01', '2027-12-31', D.DEFAULT_2027_HOLIDAYS);
+  const ftWkCounts = { polcha: 0, terek: 0, wolfe: 0 };
+  allWeekends.forEach(w => {
+    const wId = combined[w.saturday];
+    if (ftWkCounts[wId] !== undefined) ftWkCounts[wId]++;
+  });
+  const spread = Math.max(...Object.values(ftWkCounts)) - Math.min(...Object.values(ftWkCounts));
+  assert(spread <= 1, `Annual FT weekend spread must be <= 1, got ${spread} (${JSON.stringify(ftWkCounts)})`);
+}
+console.log('PASS H2 balances against H1 and respects boundary');
+
+// 24. Manual assignment rule violation detection in UI script
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('checkManualAssignmentRuleViolations'), 'missing checkManualAssignmentRuleViolations');
+  assert(html.includes('POST_WEEKEND_REST'), 'missing POST_WEEKEND_REST check in manual assignment');
+  assert(html.includes('Post-Weekend Days Off:'), 'missing days off message in violation alert');
+  assert(html.includes('Do you want to manually overwrite this rule'), 'missing overwrite confirmation prompt');
+}
+console.log('PASS manual assignment violation check and overwrite prompt present');
