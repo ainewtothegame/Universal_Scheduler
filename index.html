@@ -271,19 +271,21 @@
     .ribbon {
       background: var(--color-light);
       border-bottom: 1px solid var(--border-color);
-      padding: 4px 12px;
+      padding: 6px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 4px;
+      gap: 16px;
       flex-wrap: nowrap;
-      overflow-x: hidden;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .ribbon::-webkit-scrollbar { display: none; }
 
     .tab-group {
       display: flex;
       background: var(--color-paper-2);
-      padding: 2px;
+      padding: 3px;
       border-radius: var(--radius-pill);
       border: 1px solid var(--border-color);
       gap: 2px;
@@ -291,13 +293,13 @@
     }
 
     .tab-btn {
-      padding: 4px 10px;
+      padding: 5px 12px;
       border: none;
       background: transparent;
       color: var(--text-muted);
       font-family: var(--font-body);
       font-weight: 500;
-      font-size: 11.5px;
+      font-size: 12px;
       border-radius: var(--radius-pill);
       cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease;
@@ -313,24 +315,25 @@
     .ribbon-actions {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       flex-wrap: nowrap;
       flex-shrink: 0;
     }
 
     .ribbon-actions .btn {
-      padding: 4px 8px;
-      font-size: 11.5px;
-      gap: 3px;
+      padding: 5px 10px;
+      font-size: 12px;
+      gap: 4px;
       white-space: nowrap;
-      line-height: 1.2;
+      line-height: 1.25;
+      height: 30px;
     }
 
     .ribbon-divider {
-      height: 16px;
+      height: 18px;
       width: 1px;
       background: var(--border-color);
-      margin: 0 2px;
+      margin: 0 3px;
       flex-shrink: 0;
     }
 
@@ -796,14 +799,15 @@
       <button id="btn-open-roster" class="btn btn-outline-dark" title="Personnel Roster">&#128101; Roster (<span id="roster-count">7</span>)</button>
       <button id="btn-open-blackouts" class="btn btn-outline-dark" title="Blackouts &amp; Leave">&#128197; Blackouts (<span id="blackout-count">0</span>)</button>
       <button id="btn-open-prefs" class="btn btn-outline-dark" title="Requested Weekends">&#11088; Requests (<span id="pref-count">0</span>)</button>
-      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
-      <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
-      <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <button id="btn-print" class="btn btn-outline-dark" title="Print current month view">&#128424; Print</button>
       <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All</button>
       <div class="ribbon-divider"></div>
       <button id="btn-open-guide" class="btn btn-outline-dark" title="Operational User Guide &amp; Task Manual">&#128214; How to Use</button>
       <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Constraints Specification">&#128203; Schedule Rules</button>
+      <div class="ribbon-divider"></div>
+      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
+      <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
+      <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <div class="ribbon-divider"></div>
       <button id="btn-open-import" class="btn btn-outline-dark" title="Import Schedule from CSV">&#128196; Import</button>
       <button id="btn-export-excel" class="btn btn-primary" title="Export current schedule to Excel (XLSX)">&#128229; Export Excel</button>

@@ -520,20 +520,25 @@ console.log('PASS READMEs, how-to-use & rules buttons, single-line menu, and Ref
 {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-  // 1. Menu Bar Order: Import and Export Excel must appear to the right of How to Use and Schedule Rules
+  // 1. Menu Bar Order: Backup & Restore between Schedule Rules and Import; Export Excel on far right
   const guideIdx = html.indexOf('id="btn-open-guide"');
   const rulesIdx = html.indexOf('id="btn-open-rules"');
+  const backupIdx = html.indexOf('id="btn-backup-export"');
+  const restoreIdx = html.indexOf('id="btn-backup-restore"');
   const importIdx = html.indexOf('id="btn-open-import"');
   const exportIdx = html.indexOf('id="btn-export-excel"');
 
-  assert(guideIdx !== -1 && rulesIdx !== -1 && importIdx !== -1 && exportIdx !== -1, 'missing ribbon buttons');
+  assert(guideIdx !== -1 && rulesIdx !== -1 && backupIdx !== -1 && restoreIdx !== -1 && importIdx !== -1 && exportIdx !== -1, 'missing ribbon buttons');
   assert(guideIdx < rulesIdx, 'How to Use should precede Schedule Rules');
-  assert(rulesIdx < importIdx, 'Import should be placed to the right of Schedule Rules');
+  assert(rulesIdx < backupIdx, 'Backup should be placed after Schedule Rules');
+  assert(backupIdx < restoreIdx, 'Restore should be placed after Backup');
+  assert(restoreIdx < importIdx, 'Import should be placed after Restore');
   assert(importIdx < exportIdx, 'Export Excel should be placed to the right of Import');
 
-  // 2. Compact ribbon styling
-  assert(html.includes('.ribbon-actions .btn'), 'missing compact ribbon button styling');
-  assert(html.includes('overflow-x: hidden'), 'ribbon overflow-x must be hidden to prevent scrolling');
+  // 2. Ribbon styling & gap
+  assert(html.includes('.ribbon-actions .btn'), 'missing ribbon button styling');
+  assert(html.includes('scrollbar-width: none'), 'ribbon scrollbar must be hidden');
+  assert(html.includes('justify-content: space-between'), 'ribbon must maintain gap between breakdown tabs and roster actions');
 
   // 3. Matrix print filter
   assert(html.includes('.matrix-print-hide'), 'missing matrix-print-hide class');
