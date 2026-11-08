@@ -396,21 +396,19 @@ const htmlContent = `<!DOCTYPE html>
     .ribbon {
       background: var(--color-light);
       border-bottom: 1px solid var(--border-color);
-      padding: 6px 16px;
+      padding: 4px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 4px;
       flex-wrap: nowrap;
-      overflow-x: auto;
-      scrollbar-width: none;
+      overflow-x: hidden;
     }
-    .ribbon::-webkit-scrollbar { display: none; }
 
     .tab-group {
       display: flex;
       background: var(--color-paper-2);
-      padding: 3px;
+      padding: 2px;
       border-radius: var(--radius-pill);
       border: 1px solid var(--border-color);
       gap: 2px;
@@ -418,13 +416,13 @@ const htmlContent = `<!DOCTYPE html>
     }
 
     .tab-btn {
-      padding: 5px 12px;
+      padding: 4px 10px;
       border: none;
       background: transparent;
       color: var(--text-muted);
       font-family: var(--font-body);
       font-weight: 500;
-      font-size: 12px;
+      font-size: 11.5px;
       border-radius: var(--radius-pill);
       cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease;
@@ -440,8 +438,24 @@ const htmlContent = `<!DOCTYPE html>
     .ribbon-actions {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .ribbon-actions .btn {
+      padding: 4px 8px;
+      font-size: 11.5px;
+      gap: 3px;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+
+    .ribbon-divider {
+      height: 16px;
+      width: 1px;
+      background: var(--border-color);
+      margin: 0 2px;
       flex-shrink: 0;
     }
 
@@ -856,6 +870,20 @@ const htmlContent = `<!DOCTYPE html>
         border: 1px solid var(--color-print-ink) !important;
         font-weight: 700 !important;
       }
+      .matrix-print-hide {
+        display: none !important;
+      }
+      .matrix-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+      .matrix-table th, .matrix-table td {
+        border: 1px solid var(--color-print-ink) !important;
+        padding: 6px 10px !important;
+        color: var(--color-print-ink) !important;
+        background: transparent !important;
+        font-size: 11pt !important;
+      }
       body.printing-all #view-calendar-wrapper,
       body.printing-all #view-matrix-wrapper,
       body.printing-all #view-breakdown-wrapper { display: none !important; }
@@ -885,24 +913,25 @@ const htmlContent = `<!DOCTYPE html>
   <!-- Action Ribbon (Single-Line Compact Menu) -->
   <div class="ribbon">
     <div class="tab-group">
-      <button id="tab-calendar-view" class="tab-btn active">7-Column Calendar</button>
-      <button id="tab-matrix-view" class="tab-btn">Matrix Overview</button>
-      <button id="tab-breakdown-view" class="tab-btn">Shift Breakdown</button>
+      <button id="tab-calendar-view" class="tab-btn active">Calendar</button>
+      <button id="tab-matrix-view" class="tab-btn">Matrix</button>
+      <button id="tab-breakdown-view" class="tab-btn">Breakdown</button>
     </div>
     <div class="ribbon-actions">
       <button id="btn-open-roster" class="btn btn-outline-dark" title="Personnel Roster">&#128101; Roster (<span id="roster-count">7</span>)</button>
-      <button id="btn-open-blackouts" class="btn btn-outline-dark" title="Blackouts & Leave">&#128197; Blackouts (<span id="blackout-count">0</span>)</button>
+      <button id="btn-open-blackouts" class="btn btn-outline-dark" title="Blackouts &amp; Leave">&#128197; Blackouts (<span id="blackout-count">0</span>)</button>
       <button id="btn-open-prefs" class="btn btn-outline-dark" title="Requested Weekends">&#11088; Requests (<span id="pref-count">0</span>)</button>
-      <button id="btn-open-import" class="btn btn-outline-dark" title="Import Schedule from CSV">&#128196; Import</button>
-      <button id="btn-export-excel" class="btn btn-primary" title="Export current schedule to Excel (XLSX)">&#128229; Export Excel</button>
       <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
       <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
       <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <button id="btn-print" class="btn btn-outline-dark" title="Print current month view">&#128424; Print</button>
       <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All</button>
-      <div style="height: 18px; width: 1px; background: var(--border-color); margin: 0 3px; flex-shrink: 0;"></div>
-      <button id="btn-open-guide" class="btn btn-outline-dark" title="Interactive Calendar User Guide">&#128214; How to Use</button>
-      <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules & Constraints Specification">&#128203; Schedule Rules</button>
+      <div class="ribbon-divider"></div>
+      <button id="btn-open-guide" class="btn btn-outline-dark" title="Operational User Guide &amp; Task Manual">&#128214; How to Use</button>
+      <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Constraints Specification">&#128203; Schedule Rules</button>
+      <div class="ribbon-divider"></div>
+      <button id="btn-open-import" class="btn btn-outline-dark" title="Import Schedule from CSV">&#128196; Import</button>
+      <button id="btn-export-excel" class="btn btn-primary" title="Export current schedule to Excel (XLSX)">&#128229; Export Excel</button>
     </div>
   </div>
 
@@ -950,7 +979,8 @@ const htmlContent = `<!DOCTYPE html>
     <!-- Matrix View (Hidden by default) -->
     <div id="view-matrix-wrapper" style="display:none;">
       <div class="calendar-container" style="padding:20px;">
-        <h2 style="font-size:18px; margin-bottom:16px;">Cycle Shift Matrix & Weekend Rest Overview</h2>
+        <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
+        <h2 style="font-size:18px; margin-bottom:16px;">Cycle Shift Matrix &amp; Weekend Rest Overview</h2>
         <div id="matrix-table-container"></div>
       </div>
     </div>
@@ -1802,9 +1832,9 @@ const htmlContent = `<!DOCTYPE html>
               <th>Weekend #</th>
               <th>Weekend Dates</th>
               <th>Assigned Personnel</th>
-              <th>Role</th>
-              <th>Attached Holiday</th>
-              <th>Status</th>
+              <th class="matrix-print-hide">Role</th>
+              <th class="matrix-print-hide">Attached Holiday</th>
+              <th class="matrix-print-hide">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -1817,9 +1847,9 @@ const htmlContent = `<!DOCTYPE html>
                   <td>Weekend \${w.index + 1}</td>
                   <td>\${w.friday} &rarr; \${w.sunday}</td>
                   <td><strong>\${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
-                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${mem?.role || '-'}</span></td>
-                  <td>\${hol}</td>
-                  <td>\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
+                  <td class="matrix-print-hide"><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${mem?.role || '-'}</span></td>
+                  <td class="matrix-print-hide">\${hol}</td>
+                  <td class="matrix-print-hide">\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
                 </tr>
               \`;
             }).join('')}

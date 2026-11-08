@@ -516,3 +516,40 @@ console.log('PASS manual assignment violation check and overwrite prompt present
 }
 console.log('PASS READMEs, how-to-use & rules buttons, single-line menu, and Refract theme verified');
 
+// 26. Menu Bar Fit Without Scroll, Import/Export Far Right, Functional Guide, and Matrix Print Filter
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // 1. Menu Bar Order: Import and Export Excel must appear to the right of How to Use and Schedule Rules
+  const guideIdx = html.indexOf('id="btn-open-guide"');
+  const rulesIdx = html.indexOf('id="btn-open-rules"');
+  const importIdx = html.indexOf('id="btn-open-import"');
+  const exportIdx = html.indexOf('id="btn-export-excel"');
+
+  assert(guideIdx !== -1 && rulesIdx !== -1 && importIdx !== -1 && exportIdx !== -1, 'missing ribbon buttons');
+  assert(guideIdx < rulesIdx, 'How to Use should precede Schedule Rules');
+  assert(rulesIdx < importIdx, 'Import should be placed to the right of Schedule Rules');
+  assert(importIdx < exportIdx, 'Export Excel should be placed to the right of Import');
+
+  // 2. Compact ribbon styling
+  assert(html.includes('.ribbon-actions .btn'), 'missing compact ribbon button styling');
+  assert(html.includes('overflow-x: hidden'), 'ribbon overflow-x must be hidden to prevent scrolling');
+
+  // 3. Matrix print filter
+  assert(html.includes('.matrix-print-hide'), 'missing matrix-print-hide class');
+  assert(html.includes('.matrix-print-hide {'), 'missing matrix-print-hide print rule');
+  assert(html.includes('class="matrix-print-hide">Role</th>'), 'Role column header must have matrix-print-hide');
+  assert(html.includes('class="matrix-print-hide">Attached Holiday</th>'), 'Attached Holiday column header must have matrix-print-hide');
+  assert(html.includes('class="matrix-print-hide">Status</th>'), 'Status column header must have matrix-print-hide');
+
+  // 4. Functional user guide
+  const guide = fs.readFileSync(new URL('../USER_GUIDE.md', import.meta.url), 'utf8');
+  assert(guide.includes('Generating a Contract-Compliant Schedule'), 'guide missing quick-start task workflow');
+  assert(guide.includes('Multi-Period & Full-Year Scheduling'), 'guide missing multi-period scheduling workflow');
+  assert(guide.includes('Manually Assigning or Adjusting Shifts'), 'guide missing manual assignment instructions');
+  assert(guide.includes('Clearing Shifts (Current Month vs Entire Cycle)'), 'guide missing clear calendar instructions');
+  assert(guide.includes('Printing and Exporting'), 'guide missing printing and exporting instructions');
+}
+console.log('PASS menu bar fit, import/export far right, functional guide, and matrix print filter verified');
+
+

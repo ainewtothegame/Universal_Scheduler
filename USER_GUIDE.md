@@ -1,99 +1,73 @@
 # Pennsylvania State Police: Troop H Fire Marshal Unit
-## On-Call Calendar User Guide and Feature Manual
+## Operational User Guide & Practical Task Manual
 
-Welcome to the Troop H Fire Marshal On-Call Schedule Generator. This guide explains every feature, button, visual indicator, and workflow available in the application.
-
----
-
-## 1. Interface Overview
-
-The application is structured into four main operational areas:
-1. Top Header: Cycle selection, block management, undo/redo, automatic generation, and clearing.
-2. Action Ribbon (Single-Line Menu): Quick access to personnel, blackouts, weekend requests, import/export, printing, and reference documentation.
-3. View Tabs and Month Navigation: Switch between 7-Column Calendar, Matrix Overview, and Shift Breakdown views, with month tabs and a continuous Show All Months scrolling option.
-4. Interactive Calendar Grid: The main schedule workspace where shifts, holidays, and conflict indicators are displayed and editable.
+This guide provides practical instructions for generating, managing, balancing, and printing on-call schedules for the Troop H Fire Marshal Unit.
 
 ---
 
-## 2. What the Dots on the Calendar Mean
+### 1. Generating a Contract-Compliant Schedule
 
-Each day cell in the calendar can display small circular status dots in the upper-right corner. These provide instant visual feedback on rule compliance:
+To build a schedule that adheres to collective bargaining and department rest rules:
 
-| Dot Indicator | Classification | Rule Definition and Triggers |
-|:---:|:---:|:---|
-| Red Dot | Error / Hard Conflict | Contractual or Safety Violation:<br>1. Blackout Clash: Member is scheduled on an approved leave day.<br>2. Tenure Boundary: Member is assigned before start date or after departure date.<br>3. Post-Weekend Rest: An investigator who worked the prior weekend was scheduled during mandatory recovery days (Thursday-Sunday, or Wednesday).<br>4. Alternate Weekday: An Alternate was assigned to routine Mon-Thu weekday shifts without administrative exemption. |
-| Amber Dot | Warning / Soft Breach | Operational Warning:<br>1. Consecutive Weekend: Member is assigned to back-to-back weekends.<br>2. Alternate Quota Exceeded: Alternate exceeds their 6-month weekend limit (default: 3).<br>3. Unassigned Day: A day has no investigator assigned. |
-| Blue Dot | Attention / Multi-Shift | Workload Concentration:<br>A Full-Time investigator is assigned to 2 or more weekday shifts within the same Monday-Thursday work week. |
-
----
-
-## 3. Calendar Day Elements
-
-- Day Number: Calendar date. Greyed out if outside the active month.
-- Holiday Pill:
-  - Red Pill (Premium): Major holidays (such as Thanksgiving, Christmas, New Year's Day, Memorial Day, Labor Day, July 4th).
-  - Blue Pill (Standard): Official state holidays (such as Presidents' Day, MLK Day, Columbus Day, Veterans Day, Juneteenth).
-  - Note: July 4th is celebrated strictly on July 4th and never shifted to an observed weekday.
-- Shift Assignment Chip:
-  - Displays the investigator last name and role (FT for Full-Time, ALT for Alternate).
-  - Background color matches the member assigned color badge.
-  - Days with no coverage display a grey UNASSIGNED chip.
+1. **Verify Roster**: Click **Roster** to confirm active Full-Time (FT) and Alternate (ALT) investigators. Confirm weekend quotas for alternates (default: 3 weekends per 6 months).
+2. **Record Approved Leave**: Click **Blackouts** and log all pre-approved vacations, training blocks, and military leave before generating. The scheduler will never assign shifts during approved leave.
+3. **Log Weekend Preferences**: Click **Requests** if investigators submitted specific weekend requests. The engine prioritizes these requests while enforcing safety rules.
+4. **Select Cycle & Run Generator**:
+   - Choose **2027 H1** or **2027 H2** from the cycle selector.
+   - Click **Auto-Generate Schedule**.
+   - The engine produces a 100% staffed schedule in under 10 milliseconds with zero rest violations, balanced holidays, and exact alternate quotas.
 
 ---
 
-## 4. Top Header Controls
+### 2. Multi-Period & Full-Year Scheduling
 
-- Cycle Selector: Choose between:
-  - 2027 H1: January 1 to June 30 (181 days).
-  - 2027 H2: July 1 to December 31 (184 days).
-  - 2027 FULL: Entire calendar year (365 days).
-- Add Year / Block: Create a new annual schedule block or multi-month cycle.
-- Undo (Ctrl+Z) and Redo (Ctrl+Y): Step backward or forward through schedule edits, generation runs, or clears.
-- Auto-Generate Schedule:
-  - Runs the 5-Stage Stratified Constraint Satisfaction Problem (CSP) solver.
-  - Automatically respects blackouts, requests, rest days, alternate quotas, and holiday fairness.
-  - When run on FULL Year, it locks and preserves existing H1 and H2 shifts and only fills unassigned days.
-  - When run on H2, it looks back at H1 to balance annual workloads and prevent boundary rest violations.
-- Clear Calendar:
-  - Displays a modal asking whether to clear:
-    1. Current Month Only: Clears only the active month.
-    2. Entire Selected Calendar: Wipes all assignments for the active cycle.
-  - Requires explicit confirmation and is fully undoable with Ctrl+Z.
+The application coordinates H1, H2, and Full-Year schedules together:
+
+- **First Half (H1: Jan 1 to Jun 30)**: Generate first or configure manually.
+- **Second Half (H2: Jul 1 to Dec 31)**: When generated, H2 inspects H1 history to balance total annual weekends and holidays across all full-time members. It also protects rest continuity across the June/July boundary.
+- **Full Year (FULL: Jan 1 to Dec 31)**:
+  - Displays all 12 months in one view.
+  - **Preservation Lock**: Clicking **Auto-Generate Schedule** while in FULL year will **never overwrite** shifts already scheduled in H1 or H2. It only fills remaining unassigned dates, protecting your manual edits and prior work.
 
 ---
 
-## 5. Action Ribbon (Single-Line Menu)
+### 3. What the Dots on the Calendar Mean
 
-- Personnel Roster: Add, edit, or remove investigators. Configure Full-Time vs Alternate roles, active date ranges, and custom Alternate weekend quotas.
-- Blackouts and Leave: Record approved vacations, military duty, training, or medical leave.
-- Requested Weekends: Record investigator preferred weekend duty. The dropdown displays current scheduled and requested counts for each investigator.
-- Import Schedule: Import schedules from CSV files. If historical files contain former staff names (such as Keebaugh or Riley), an Alias Mapping modal automatically prompts to link or substitute them.
-- Export to Excel: Download the active schedule as a professionally formatted spreadsheet.
-- Export Backup (JSON): Save the entire system state (roster, blackouts, requests, and all cycles) as a single JSON file.
-- Restore Backup: Restore complete system state from a previously saved JSON file.
-- Print: Print the current month view.
-- Print All Months: Print all months in the active cycle sequentially, with clean page breaks between months.
-- How to Use: Opens this interactive guide.
-- Schedule Rules: Opens the comprehensive schedule rules and constraints document.
+Small color-coded dots in the upper-right corner of calendar cells provide instant feedback on contract compliance:
+
+| Indicator | Classification | Rule Definition and Triggers | Recommended Operational Action |
+|:---:|:---:|:---|:---|
+| Red Dot | Error / Hard Conflict | **Contractual or Safety Breach**:<br>1. **Post-Weekend Rest**: Investigator worked the prior weekend and was scheduled during mandatory recovery days (Thursday to Sunday, or Wednesday).<br>2. **Blackout Clash**: Member scheduled during approved leave.<br>3. **Tenure Boundary**: Assigned before hire date or after departure date.<br>4. **Alternate Weekday**: Alternate assigned routine Mon-Thu weekday shifts without exemption. | Click the day cell and select an eligible investigator to resolve the violation. |
+| Amber Dot | Warning / Soft Breach | **Operational Warning**:<br>1. **Consecutive Weekends**: Same investigator assigned back-to-back weekends.<br>2. **Quota Exceeded**: Alternate exceeds their 6-month weekend limit.<br>3. **Unassigned Day**: Date has no on-call coverage. | Reassign one of the weekends to another investigator, or assign coverage to the open date. |
+| Blue Dot | Workload Concentration | **Weekday Clustering**:<br>1. Full-Time investigator assigned to 2 or more weekday shifts (Mon-Thu) in the same work week. | Check if one of the weekday shifts can be swapped with another team member to balance the weekly load. |
 
 ---
 
-## 6. How to Edit Shifts Manually
+### 4. Manually Assigning or Adjusting Shifts
 
-1. Click on any calendar day.
-2. The Duty Assignment Modal appears.
-3. The investigator dropdown autofocuses immediately:
-   - Press the first letter of a name (or use Up/Down arrow keys) to select an investigator.
-   - Live validation checks for blackout conflicts, post-weekend rest violations, or role restrictions.
-4. Press Enter to save the assignment (or press Escape to cancel).
-5. Rule Violation Warning: If assigning someone who worked the prior weekend to Thursday-Sunday, or violating an approved blackout, a warning prompt appears requiring explicit confirmation to overwrite.
-6. Click Clear Shift to leave the day unassigned.
+1. **Click any date cell** on the calendar.
+2. The assignment dialog opens with the investigator dropdown **focused automatically**.
+3. **Quick Selection**: Type the first letter of an investigator name or use the arrow keys, then press **Enter** to save (or press **Escape** to cancel).
+4. **Rest Violation Guard**: If you assign an investigator who worked the preceding weekend to Thursday through Sunday (their mandatory rest days), a warning prompt appears asking for explicit confirmation to overwrite.
+5. **Clear Shift**: Click *Clear Shift* inside the dialog to leave that specific date unassigned.
 
 ---
 
-## 7. Printing the Schedule
+### 5. Clearing Shifts (Current Month vs Entire Cycle)
 
-- Click Print (current month) or Print All (entire cycle).
-- The print output automatically formats for clean 8.5 x 11 paper:
-  - Header displays: Troop H Fire Marshal Unit Schedule centered at the top of each page.
-  - Navigation bars, buttons, browser timestamps, and web headers are automatically suppressed.
+- Click **Clear Calendar** in the top navigation bar.
+- Choose your target scope:
+  - **Current Month Only**: Clears only the active month displayed on screen.
+  - **Entire Calendar Year / Block**: Clears all assignments across the selected cycle (H1, H2, or FULL).
+- Confirm the clear action in the prompt.
+- **Undo / Redo**: Made an accidental change? Press **Ctrl+Z** (or click Undo) to instantly recover your assignments.
+
+---
+
+### 6. Printing and Exporting
+
+- **Print Month**: Click **Print** to output the current month formatted for standard landscape 8.5" x 11" paper. Troop H headers appear centered at the top; navigation bars and browser timestamps are omitted.
+- **Print All Months**: Click **Print All** to print every month of the cycle sequentially with clean page breaks.
+- **Print Matrix**: Switch to the **Matrix** tab and click **Print**. Only **Weekend #**, **Weekend Dates**, and **Assigned Personnel** will print.
+- **Export to Excel**: Click **Export Excel** on the far right of the menu bar to generate an official formatted spreadsheet.
+- **Backup & Restore**: Click **Backup** to download a single JSON file containing all rosters, blackouts, requests, and schedules. Use **Restore** to reload your setup on another computer or roll back to a known snapshot.
