@@ -34,6 +34,16 @@ export function identifyWeekends(startDateStr, endDateStr, holidays) {
 
   // Walk backwards if starting mid-weekend to find Friday, or walk forwards to first Friday
   // We want all Fridays that define weekends in this range
+  const startDow = curr.getDay();
+  if (startDow === 6) { // Saturday
+    curr = addDays(curr, -1);
+  } else if (startDow === 0) { // Sunday
+    curr = addDays(curr, -2);
+  } else if (startDow === 1) { // Monday
+    const isAttMon = (holidays || []).some(h => h.date === startDateStr && h.type === 'attached_mon');
+    if (isAttMon) curr = addDays(curr, -3);
+  }
+
   while (curr <= end) {
     if (curr.getDay() === 5) { // Friday
       const fri = formatDate(curr);
@@ -83,21 +93,10 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   const activeFTs = roster.filter(m => m.role === 'FT');
   const activeALTs = roster.filter(m => m.role === 'ALT');
 
-  // Prior period context (e.g. H1 when solving H2)
+  // Prior period context (e.g. H1 when solving H2, or prior year H2/FULL when solving H1/FULL)
   const priorAssignments = context.priorAssignments || {};
   let priorLastWeekendWorker = null;
   let priorLastWeekendFriday = null;
-  const priorDays = Object.keys(priorAssignments).filter(d => d < cycle.startDate).sort();
-  if (priorDays.length > 0) {
-    const priorStartDate = priorDays[0];
-    const priorEndDate = priorDays[priorDays.length - 1];
-    const priorWeekends = identifyWeekends(priorStartDate, priorEndDate, holidays);
-    if (priorWeekends.length > 0) {
-      const lastPW = priorWeekends[priorWeekends.length - 1];
-      priorLastWeekendWorker = priorAssignments[lastPW.saturday] || priorAssignments[lastPW.friday];
-      priorLastWeekendFriday = lastPW.friday;
-    }
-  }
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
   const halfOf = (w) => w.friday.slice(0, 4) + (w.friday.slice(5) < '07-01' ? 'H1' : 'H2');
@@ -117,10 +116,42 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
 
   const weekendAssignments = {}; // weekend.index -> memberId
 
-  // Pre-seed already manually locked weekends
+  const priorDays = Object.keys(priorAssignments).filter(d => d < cycle.startDate).sort();
+  if (priorDays.length > 0) {
+    const priorStartDate = priorDays[0];
+    const priorEndDate = priorDays[priorDays.length - 1];
+    const priorWeekends = identifyWeekends(priorStartDate, priorEndDate, holidays);
+    if (priorWeekends.length > 0) {
+      const lastPW = priorWeekends[priorWeekends.length - 1];
+      // If lastPW matches weekends[0], check if weekends[0] was worked in priorAssignments
+      if (weekends.length > 0 && lastPW.friday === weekends[0].friday) {
+        const w0Worker = priorAssignments[lastPW.saturday] || priorAssignments[lastPW.friday] || priorAssignments[lastPW.sunday];
+        if (w0Worker && !weekendAssignments[0]) {
+          weekendAssignments[0] = w0Worker;
+          const mem = roster.find(m => m.id === w0Worker);
+          if (mem && mem.role === 'ALT') {
+            altQuotaConsumed[`${w0Worker}|${halfOf(weekends[0])}`] = (altQuotaConsumed[`${w0Worker}|${halfOf(weekends[0])}`] || 0) + 1;
+          }
+        }
+        if (priorWeekends.length > 1) {
+          const penPW = priorWeekends[priorWeekends.length - 2];
+          priorLastWeekendWorker = priorAssignments[penPW.saturday] || priorAssignments[penPW.friday] || priorAssignments[penPW.sunday];
+          priorLastWeekendFriday = penPW.friday;
+        }
+      } else {
+        priorLastWeekendWorker = priorAssignments[lastPW.saturday] || priorAssignments[lastPW.friday] || priorAssignments[lastPW.sunday];
+        priorLastWeekendFriday = lastPW.friday;
+      }
+    }
+  }
+
+  // Pre-seed already manually locked weekends or weekends assigned in prior period
   weekends.forEach(w => {
-    if (assignments[w.saturday]) {
-      const assignedId = assignments[w.saturday];
+    let assignedId = assignments[w.saturday] || assignments[w.friday] || assignments[w.sunday];
+    if (!assignedId && priorAssignments) {
+      assignedId = priorAssignments[w.saturday] || priorAssignments[w.friday] || priorAssignments[w.sunday];
+    }
+    if (assignedId) {
       weekendAssignments[w.index] = assignedId;
       const mem = roster.find(m => m.id === assignedId);
       if (mem && mem.role === 'ALT') {

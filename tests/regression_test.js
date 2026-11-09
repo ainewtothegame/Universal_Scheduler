@@ -686,6 +686,65 @@ console.log('PASS blackouts chronological order, Friday weekend fill prompt, and
 }
 console.log('PASS alternate quota confirmation and automatic pinned note verified');
 
+// 32. New Year's cross-year weekend identification, rest day enforcement, and consecutive weekend protection
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('priorCycle = window.appState.cycles[`${prevYear}-H2`] || window.appState.cycles[`${prevYear}-FULL`]'), 'Must lookup prior year H2 or FULL when auto-generating H1 or FULL');
+
+  // Verify identifyWeekends walks backward to Friday if cycle starts mid-weekend (Sat, Sun, or attached Mon)
+  const holidays2028 = [
+    { date: '2028-01-01', year: 2028, name: "New Year's Day", type: 'weekend' }
+  ];
+  const w2028 = identifyWeekends('2028-01-01', '2028-06-30', holidays2028);
+  assert.strictEqual(w2028[0].friday, '2027-12-31', 'Weekend 0 Friday must be 2027-12-31 when cycle starts on Saturday Jan 1');
+  assert.strictEqual(w2028[0].saturday, '2028-01-01', 'Weekend 0 Saturday must be 2028-01-01');
+  assert.strictEqual(w2028[0].sunday, '2028-01-02', 'Weekend 0 Sunday must be 2028-01-02');
+  assert.strictEqual(w2028[1].friday, '2028-01-07', 'Weekend 1 Friday must be 2028-01-07');
+
+  // Load user fixture or build test scenario
+  const cycle2028 = { id: '2028-H1', year: 2028, blockType: 'H1', startDate: '2028-01-01', endDate: '2028-06-30' };
+  const roster2028 = D.DEFAULT_2027_ROSTER.map(m => ({ ...m, activeStart: '2027-01-01', activeEnd: null }));
+
+  // Scenario A: Manual New Year's in 2028-H1
+  const manualOverrides = { '2028-01-01': 'polcha', '2028-01-02': 'polcha' };
+  const resManual = solveSchedule(cycle2028, roster2028, [], holidays2028, manualOverrides, [], {});
+  assert.strictEqual(resManual.assignments['2028-01-01'], 'polcha', 'Jan 1 must be Polcha');
+  assert.strictEqual(resManual.assignments['2028-01-02'], 'polcha', 'Jan 2 must be Polcha');
+  assert.strictEqual(resManual.assignments['2028-01-03'], 'polcha', 'Jan 3 (Monday) must be Polcha');
+  assert.notStrictEqual(resManual.assignments['2028-01-05'], 'polcha', 'Polcha must NOT be assigned Wednesday Jan 5 (post-weekend rest)');
+  assert.notStrictEqual(resManual.assignments['2028-01-06'], 'polcha', 'Polcha must NOT be assigned Thursday Jan 6 (post-weekend rest)');
+  assert.notStrictEqual(resManual.assignments['2028-01-07'], 'polcha', 'Polcha must NOT work Weekend 1 Friday Jan 7 (zero consecutive weekends)');
+  assert.notStrictEqual(resManual.assignments['2028-01-08'], 'polcha', 'Polcha must NOT work Weekend 1 Saturday Jan 8 (zero consecutive weekends)');
+  assert.notStrictEqual(resManual.assignments['2028-01-09'], 'polcha', 'Polcha must NOT work Weekend 1 Sunday Jan 9 (zero consecutive weekends)');
+  assert.notStrictEqual(resManual.assignments['2028-01-10'], 'polcha', 'Polcha must NOT work Monday Jan 10 (attached to Weekend 1)');
+
+  // Scenario B: Prior year 2027-H2 had Polcha on Dec 31 New Year's weekend
+  const priorContext = {
+    priorAssignments: {
+      '2027-12-24': 'reed',
+      '2027-12-25': 'reed',
+      '2027-12-26': 'reed',
+      '2027-12-31': 'polcha'
+    }
+  };
+  const resPrior = solveSchedule(cycle2028, roster2028, [], holidays2028, {}, [], priorContext);
+  assert.strictEqual(resPrior.assignments['2028-01-01'], 'polcha', 'Jan 1 must inherit Polcha from prior year New Year weekend');
+  assert.strictEqual(resPrior.assignments['2028-01-02'], 'polcha', 'Jan 2 must inherit Polcha from prior year New Year weekend');
+  assert.strictEqual(resPrior.assignments['2028-01-03'], 'polcha', 'Jan 3 (Monday) must be Polcha');
+  assert.notStrictEqual(resPrior.assignments['2028-01-05'], 'polcha', 'Polcha must NOT be assigned Wednesday Jan 5 (post-weekend rest)');
+  assert.notStrictEqual(resPrior.assignments['2028-01-06'], 'polcha', 'Polcha must NOT be assigned Thursday Jan 6 (post-weekend rest)');
+  assert.notStrictEqual(resPrior.assignments['2028-01-07'], 'polcha', 'Polcha must NOT work Weekend 1 Friday Jan 7 (zero consecutive weekends)');
+  assert.notStrictEqual(resPrior.assignments['2028-01-08'], 'polcha', 'Polcha must NOT work Weekend 1 Saturday Jan 8 (zero consecutive weekends)');
+  assert.notStrictEqual(resPrior.assignments['2028-01-09'], 'polcha', 'Polcha must NOT work Weekend 1 Sunday Jan 9 (zero consecutive weekends)');
+
+  const conf = evaluateScheduleConflicts(cycle2028, roster2028, [], holidays2028, resPrior.assignments);
+  const errors = Object.values(conf).flat().filter(c => c.type === 'ERROR');
+  const warnings = Object.values(conf).flat().filter(c => c.type === 'WARNING');
+  assert.strictEqual(errors.length, 0, 'Zero errors in auto-generated cross-year schedule');
+  assert.strictEqual(warnings.length, 0, 'Zero warnings in auto-generated cross-year schedule');
+}
+console.log('PASS New Year cross-year weekend identification, rest day enforcement, and consecutive weekend protection verified');
+
 
 
 

@@ -2234,12 +2234,20 @@ const htmlContent = `<!DOCTYPE html>
       }
 
       // Requirement 2: When generating the second half (H2), look at the 1st half (H1)
-      // to balance weekends, holidays, weekdays, and rest across the June/July boundary
+      // to balance weekends, holidays, weekdays, and rest across the June/July boundary.
+      // Similarly, when generating H1 or FULL, look at the prior year's H2 or FULL to
+      // respect New Year's on-call coverage and post-weekend rest days across the year boundary.
       const context = {};
       if (cycle.blockType === 'H2') {
         const h1 = window.appState.cycles[\`\${cycle.year}-H1\`];
         if (h1 && h1.assignments && Object.keys(h1.assignments).length > 0) {
           context.priorAssignments = { ...h1.assignments };
+        }
+      } else if (cycle.blockType === 'H1' || cycle.blockType === 'FULL') {
+        const prevYear = cycle.year - 1;
+        const priorCycle = window.appState.cycles[\`\${prevYear}-H2\`] || window.appState.cycles[\`\${prevYear}-FULL\`];
+        if (priorCycle && priorCycle.assignments && Object.keys(priorCycle.assignments).length > 0) {
+          context.priorAssignments = { ...priorCycle.assignments };
         }
       }
 
