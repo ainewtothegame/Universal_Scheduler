@@ -768,6 +768,80 @@ console.log('PASS New Year cross-year weekend identification, rest day enforceme
 }
 console.log('PASS remove cycles from dropdown menu verified');
 
+// 34. Blackouts and weekend requests scoped strictly to their calendar year
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // Verify DOM code uses cycleBlackouts and cyclePrefs
+  assert(html.includes('solveSchedule(cycle, getCycleRoster(), cycleBlackouts()'), 'solveSchedule must use cycleBlackouts()');
+  assert(html.includes('evaluateScheduleConflicts(cycle, window.appState.roster, cycleBlackouts()'), 'evaluateScheduleConflicts must use cycleBlackouts()');
+  assert(html.includes('const taken = new Set(cyclePrefs().map(p => p.weekendFriday))'), 'Weekend request select must check cyclePrefs()');
+
+  // Dynamic simulation of cycleBlackouts and cyclePrefs across multiple years
+  const mockAppState = {
+    blackouts: [
+      { id: 'b_2027_1', memberId: 'terek', startDate: '2027-06-25', endDate: '2027-07-06', year: 2027 },
+      { id: 'b_2027_2', memberId: 'wolfe', startDate: '2027-05-10', endDate: '2027-05-18' }, // legacy without year field
+      { id: 'b_2028_1', memberId: 'polcha', startDate: '2028-02-10', endDate: '2028-02-15', year: 2028 }
+    ],
+    preferredWeekends: [
+      { id: 'p_2027_1', memberId: 'chester', weekendFriday: '2027-02-26', year: 2027 },
+      { id: 'p_2027_2', memberId: 'reed', weekendFriday: '2027-09-10' }, // legacy without year field
+      { id: 'p_2028_1', memberId: 'zeiders', weekendFriday: '2028-01-14', year: 2028 },
+      { id: 'p_2028_newyear', memberId: 'polcha', weekendFriday: '2027-12-31', year: 2028 } // 2028 opening weekend
+    ]
+  };
+
+  function simCycleBlackouts(c) {
+    if (!c) return [];
+    const cYear = c.year || (c.startDate ? parseInt(c.startDate.slice(0, 4), 10) : 2027);
+    let list = mockAppState.blackouts.filter(b => {
+      const bYear = b.year || (b.startDate ? parseInt(b.startDate.slice(0, 4), 10) : cYear);
+      if (bYear !== cYear) return false;
+      return b.startDate <= c.endDate && b.endDate >= c.startDate;
+    });
+    return list.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '') || (a.endDate || '').localeCompare(b.endDate || '') || (a.memberId || '').localeCompare(b.memberId || ''));
+  }
+
+  function simCyclePrefs(c) {
+    if (!c) return [];
+    const cYear = c.year || (c.startDate ? parseInt(c.startDate.slice(0, 4), 10) : 2027);
+    return mockAppState.preferredWeekends.filter(p => {
+      const pYear = p.year || (p.weekendFriday ? parseInt(p.weekendFriday.slice(0, 4), 10) : cYear);
+      if (pYear !== cYear) return false;
+      if (c.blockType === 'FULL') return true;
+      if (p.weekendFriday === (cYear - 1) + '-12-31') {
+        return c.blockType === 'H1';
+      }
+      return p.weekendFriday >= c.startDate && p.weekendFriday <= c.endDate;
+    });
+  }
+
+  const c2027H1 = { id: '2027-H1', year: 2027, blockType: 'H1', startDate: '2027-01-01', endDate: '2027-06-30' };
+  const c2027FULL = { id: '2027-FULL', year: 2027, blockType: 'FULL', startDate: '2027-01-01', endDate: '2027-12-31' };
+  const c2028H1 = { id: '2028-H1', year: 2028, blockType: 'H1', startDate: '2028-01-01', endDate: '2028-06-30' };
+  const c2028FULL = { id: '2028-FULL', year: 2028, blockType: 'FULL', startDate: '2028-01-01', endDate: '2028-12-31' };
+
+  // 2027 cycles must only have 2027 blackouts/requests
+  assert.strictEqual(simCycleBlackouts(c2027H1).length, 2, '2027-H1 has 2 blackouts');
+  assert.strictEqual(simCycleBlackouts(c2027FULL).length, 2, '2027-FULL has 2 blackouts');
+  assert.strictEqual(simCyclePrefs(c2027H1).length, 1, '2027-H1 has 1 request');
+  assert.strictEqual(simCyclePrefs(c2027FULL).length, 2, '2027-FULL has 2 requests');
+
+  // 2028 cycles must NOT carry 2027 blackouts or requests
+  assert.strictEqual(simCycleBlackouts(c2028H1).length, 1, '2028-H1 has only 2028 blackout');
+  assert.strictEqual(simCycleBlackouts(c2028H1)[0].id, 'b_2028_1');
+  assert.strictEqual(simCycleBlackouts(c2028FULL).length, 1, '2028-FULL has only 2028 blackout');
+  assert.strictEqual(simCyclePrefs(c2028H1).length, 2, '2028-H1 has 2028 requests including New Year');
+  assert.strictEqual(simCyclePrefs(c2028FULL).length, 2, '2028-FULL has 2 2028 requests');
+
+  // A fresh year (2029) has 0 blackouts and 0 requests
+  const c2029H1 = { id: '2029-H1', year: 2029, blockType: 'H1', startDate: '2029-01-01', endDate: '2029-06-30' };
+  assert.strictEqual(simCycleBlackouts(c2029H1).length, 0, '2029-H1 must have 0 blackouts');
+  assert.strictEqual(simCyclePrefs(c2029H1).length, 0, '2029-H1 must have 0 requests');
+}
+console.log('PASS blackouts and weekend requests strictly scoped to their calendar year');
+
 
 
 

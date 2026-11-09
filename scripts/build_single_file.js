@@ -1862,7 +1862,7 @@ const htmlContent = `<!DOCTYPE html>
     // Render 7-Column Calendar Grid
     function renderCalendar() {
       const cycle = getActiveCycle();
-      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, window.appState.blackouts, window.appState.holidays, cycle.assignments);
+      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cycle.assignments);
       const start = parseDate(cycle.startDate);
       const end = parseDate(cycle.endDate);
 
@@ -2259,7 +2259,7 @@ const htmlContent = `<!DOCTYPE html>
         }
       }
 
-      const result = solveSchedule(cycle, getCycleRoster(), window.appState.blackouts, window.appState.holidays, lockedShifts, window.appState.preferredWeekends, context);
+      const result = solveSchedule(cycle, getCycleRoster(), cycleBlackouts(), window.appState.holidays, lockedShifts, cyclePrefs(), context);
       cycle.assignments = result.assignments;
       cycle.solverDiagnostics = result.diagnostics;
       cycle.updatedAt = Date.now();
@@ -2798,14 +2798,18 @@ const htmlContent = `<!DOCTYPE html>
     });
 
     // Helper: Get blackouts for the currently selected cycle
-    // In H1/H2, show only blackouts overlapping that portion; in FULL, show all
+    // Blackouts are strictly valid only for the calendar year they were entered
+    // In H1/H2, show only blackouts overlapping that portion; in FULL, show all for that year
     // Arranged in chronological order by date
     function cycleBlackouts() {
       const c = getActiveCycle();
-      let list = window.appState.blackouts;
-      if (c && c.blockType !== 'FULL') {
-        list = list.filter(b => b.startDate <= c.endDate && b.endDate >= c.startDate);
-      }
+      if (!c) return [];
+      const cYear = c.year || (c.startDate ? parseInt(c.startDate.slice(0, 4), 10) : 2027);
+      let list = window.appState.blackouts.filter(b => {
+        const bYear = b.year || (b.startDate ? parseInt(b.startDate.slice(0, 4), 10) : cYear);
+        if (bYear !== cYear) return false;
+        return b.startDate <= c.endDate && b.endDate >= c.startDate;
+      });
       return list.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '') || (a.endDate || '').localeCompare(b.endDate || '') || (a.memberId || '').localeCompare(b.memberId || ''));
     }
 
@@ -2887,12 +2891,16 @@ const htmlContent = `<!DOCTYPE html>
         return;
       }
 
+      const cycle = getActiveCycle();
+      const cycleYear = cycle ? (cycle.year || parseInt(startDate.slice(0, 4), 10)) : parseInt(startDate.slice(0, 4), 10);
+
       window.appState.blackouts.push({
         id: \`b_\${Date.now()}\`,
         memberId,
         startDate,
         endDate,
-        notes: notes || 'Vacation / Leave'
+        notes: notes || 'Vacation / Leave',
+        year: cycleYear
       });
 
       storage.saveState();
@@ -2906,13 +2914,21 @@ const htmlContent = `<!DOCTYPE html>
     // 2b. Requested Weekends Handlers
     // -------------------------------------------------------------
     // Helper: Get requested weekends for the currently selected cycle
-    // In H1/H2, show only requests for that portion; in FULL, show all
+    // Requested weekends are strictly valid only for the calendar year they were entered
+    // In H1/H2, show only requests for that portion; in FULL, show all for that year
     function cyclePrefs() {
       const c = getActiveCycle();
-      if (!c || c.blockType === 'FULL') {
-        return window.appState.preferredWeekends;
-      }
-      return window.appState.preferredWeekends.filter(p => p.weekendFriday >= c.startDate && p.weekendFriday <= c.endDate);
+      if (!c) return [];
+      const cYear = c.year || (c.startDate ? parseInt(c.startDate.slice(0, 4), 10) : 2027);
+      return window.appState.preferredWeekends.filter(p => {
+        const pYear = p.year || (p.weekendFriday ? parseInt(p.weekendFriday.slice(0, 4), 10) : cYear);
+        if (pYear !== cYear) return false;
+        if (c.blockType === 'FULL') return true;
+        if (p.weekendFriday === (cYear - 1) + '-12-31') {
+          return c.blockType === 'H1';
+        }
+        return p.weekendFriday >= c.startDate && p.weekendFriday <= c.endDate;
+      });
     }
 
     document.getElementById('btn-open-prefs').addEventListener('click', () => {
@@ -2953,7 +2969,7 @@ const htmlContent = `<!DOCTYPE html>
       const select = document.getElementById('pref-weekend-select');
       const addBtn = document.getElementById('btn-save-new-pref');
       const previous = select.value;
-      const taken = new Set(window.appState.preferredWeekends.map(p => p.weekendFriday));
+      const taken = new Set(cyclePrefs().map(p => p.weekendFriday));
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays)
         .filter(w => !taken.has(w.friday));
       if (weekends.length === 0) {
@@ -3008,12 +3024,14 @@ const htmlContent = `<!DOCTYPE html>
       const weekendFriday = document.getElementById('pref-weekend-select').value;
       const notes = document.getElementById('pref-notes-input').value.trim();
       if (!memberId || !weekendFriday) { alert('Choose an investigator and a weekend.'); return; }
-      if (window.appState.preferredWeekends.some(p => p.weekendFriday === weekendFriday)) {
+      if (cyclePrefs().some(p => p.weekendFriday === weekendFriday)) {
         alert('That weekend has already been requested.');
         refreshPrefWeekendSelect();
         return;
       }
-      window.appState.preferredWeekends.push({ id: \`p_\${Date.now()}\`, memberId, weekendFriday, notes });
+      const cycle = getActiveCycle();
+      const cycleYear = cycle ? (cycle.year || parseInt(weekendFriday.slice(0, 4), 10)) : parseInt(weekendFriday.slice(0, 4), 10);
+      window.appState.preferredWeekends.push({ id: \`p_\${Date.now()}\`, memberId, weekendFriday, notes, year: cycleYear });
       storage.saveState();
       document.getElementById('pref-notes-input').value = '';
       renderPrefsList();
@@ -3181,7 +3199,7 @@ const htmlContent = `<!DOCTYPE html>
       const violations = [];
 
       // 1. Blackout Check
-      const dayBlackout = window.appState.blackouts.find(b => b.memberId === memberId && dateStr >= b.startDate && dateStr <= b.endDate);
+      const dayBlackout = cycleBlackouts().find(b => b.memberId === memberId && dateStr >= b.startDate && dateStr <= b.endDate);
       if (dayBlackout) {
         violations.push({
           type: 'BLACKOUT',
