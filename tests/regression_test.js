@@ -610,4 +610,39 @@ console.log('PASS pinned notes, switch suggestions, roster rank/first name, and 
 }
 console.log('PASS index.html script tags syntax verified with vm.Script');
 
+// 29. Proactive lookahead simulation switch suggestions & circular dependency prevention
+{
+  const cycle = { id: '2027-H1', year: 2027, blockType: 'H1', startDate: '2027-01-01', endDate: '2027-06-30' };
+  const prefs = [
+    { id: '1', memberId: 'terek', weekendFriday: '2027-01-01' },
+    { id: '2', memberId: 'zeiders', weekendFriday: '2027-01-22' },
+    { id: '3', memberId: 'kemerer', weekendFriday: '2027-01-29' },
+    { id: '4', memberId: 'reed', weekendFriday: '2027-02-05' },
+    { id: '5', memberId: 'chester', weekendFriday: '2027-02-26' },
+    { id: '6', memberId: 'zeiders', weekendFriday: '2027-03-19' },
+    { id: '7', memberId: 'chester', weekendFriday: '2027-04-02' },
+    { id: '8', memberId: 'reed', weekendFriday: '2027-04-16' },
+    { id: '9', memberId: 'chester', weekendFriday: '2027-05-07' }, // Covers Wolfe lookahead (May 7-9)
+    { id: '10', memberId: 'zeiders', weekendFriday: '2027-05-14' },
+    { id: '11', memberId: 'reed', weekendFriday: '2027-06-11' },
+    { id: '12', memberId: 'terek', weekendFriday: '2027-06-18' }
+  ];
+  // Jun 25-27 needs an Alternate for Terek's leave, but all Alternates are at quota
+  const res = solveSchedule(cycle, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, prefs);
+  assert.strictEqual(res.scheduleNotices.length, 1, 'Should report 1 lookahead notice for Jun 25-27');
+  const notice = res.scheduleNotices[0];
+  assert(notice.includes('Best Recommendation (verified conflict-free):'), 'Must present simulation-verified Best Recommendation');
+  assert(notice.includes('Protected Weekends (do NOT switch):'), 'Must present Protected Weekends section');
+  assert(notice.includes("Trooper Matthew CHESTER requested May 7–9: protects schedule ahead of Trooper Jonathon WOLFE's leave"), 'Must protect May 7-9 from being switched');
+  assert(notice.includes('Trooper Matthew CHESTER: could switch requested weekend Feb 26–28 or Apr 2–4 to Jun 25–27'), 'Must suggest clean donor weekends for Chester');
+
+  // Verify applying the Best Recommendation produces a clean schedule
+  const cleanPrefs = prefs.map(p => p.id === '5' ? { ...p, weekendFriday: '2027-06-25' } : p);
+  const cleanRes = solveSchedule(cycle, D.DEFAULT_2027_ROSTER, D.DEFAULT_2027_BLACKOUTS, D.DEFAULT_2027_HOLIDAYS, {}, cleanPrefs);
+  assert.strictEqual(cleanRes.scheduleNotices.length, 0, 'Clean switch must produce zero schedule notices');
+  assert.strictEqual(cleanRes.preferenceWarnings.length, 0, 'Clean switch must produce zero preference warnings');
+}
+console.log('PASS lookahead simulation switch suggestions & circular dependency prevention verified');
+
+
 

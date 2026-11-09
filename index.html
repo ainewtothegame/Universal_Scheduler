@@ -1743,6 +1743,22 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
       }
     });
 
+  // Pre-calculate all mandatory lookahead weekends in the cycle upfront
+  const lookaheadWeekendFridays = new Set();
+  const lookaheadMeta = new Map();
+  weekends.forEach(wk => {
+    if (wk.phase !== 2) return;
+    const midWeekDays = [0, 1, 2, 3].map(n => formatDate(addDays(wk.monday, n)));
+    const leaveFT = activeFTs.find(ft => {
+      if (!isMemberActive(ft, wk.monday)) return false;
+      return midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length >= 3;
+    });
+    if (leaveFT) {
+      lookaheadWeekendFridays.add(wk.friday);
+      lookaheadMeta.set(wk.friday, { ftMember: leaveFT, weekend: wk });
+    }
+  });
+
   // =========================================================================
   // STAGE 1: Mandatory Alternate Weekends Before FT Leave (Spec §7)
   // =========================================================================
@@ -1754,12 +1770,10 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
   // can ask an Alternate whether they could give a different weekend instead.
   weekends.forEach(w => {
     if (w.phase !== 2 || weekendAssignments[w.index]) return;
-    const midWeekDays = [0, 1, 2, 3].map(n => formatDate(addDays(w.monday, n)));
-    const ftOnLeave = activeFTs.find(ft => {
-      if (!isMemberActive(ft, w.monday)) return false;
-      return midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length >= 3;
-    });
-    if (!ftOnLeave) return;
+    const meta = lookaheadMeta.get(w.friday);
+    if (!meta) return;
+    const ftOnLeave = meta.ftMember;
+    const ftDisplayName = `${ftOnLeave.rank || 'Trooper'} ${ftOnLeave.firstName ? ftOnLeave.firstName + ' ' : ''}${ftOnLeave.name}`;
 
     const prevWeekendWorker = w.index > 0 ? weekendAssignments[w.index - 1] : null;
     const nextWeekendWorker = w.index < weekends.length - 1 ? weekendAssignments[w.index + 1] : null;
@@ -1781,14 +1795,21 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
       weekendAssignments[w.index] = candidates[0].id;
       altQuotaConsumed[key(candidates[0])] = (altQuotaConsumed[key(candidates[0])] || 0) + 1;
     } else {
+      diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
+
+      // In trial simulation mode, record notice and return early to avoid nested simulations
+      if (context.isSimulation) {
+        scheduleNotices.push(`Stage 1 lookahead unstaffed for ${w.friday}`);
+        return;
+      }
+
       const withRequests = [...new Set(preferredWeekends
         .filter(p => { const pw = weekends.find(x => x.friday === p.weekendFriday); return pw && halfOf(pw) === halfOf(w); })
         .map(p => roster.find(m => m.id === p.memberId))
         .filter(m => m && m.role === 'ALT')
         .map(m => m.name))];
-      diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
 
-      // Identify which Alternates are available for weekend w and suggest which weekends could be switched
+      // Identify which Alternates are available for weekend w and simulate candidate switches
       const formatWkShort = (wk) => {
         const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const f = parseDate(wk.friday);
@@ -1798,7 +1819,11 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
         return mf === me ? `${mf} ${f.getDate()}–${e.getDate()}` : `${mf} ${f.getDate()} – ${me} ${e.getDate()}`;
       };
 
-      const switchSuggestions = [];
+      const targetLabel = formatWkShort(w);
+      const cleanRecommendations = [];
+      const secondaryOptions = [];
+      const protectedWarnings = [];
+
       activeALTs.forEach(alt => {
         if (!isMemberActive(alt, w.friday) || !isMemberActive(alt, w.sunday)) return;
         const checkDates = [w.friday, w.saturday, w.sunday];
@@ -1807,33 +1832,85 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
         if (checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts))) return;
         if (prevWeekendWorker === alt.id || nextWeekendWorker === alt.id) return;
 
-        const altDisplayName = `Trooper ${alt.firstName ? alt.firstName + ' ' : ''}${alt.name}`;
+        const altRank = alt.rank || 'Trooper';
+        const altDisplayName = `${altRank} ${alt.firstName ? alt.firstName + ' ' : ''}${alt.name}`;
         const altReqs = preferredWeekends
           .filter(p => p.memberId === alt.id)
           .map(p => weekends.find(x => x.friday === p.weekendFriday))
           .filter(pw => pw && halfOf(pw) === halfOf(w));
 
-        const targetLabel = formatWkShort(w);
-        if (altReqs.length > 0) {
-          const reqLabels = altReqs.map(pw => formatWkShort(pw)).join(' or ');
-          switchSuggestions.push(
-            `${altDisplayName} is available for ${targetLabel}: could switch requested weekend ${reqLabels} to ${targetLabel}.`
+        if (altReqs.length === 0) {
+          // Alternate has open quota (no requests in this half)
+          const trialPrefs = [...preferredWeekends, { memberId: alt.id, weekendFriday: w.friday }];
+          const trialRes = solveSchedule(cycle, roster, blackouts, holidays, lockedShifts, trialPrefs, { ...context, isSimulation: true });
+          if (trialRes.scheduleNotices.length === 0 && trialRes.preferenceWarnings.length === 0) {
+            cleanRecommendations.push(`${altDisplayName}: available for ${targetLabel} and could take this weekend without moving other requests.`);
+          } else if (trialRes.scheduleNotices.length === 0) {
+            secondaryOptions.push(`${altDisplayName}: available for ${targetLabel} and could take this weekend.`);
+          }
+          return;
+        }
+
+        const cleanDonorWeekends = [];
+        const secondaryDonorWeekends = [];
+
+        altReqs.forEach(pw => {
+          // If this requested weekend is itself protecting another FT's leave, protect it!
+          if (lookaheadWeekendFridays.has(pw.friday)) {
+            const lMeta = lookaheadMeta.get(pw.friday);
+            const lFt = lMeta && lMeta.ftMember;
+            const lFtDisplayName = lFt ? `${lFt.rank || 'Trooper'} ${lFt.firstName ? lFt.firstName + ' ' : ''}${lFt.name}` : 'full-time member';
+            protectedWarnings.push(
+              `${altDisplayName} requested ${formatWkShort(pw)}: protects schedule ahead of ${lFtDisplayName}'s leave. Switching away from ${formatWkShort(pw)} will create a new conflict.`
+            );
+            return;
+          }
+
+          // Run lookahead trial simulation replacing pw with w
+          const trialPrefs = preferredWeekends.map(p => {
+            if (p.memberId === alt.id && p.weekendFriday === pw.friday) {
+              return { ...p, weekendFriday: w.friday };
+            }
+            return p;
+          });
+
+          const trialRes = solveSchedule(cycle, roster, blackouts, holidays, lockedShifts, trialPrefs, { ...context, isSimulation: true });
+          if (trialRes.scheduleNotices.length === 0 && trialRes.preferenceWarnings.length === 0) {
+            cleanDonorWeekends.push(formatWkShort(pw));
+          } else if (trialRes.scheduleNotices.length === 0) {
+            secondaryDonorWeekends.push(formatWkShort(pw));
+          }
+        });
+
+        if (cleanDonorWeekends.length > 0) {
+          cleanRecommendations.push(
+            `${altDisplayName}: could switch requested weekend ${cleanDonorWeekends.join(' or ')} to ${targetLabel}.`
           );
-        } else {
-          switchSuggestions.push(
-            `${altDisplayName} is available for ${targetLabel} and could take this weekend.`
+        }
+        if (secondaryDonorWeekends.length > 0) {
+          secondaryOptions.push(
+            `${altDisplayName}: could switch requested weekend ${secondaryDonorWeekends.join(' or ')} to ${targetLabel}.`
           );
         }
       });
 
       let noticeText =
-        `Weekend ${label} should be worked by an Alternate (${ftOnLeave.name} is off that following week, and the other two full-time members cannot cover it without long stretches), ` +
+        `Weekend ${label} should be worked by an Alternate (${ftDisplayName} is off that following week, and the other two full-time members cannot cover it without long stretches), ` +
         `but no Alternate has an open weekend: their requested weekends already use their quota` +
         (withRequests.length ? ` (${withRequests.join(', ')} have requests in this period)` : '') +
         `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`;
 
-      if (switchSuggestions.length > 0) {
-        noticeText += '\n\nSuggested Weekend Switches:\n' + switchSuggestions.map(s => '• ' + s).join('\n');
+      if (cleanRecommendations.length > 0 || secondaryOptions.length > 0 || protectedWarnings.length > 0) {
+        noticeText += '\n\nSuggested Weekend Switches:';
+        if (cleanRecommendations.length > 0) {
+          noticeText += '\n• Best Recommendation (verified conflict-free):\n' + cleanRecommendations.map(s => '  - ' + s).join('\n');
+        }
+        if (secondaryOptions.length > 0) {
+          noticeText += '\n• Other Viable Options:\n' + secondaryOptions.map(s => '  - ' + s).join('\n');
+        }
+        if (protectedWarnings.length > 0) {
+          noticeText += '\n• Protected Weekends (do NOT switch):\n' + protectedWarnings.map(s => '  - ' + s).join('\n');
+        }
       }
 
       scheduleNotices.push(noticeText);
