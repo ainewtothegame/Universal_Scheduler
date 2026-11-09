@@ -35,23 +35,23 @@ This document details all contractual rules, operational constraints, and algori
 ## 2. Shift and Weekend Definitions
 
 - Weekday Shift: 15 hours of on-call duty covering 17:00 to 08:00 the following morning (Monday, Tuesday, Wednesday, and Thursday nights).
-- Weekend Shift Block: 63 consecutive hours from Friday at 17:00 through Monday at 08:00.
+- Weekend Shift Block & 80-Hour Cap: 63 consecutive hours from Friday at 17:00 through Monday at 08:00.
   - A weekend is staffed as an atomic block: the same investigator covers Friday night, Saturday, and Sunday.
-  - An attached holiday (such as Good Friday or Memorial Day) extends the weekend block to 87 hours under the same investigator.
+  - Troopers are strictly capped at 80 hours in a 2-week period. Someone working the weekend works Monday through the following Wednesday (10 consecutive days, which is 80 hours). If the Trooper has an attached holiday to cover on the Thursday, Friday, or Monday surrounding a weekend, their schedule remains within their mandatory 80-hour limit.
 
 ---
 
 ## 3. Post-Weekend Rest and Days Off (Crucial Invariant)
 
-To guarantee officer recovery following high-tempo 72-hour weekend duty, mandatory rest days are enforced:
+To guarantee Trooper recovery following weekend duty, mandatory rest days are enforced. In a two-week period, a Trooper working the weekend works 80 hours Monday through the following Wednesday, with Thursday through Sunday off as mandatory rest days. During a normal (non on-call) cycle, Troopers work standard Monday through Friday with Saturday and Sunday off:
 
 1. Mandatory Days Off (Thursday through Sunday):
-   - Any investigator who works a weekend is strictly off duty on the immediately following Thursday, Friday, Saturday, and Sunday.
-   - Under no circumstances will the automatic solver schedule an investigator on these four recovery days.
+   - Any Trooper who works a weekend is strictly off duty on the immediately following Thursday, Friday, Saturday, and Sunday.
+   - Under no circumstances will the automatic solver schedule a Trooper on these four recovery days.
 2. Wednesday Recovery Protection:
    - The Wednesday immediately following a weekend shift is designated as a compensatory rest day; the weekend worker cannot be assigned Wednesday on-call duty.
 3. Manual Override Warning:
-   - If a supervisor attempts to manually assign an investigator to Thursday, Friday, Saturday, or Sunday following their weekend duty, the system immediately flags the rule violation and requires an explicit confirmation prompt to overwrite.
+   - If a supervisor attempts to manually assign a Trooper to Thursday, Friday, Saturday, or Sunday following their weekend duty, the system immediately flags the rule violation and requires an explicit confirmation prompt to overwrite.
 
 ---
 

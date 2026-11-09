@@ -218,11 +218,56 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
         .filter(m => m && m.role === 'ALT')
         .map(m => m.name))];
       diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
-      scheduleNotices.push(
+
+      // Identify which Alternates are available for weekend w and suggest which weekends could be switched
+      const formatWkShort = (wk) => {
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const f = parseDate(wk.friday);
+        const e = parseDate(wk.attachedMonday || wk.sunday);
+        const mf = MONTHS[f.getMonth()];
+        const me = MONTHS[e.getMonth()];
+        return mf === me ? `${mf} ${f.getDate()}–${e.getDate()}` : `${mf} ${f.getDate()} – ${me} ${e.getDate()}`;
+      };
+
+      const switchSuggestions = [];
+      activeALTs.forEach(alt => {
+        if (!isMemberActive(alt, w.friday) || !isMemberActive(alt, w.sunday)) return;
+        const checkDates = [w.friday, w.saturday, w.sunday];
+        if (w.attachedMonday) checkDates.push(w.attachedMonday);
+        if (w.attachedFriday) checkDates.push(w.attachedFriday);
+        if (checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts))) return;
+        if (prevWeekendWorker === alt.id || nextWeekendWorker === alt.id) return;
+
+        const altDisplayName = `Trooper ${alt.firstName ? alt.firstName + ' ' : ''}${alt.name}`;
+        const altReqs = preferredWeekends
+          .filter(p => p.memberId === alt.id)
+          .map(p => weekends.find(x => x.friday === p.weekendFriday))
+          .filter(pw => pw && halfOf(pw) === halfOf(w));
+
+        const targetLabel = formatWkShort(w);
+        if (altReqs.length > 0) {
+          const reqLabels = altReqs.map(pw => formatWkShort(pw)).join(' or ');
+          switchSuggestions.push(
+            `${altDisplayName} is available for ${targetLabel}: could switch requested weekend ${reqLabels} to ${targetLabel}.`
+          );
+        } else {
+          switchSuggestions.push(
+            `${altDisplayName} is available for ${targetLabel} and could take this weekend.`
+          );
+        }
+      });
+
+      let noticeText =
         `Weekend ${label} should be worked by an Alternate (${ftOnLeave.name} is off that following week, and the other two full-time members cannot cover it without long stretches), ` +
         `but no Alternate has an open weekend: their requested weekends already use their quota` +
         (withRequests.length ? ` (${withRequests.join(', ')} have requests in this period)` : '') +
-        `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`);
+        `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`;
+
+      if (switchSuggestions.length > 0) {
+        noticeText += '\n\nSuggested Weekend Switches:\n' + switchSuggestions.map(s => '• ' + s).join('\n');
+      }
+
+      scheduleNotices.push(noticeText);
     }
   });
 

@@ -5,10 +5,6 @@ This guide provides practical instructions for generating, managing, balancing, 
 
 ---
 
-### 1. Generating a Contract-Compliant Schedule
-
-To build a schedule that adheres to collective bargaining and department rest rules:
-
 1. **Verify Roster**: Click **Roster** to confirm active Full-Time (FT) and Alternate (ALT) investigators. Confirm weekend quotas for alternates (default: 3 weekends per 6 months).
 2. **Record Approved Leave**: Click **Blackouts** and log all pre-approved vacations, training blocks, and military leave before generating. The scheduler will never assign shifts during approved leave.
 3. **Log Weekend Preferences**: Click **Requests** if investigators submitted specific weekend requests. The engine prioritizes these requests while enforcing safety rules.

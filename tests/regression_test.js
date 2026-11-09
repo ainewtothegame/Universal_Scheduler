@@ -549,12 +549,48 @@ console.log('PASS READMEs, how-to-use & rules buttons, single-line menu, and Ref
 
   // 4. Functional user guide
   const guide = fs.readFileSync(new URL('../USER_GUIDE.md', import.meta.url), 'utf8');
-  assert(guide.includes('Generating a Contract-Compliant Schedule'), 'guide missing quick-start task workflow');
+  assert(!guide.includes('Generating a Contract-Compliant Schedule'), 'guide should not contain removed header');
+  assert(guide.includes('Verify Roster'), 'guide missing quick-start task workflow');
   assert(guide.includes('Multi-Period & Full-Year Scheduling'), 'guide missing multi-period scheduling workflow');
   assert(guide.includes('Manually Assigning or Adjusting Shifts'), 'guide missing manual assignment instructions');
   assert(guide.includes('Clearing Shifts (Current Month vs Entire Cycle)'), 'guide missing clear calendar instructions');
   assert(guide.includes('Printing and Exporting'), 'guide missing printing and exporting instructions');
 }
 console.log('PASS menu bar fit, import/export far right, functional guide, and matrix print filter verified');
+
+// 27. Pinned Notes, Switch Suggestions, Roster Rank/First Name, and Matrix Print Date/Name Formats
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // Pinned button placement between How to Use and Schedule Rules
+  const guideIdx = html.indexOf('id="btn-open-guide"');
+  const pinnedIdx = html.indexOf('id="btn-open-pinned"');
+  const rulesIdx = html.indexOf('id="btn-open-rules"');
+  assert(guideIdx !== -1 && pinnedIdx !== -1 && rulesIdx !== -1, 'missing guide, pinned, or rules button');
+  assert(guideIdx < pinnedIdx && pinnedIdx < rulesIdx, 'Pinned button must be positioned between How to Use and Schedule Rules');
+
+  // Pinned Notes and Attention modals
+  assert(html.includes('id="modal-pinned-notes"'), 'missing modal-pinned-notes');
+  assert(html.includes('id="modal-schedule-attention"'), 'missing modal-schedule-attention');
+  assert(html.includes('id="btn-clear-all-pinned"'), 'missing btn-clear-all-pinned');
+
+  // Roster rank and first name inputs
+  assert(html.includes('id="member-rank-input"'), 'missing member-rank-input in roster modal');
+  assert(html.includes('id="member-firstname-input"'), 'missing member-firstname-input in roster modal');
+
+  // Matrix print date and member name formats
+  assert(html.includes('formatWeekendPrintDate'), 'missing formatWeekendPrintDate helper');
+  assert(html.includes('getMemberPrintName'), 'missing getMemberPrintName helper');
+  assert(html.includes('Trooper Sean POLCHA'), 'missing default full name formatting in domain roster');
+  assert(html.includes('Trooper Ryan KEMERER'), 'missing default full name formatting in domain roster');
+
+  // Rules text: 80 hours cap and Trooper recovery
+  const rules = fs.readFileSync(new URL('../SCHEDULE_RULES.md', import.meta.url), 'utf8');
+  assert(!rules.includes('87 hours'), 'rules should not contain 87 hours');
+  assert(rules.includes('80 hours'), 'rules must specify 80 hours cap');
+  assert(!rules.includes('high-tempo'), 'rules should not contain high-tempo');
+  assert(rules.includes('To guarantee Trooper recovery following weekend duty'), 'rules must refer to Trooper recovery');
+}
+console.log('PASS pinned notes, switch suggestions, roster rank/first name, and matrix print date/name verified');
 
 

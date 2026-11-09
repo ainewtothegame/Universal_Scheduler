@@ -34,6 +34,8 @@ export function getDayOfWeek(dateOrStr) {
 export const DEFAULT_2027_ROSTER = [
   {
     id: 'polcha',
+    rank: 'Trooper',
+    firstName: 'Sean',
     name: 'POLCHA',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -43,6 +45,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'terek',
+    rank: 'Trooper',
+    firstName: 'Cory',
     name: 'TEREK',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -52,6 +56,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'wolfe',
+    rank: 'Trooper',
+    firstName: 'Jonathon',
     name: 'WOLFE',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -61,6 +67,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'kemerer',
+    rank: 'Trooper',
+    firstName: 'Ryan',
     name: 'KEMERER',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -70,6 +78,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'chester',
+    rank: 'Trooper',
+    firstName: 'Matthew',
     name: 'CHESTER',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -80,6 +90,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'zeiders',
+    rank: 'Trooper',
+    firstName: 'Adam',
     name: 'ZEIDERS',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -90,6 +102,8 @@ export const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'reed',
+    rank: 'Trooper',
+    firstName: 'Cody',
     name: 'REED',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -166,6 +180,51 @@ export const DEFAULT_2027_BLACKOUTS = [
   { id: 'b_terek_3', memberId: 'terek', startDate: '2027-06-26', endDate: '2027-07-03', notes: 'Summer vacation' }
 ];
 
+// Format Weekend On-Call Range for Printing: "Month xx-xx" (e.g. "July 4-6", "May 3-6", "August 4-7", "May 28-31")
+export function formatWeekendPrintDate(w, cycleAssignments) {
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const workerId = cycleAssignments ? cycleAssignments[w.saturday] : null;
+
+  // Determine start date (include attached Friday if assigned to this worker)
+  let startStr = w.friday;
+  if (w.attachedFriday && workerId && cycleAssignments[w.attachedFriday] === workerId) {
+    startStr = w.attachedFriday;
+  }
+  // Determine end date (include attached Monday if assigned to this worker)
+  let endStr = w.sunday;
+  if (w.attachedMonday && workerId && cycleAssignments[w.attachedMonday] === workerId) {
+    endStr = w.attachedMonday;
+  }
+
+  const startDate = parseDate(startStr);
+  const endDate = parseDate(endStr);
+
+  const startMonth = MONTH_NAMES[startDate.getMonth()];
+  const endMonth = MONTH_NAMES[endDate.getMonth()];
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`;
+  }
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+}
+
+// Format Member Print Name: "Trooper Sean POLCHA", "Trooper Ryan KEMERER", etc.
+export function getMemberPrintName(mem) {
+  if (!mem) return 'UNASSIGNED';
+  const rank = (mem.rank || 'Trooper').trim();
+  const firstName = (mem.firstName || '').trim();
+  const lastName = (mem.name || '').trim();
+  if (firstName) {
+    return `${rank} ${firstName} ${lastName}`.trim();
+  }
+  return `${rank} ${lastName}`.trim();
+}
+
 // Deep copy so state never aliases the shared defaults (or other cycles' snapshots)
 function clone(x) {
   return JSON.parse(JSON.stringify(x));
@@ -179,6 +238,7 @@ export function createInitialAppState() {
     blackouts: clone(DEFAULT_2027_BLACKOUTS),
     preferredWeekends: [], // { id, memberId, weekendFriday, notes }
     holidays: clone(DEFAULT_2027_HOLIDAYS),
+    pinnedNotes: [], // { id, cycleId, cycleName, title, date, content, switchSuggestions }
     cycles: {
       '2027-H1': {
         id: '2027-H1',

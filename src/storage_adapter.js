@@ -3,7 +3,7 @@
  * Unified document persistence adapter with in-memory undo/redo and JSON backup/restore.
  */
 
-import { createInitialAppState } from './domain_data.js';
+import { createInitialAppState, DEFAULT_2027_ROSTER } from './domain_data.js';
 
 const STORAGE_KEY = 'psp_fire_marshal_schedule_v1';
 const MAX_UNDO_STACK = 50;
@@ -36,6 +36,18 @@ export class StorageAdapter {
             if (Array.isArray(parsed.holidays)) {
               parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
             }
+            if (!Array.isArray(parsed.pinnedNotes)) {
+              parsed.pinnedNotes = [];
+            }
+            // Ensure rank and firstName are populated from defaults if missing
+            const backfillMember = (m) => {
+              const def = DEFAULT_2027_ROSTER.find(d => d.id === m.id || d.name === m.name);
+              if (!m.rank) m.rank = def && def.rank ? def.rank : 'Trooper';
+              if (!m.firstName && def && def.firstName) m.firstName = def.firstName;
+            };
+            if (Array.isArray(parsed.roster)) {
+              parsed.roster.forEach(backfillMember);
+            }
             // Synchronize full-year and half-year blocks
             if (parsed.cycles) {
               const years = new Set(Object.values(parsed.cycles).map(c => c.year).filter(Boolean));
@@ -43,6 +55,11 @@ export class StorageAdapter {
                 const full = parsed.cycles[`${y}-FULL`];
                 const h1 = parsed.cycles[`${y}-H1`];
                 const h2 = parsed.cycles[`${y}-H2`];
+                [full, h1, h2].forEach(c => {
+                  if (c && Array.isArray(c.rosterSnapshot)) {
+                    c.rosterSnapshot.forEach(backfillMember);
+                  }
+                });
                 if (full) {
                   if (!full.assignments) full.assignments = {};
                   if (h1 && h1.assignments) {
@@ -293,6 +310,9 @@ export class StorageAdapter {
       if (parsed && parsed.version === 1 && parsed.roster && parsed.cycles) {
         if (Array.isArray(parsed.holidays)) {
           parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
+        }
+        if (!Array.isArray(parsed.pinnedNotes)) {
+          parsed.pinnedNotes = [];
         }
         this.state = parsed;
         this.undoStack = [];

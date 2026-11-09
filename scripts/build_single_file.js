@@ -807,6 +807,8 @@ const htmlContent = `<!DOCTYPE html>
       text-align: left;
     }
     .matrix-table th { background: var(--color-paper-2); font-weight: 600; }
+    .matrix-print-only { display: none; }
+    .matrix-screen-only { display: inline; }
 
     /* Alert Banner */
     .toast {
@@ -876,6 +878,12 @@ const htmlContent = `<!DOCTYPE html>
       .matrix-print-hide {
         display: none !important;
       }
+      .matrix-screen-only {
+        display: none !important;
+      }
+      .matrix-print-only {
+        display: inline !important;
+      }
       .matrix-table {
         width: 100% !important;
         border-collapse: collapse !important;
@@ -928,6 +936,7 @@ const htmlContent = `<!DOCTYPE html>
       <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All</button>
       <div class="ribbon-divider"></div>
       <button id="btn-open-guide" class="btn btn-outline-dark" title="Operational User Guide &amp; Task Manual">&#128214; How to Use</button>
+      <button id="btn-open-pinned" class="btn btn-outline-dark" style="display:none;" title="Pinned Notes &amp; Switch Suggestions">&#128204; Pinned Notes (<span id="pinned-count">0</span>)</button>
       <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Constraints Specification">&#128203; Schedule Rules</button>
       <div class="ribbon-divider"></div>
       <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
@@ -1005,8 +1014,18 @@ const htmlContent = `<!DOCTYPE html>
           <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
           <div class="form-row">
             <div class="form-group">
+              <label class="form-label">Rank</label>
+              <input type="text" id="member-rank-input" class="form-input" placeholder="e.g. Trooper" value="Trooper">
+            </div>
+            <div class="form-group">
+              <label class="form-label">First Name</label>
+              <input type="text" id="member-firstname-input" class="form-input" placeholder="e.g. Sean">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
               <label class="form-label">Investigator Last Name *</label>
-              <input type="text" id="member-name-input" class="form-input" placeholder="e.g. SMITH">
+              <input type="text" id="member-name-input" class="form-input" placeholder="e.g. POLCHA">
             </div>
             <div class="form-group">
               <label class="form-label">Role Classification *</label>
@@ -1314,6 +1333,36 @@ const htmlContent = `<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- 10. Pinned Notes Modal -->
+    <div id="modal-pinned-notes" class="modal modal-wide" style="display:none; max-width:820px;" role="dialog" aria-modal="true" aria-label="Pinned notes and switch suggestions">
+      <div class="modal-header">
+        <div class="modal-title">&#128204; Pinned Notes &amp; Switch Suggestions</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height:72vh; overflow-y:auto; padding:20px;">
+        <div id="pinned-notes-list"></div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between;">
+        <button id="btn-clear-all-pinned" class="btn btn-outline-dark" style="color:var(--danger); border-color:var(--danger-border);">&#128465; Clear All Pinned Notes</button>
+        <button class="btn btn-primary" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+
+    <!-- 11. Schedule Attention & Suggestions Modal -->
+    <div id="modal-schedule-attention" class="modal modal-wide" style="display:none; max-width:760px;" role="dialog" aria-modal="true" aria-label="Schedule generation attention dialog">
+      <div class="modal-header">
+        <div class="modal-title">&#9888; Schedule Generated &mdash; Attention Needed</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height:72vh; overflow-y:auto; padding:20px;">
+        <div id="attention-dialog-content" style="white-space:pre-wrap; font-size:13px; line-height:1.6; color:var(--color-ink); background:var(--color-paper-2); padding:16px; border-radius:8px; border:1px solid var(--border-color);"></div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; gap:10px;">
+        <button id="btn-pin-active-notice" class="btn btn-primary">&#128204; Pin Note &amp; Suggestions</button>
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">OK / Dismiss</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- Notification Toast -->
@@ -1497,6 +1546,8 @@ const htmlContent = `<!DOCTYPE html>
     const modalClearCalendar = document.getElementById('modal-clear-calendar');
     const modalGuide = document.getElementById('modal-guide');
     const modalRules = document.getElementById('modal-rules');
+    const modalPinnedNotes = document.getElementById('modal-pinned-notes');
+    const modalScheduleAttention = document.getElementById('modal-schedule-attention');
 
     function closeAllModals() {
       modalOverlay.classList.remove('open');
@@ -1510,6 +1561,8 @@ const htmlContent = `<!DOCTYPE html>
       if (modalClearCalendar) modalClearCalendar.style.display = 'none';
       if (modalGuide) modalGuide.style.display = 'none';
       if (modalRules) modalRules.style.display = 'none';
+      if (modalPinnedNotes) modalPinnedNotes.style.display = 'none';
+      if (modalScheduleAttention) modalScheduleAttention.style.display = 'none';
       if (typeof resetMemberForm === 'function') resetMemberForm();
     }
 
@@ -1651,6 +1704,7 @@ const htmlContent = `<!DOCTYPE html>
       rosterCount.textContent = getCycleRoster().length;
       blackoutCount.textContent = cycleBlackouts().length;
       document.getElementById('pref-count').textContent = cyclePrefs().length;
+      updatePinnedNotesButton();
 
       renderMonthTabs();
       renderCalendar();
@@ -1833,9 +1887,9 @@ const htmlContent = `<!DOCTYPE html>
         <table class="matrix-table">
           <thead>
             <tr>
-              <th>Weekend #</th>
-              <th>Weekend Dates</th>
-              <th>Assigned Personnel</th>
+              <th class="matrix-print-hide">Weekend #</th>
+              <th><span class="matrix-screen-only">Weekend Dates</span><span class="matrix-print-only">Date</span></th>
+              <th><span class="matrix-screen-only">Assigned Personnel</span><span class="matrix-print-only">Member Name</span></th>
               <th class="matrix-print-hide">Role</th>
               <th class="matrix-print-hide">Attached Holiday</th>
               <th class="matrix-print-hide">Status</th>
@@ -1846,11 +1900,19 @@ const htmlContent = `<!DOCTYPE html>
               const workerId = cycle.assignments[w.saturday];
               const mem = window.appState.roster.find(m => m.id === workerId);
               const hol = w.attachedMonday || w.attachedFriday || '-';
+              const printDate = formatWeekendPrintDate(w, cycle.assignments);
+              const printName = getMemberPrintName(mem);
               return \`
                 <tr>
-                  <td>Weekend \${w.index + 1}</td>
-                  <td>\${w.friday} &rarr; \${w.sunday}</td>
-                  <td><strong>\${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
+                  <td class="matrix-print-hide">Weekend \${w.index + 1}</td>
+                  <td>
+                    <span class="matrix-screen-only">\${w.friday} &rarr; \${w.sunday}</span>
+                    <span class="matrix-print-only">\${esc(printDate)}</span>
+                  </td>
+                  <td>
+                    <span class="matrix-screen-only"><strong>\${mem ? esc(printName) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></span>
+                    <span class="matrix-print-only">\${mem ? esc(printName) : 'UNASSIGNED'}</span>
+                  </td>
                   <td class="matrix-print-hide"><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${mem?.role || '-'}</span></td>
                   <td class="matrix-print-hide">\${hol}</td>
                   <td class="matrix-print-hide">\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
@@ -2210,12 +2272,106 @@ const htmlContent = `<!DOCTYPE html>
       const prefWarn = result.preferenceWarnings || [];
       if (notices.length || prefWarn.length) {
         let msg = 'Schedule generated.';
-        if (prefWarn.length) msg += '\\n\\nThese requested weekends could not be honored:\\n' + prefWarn.join('\\n');
-        if (notices.length) msg += '\\n\\nNeeds your attention:\\n' + notices.join('\\n\\n');
-        alert(msg);
+        if (prefWarn.length) msg += '\n\nThese requested weekends could not be honored:\n' + prefWarn.join('\n');
+        if (notices.length) msg += '\n\nNeeds your attention:\n' + notices.join('\n\n');
+        openScheduleAttentionModal(msg);
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
       }
+    });
+
+    let activeAttentionNotice = '';
+    function openScheduleAttentionModal(msg) {
+      activeAttentionNotice = msg;
+      const contentEl = document.getElementById('attention-dialog-content');
+      if (contentEl) contentEl.textContent = msg;
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalScheduleAttention.style.display = 'flex';
+    }
+
+    function updatePinnedNotesButton() {
+      const btn = document.getElementById('btn-open-pinned');
+      const countEl = document.getElementById('pinned-count');
+      const notes = window.appState.pinnedNotes || [];
+      if (!btn) return;
+      if (notes.length > 0) {
+        btn.style.display = 'inline-flex';
+        if (countEl) countEl.textContent = notes.length;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    document.getElementById('btn-pin-active-notice').addEventListener('click', () => {
+      if (!activeAttentionNotice) return;
+      if (!window.appState.pinnedNotes) window.appState.pinnedNotes = [];
+      const cycle = getActiveCycle();
+      const cycleName = cycle ? (cycle.blockType === 'FULL' ? \`\${cycle.year} Full Year\` : \`\${cycle.year} \${cycle.blockType}\`) : '';
+      window.appState.pinnedNotes.push({
+        id: 'pin_' + Date.now(),
+        cycleId: cycle ? cycle.id : '',
+        cycleName,
+        title: 'Attention Needed & Switch Suggestions',
+        timestamp: new Date().toLocaleString(),
+        content: activeAttentionNotice
+      });
+      storage.saveState();
+      updatePinnedNotesButton();
+      closeAllModals();
+      showToast('Note and suggestions pinned to top menu bar.');
+    });
+
+    document.getElementById('btn-open-pinned').addEventListener('click', () => {
+      closeAllModals();
+      renderPinnedNotesModal();
+      modalOverlay.classList.add('open');
+      modalPinnedNotes.style.display = 'flex';
+    });
+
+    function renderPinnedNotesModal() {
+      const listEl = document.getElementById('pinned-notes-list');
+      const notes = window.appState.pinnedNotes || [];
+      if (notes.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:24px;">No pinned notes or suggestions.</div>';
+        return;
+      }
+      listEl.innerHTML = notes.map((item, idx) => \`
+        <div style="background:var(--color-paper-2); border:1px solid var(--border-color); border-radius:8px; padding:16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--color-rule); padding-bottom:8px;">
+            <div style="font-weight:700; font-size:13px; color:var(--color-ink);">
+              &#128204; \${esc(item.title || 'Pinned Note')} \${item.cycleName ? '(' + esc(item.cycleName) + ')' : ''}
+              <span style="font-size:11px; font-weight:normal; color:var(--text-muted); margin-left:8px;">\${esc(item.timestamp || '')}</span>
+            </div>
+            <button class="btn btn-outline-dark btn-delete-single-pin" data-index="\${idx}" style="font-size:11px; padding:3px 8px; color:var(--danger); border-color:var(--danger-border);">&#128465; Delete</button>
+          </div>
+          <div style="white-space:pre-wrap; font-size:12.5px; line-height:1.6; color:var(--color-ink);">\${esc(item.content)}</div>
+        </div>
+      \`).join('');
+
+      listEl.querySelectorAll('.btn-delete-single-pin').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-index'), 10);
+          window.appState.pinnedNotes.splice(idx, 1);
+          storage.saveState();
+          updatePinnedNotesButton();
+          if (window.appState.pinnedNotes.length === 0) {
+            closeAllModals();
+            showToast('Pinned notes cleared.');
+          } else {
+            renderPinnedNotesModal();
+          }
+        });
+      });
+    }
+
+    document.getElementById('btn-clear-all-pinned').addEventListener('click', () => {
+      if (!confirm('Clear all pinned notes and suggestions?')) return;
+      window.appState.pinnedNotes = [];
+      storage.saveState();
+      updatePinnedNotesButton();
+      closeAllModals();
+      showToast('All pinned notes cleared.');
     });
 
     // Clear Calendar
@@ -2379,7 +2535,7 @@ const htmlContent = `<!DOCTYPE html>
               <span style="width:16px; height:16px; border-radius:50%; background:\${m.color}; display:inline-block; flex-shrink:0;"></span>
               <div>
                 <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-                  \${esc(m.name)}
+                  \${esc(getMemberPrintName(m))}
                   <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:\${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
@@ -2512,6 +2668,8 @@ const htmlContent = `<!DOCTYPE html>
 
     function resetMemberForm() {
       editingMemberId = null;
+      document.getElementById('member-rank-input').value = 'Trooper';
+      document.getElementById('member-firstname-input').value = '';
       document.getElementById('member-name-input').value = '';
       document.getElementById('member-role-input').value = 'FT';
       document.getElementById('member-weekday-input').value = '';
@@ -2530,6 +2688,8 @@ const htmlContent = `<!DOCTYPE html>
       const m = window.appState.roster.find(x => x.id === id);
       if (!m) return;
       editingMemberId = id;
+      document.getElementById('member-rank-input').value = m.rank || 'Trooper';
+      document.getElementById('member-firstname-input').value = m.firstName || '';
       document.getElementById('member-name-input').value = m.name;
       document.getElementById('member-role-input').value = m.role;
       document.getElementById('member-weekday-input').value = m.baselineWeekday ? String(m.baselineWeekday) : '';
@@ -2539,7 +2699,7 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-color-input').value = m.color || '#1e3a8a';
       document.getElementById('member-start-input').value = m.activeStart || '';
       document.getElementById('member-end-input').value = m.activeEnd || '';
-      document.getElementById('member-form-title').textContent = 'Editing ' + m.name;
+      document.getElementById('member-form-title').textContent = 'Editing ' + (m.rank ? m.rank + ' ' : '') + (m.firstName ? m.firstName + ' ' : '') + m.name;
       document.getElementById('btn-save-new-member').textContent = 'Save Changes';
       document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
       document.getElementById('member-name-input').focus();
@@ -2548,6 +2708,8 @@ const htmlContent = `<!DOCTYPE html>
     document.getElementById('btn-cancel-edit').addEventListener('click', resetMemberForm);
 
     document.getElementById('btn-save-new-member').addEventListener('click', () => {
+      const rank = document.getElementById('member-rank-input').value.trim() || 'Trooper';
+      const firstName = document.getElementById('member-firstname-input').value.trim();
       const nameInput = document.getElementById('member-name-input');
       const name = nameInput.value.trim().toUpperCase();
       if (!name) {
@@ -2575,7 +2737,7 @@ const htmlContent = `<!DOCTYPE html>
       if (editingMemberId) {
         const m = window.appState.roster.find(x => x.id === editingMemberId);
         if (m) {
-          Object.assign(m, { name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
+          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
         }
         storage.saveState();
         resetMemberForm();
@@ -2591,6 +2753,8 @@ const htmlContent = `<!DOCTYPE html>
         preferredWeekday,
         weekendsPerSixMonths,
         id,
+        rank,
+        firstName,
         name,
         role,
         activeStart,

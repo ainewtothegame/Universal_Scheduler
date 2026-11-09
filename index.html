@@ -682,6 +682,8 @@
       text-align: left;
     }
     .matrix-table th { background: var(--color-paper-2); font-weight: 600; }
+    .matrix-print-only { display: none; }
+    .matrix-screen-only { display: inline; }
 
     /* Alert Banner */
     .toast {
@@ -751,6 +753,12 @@
       .matrix-print-hide {
         display: none !important;
       }
+      .matrix-screen-only {
+        display: none !important;
+      }
+      .matrix-print-only {
+        display: inline !important;
+      }
       .matrix-table {
         width: 100% !important;
         border-collapse: collapse !important;
@@ -803,6 +811,7 @@
       <button id="btn-print-all" class="btn btn-outline-dark" title="Print every month of the active cycle in one go">&#128424; Print All</button>
       <div class="ribbon-divider"></div>
       <button id="btn-open-guide" class="btn btn-outline-dark" title="Operational User Guide &amp; Task Manual">&#128214; How to Use</button>
+      <button id="btn-open-pinned" class="btn btn-outline-dark" style="display:none;" title="Pinned Notes &amp; Switch Suggestions">&#128204; Pinned Notes (<span id="pinned-count">0</span>)</button>
       <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Constraints Specification">&#128203; Schedule Rules</button>
       <div class="ribbon-divider"></div>
       <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
@@ -880,8 +889,18 @@
           <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
           <div class="form-row">
             <div class="form-group">
+              <label class="form-label">Rank</label>
+              <input type="text" id="member-rank-input" class="form-input" placeholder="e.g. Trooper" value="Trooper">
+            </div>
+            <div class="form-group">
+              <label class="form-label">First Name</label>
+              <input type="text" id="member-firstname-input" class="form-input" placeholder="e.g. Sean">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
               <label class="form-label">Investigator Last Name *</label>
-              <input type="text" id="member-name-input" class="form-input" placeholder="e.g. SMITH">
+              <input type="text" id="member-name-input" class="form-input" placeholder="e.g. POLCHA">
             </div>
             <div class="form-group">
               <label class="form-label">Role Classification *</label>
@@ -1168,7 +1187,7 @@
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
-        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">Operational User Guide &amp; Practical Task Manual</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">This guide provides practical instructions for generating, managing, balancing, and printing on-call schedules for the Troop H Fire Marshal Unit.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">1. Generating a Contract-Compliant Schedule</h4><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To build a schedule that adheres to collective bargaining and department rest rules:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> <strong style="color:var(--color-ink); font-weight:600;">Verify Roster</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Roster</strong> to confirm active Full-Time (FT) and Alternate (ALT) investigators. Confirm weekend quotas for alternates (default: 3 weekends per 6 months).</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> <strong style="color:var(--color-ink); font-weight:600;">Record Approved Leave</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Blackouts</strong> and log all pre-approved vacations, training blocks, and military leave before generating. The scheduler will never assign shifts during approved leave.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> <strong style="color:var(--color-ink); font-weight:600;">Log Weekend Preferences</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Requests</strong> if investigators submitted specific weekend requests. The engine prioritizes these requests while enforcing safety rules.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> <strong style="color:var(--color-ink); font-weight:600;">Select Cycle &amp; Run Generator</strong>:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Choose <strong style="color:var(--color-ink); font-weight:600;">2027 H1</strong> or <strong style="color:var(--color-ink); font-weight:600;">2027 H2</strong> from the cycle selector.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Click <strong style="color:var(--color-ink); font-weight:600;">Auto-Generate Schedule</strong>.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The engine produces a 100% staffed schedule in under 10 milliseconds with zero rest violations, balanced holidays, and exact alternate quotas.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">2. Multi-Period &amp; Full-Year Scheduling</h4><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The application coordinates H1, H2, and Full-Year schedules together:</p><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">First Half (H1: Jan 1 to Jun 30)</strong>: Generate first or configure manually.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Second Half (H2: Jul 1 to Dec 31)</strong>: When generated, H2 inspects H1 history to balance total annual weekends and holidays across all full-time members. It also protects rest continuity across the June/July boundary.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Full Year (FULL: Jan 1 to Dec 31)</strong>:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Displays all 12 months in one view.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Preservation Lock</strong>: Clicking <strong style="color:var(--color-ink); font-weight:600;">Auto-Generate Schedule</strong> while in FULL year will <strong style="color:var(--color-ink); font-weight:600;">never overwrite</strong> shifts already scheduled in H1 or H2. It only fills remaining unassigned dates, protecting your manual edits and prior work.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">3. What the Dots on the Calendar Mean</h4><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">Small color-coded dots in the upper-right corner of calendar cells provide instant feedback on contract compliance:</p><div style="overflow-x:auto; margin:12px 0;"><table class="matrix-table" style="width:100%; font-size:12px; border-collapse:collapse;"><thead><tr><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Indicator</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Classification</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Rule Definition and Triggers</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Recommended Operational Action</th></tr></thead><tbody><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Red Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Error / Hard Conflict</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Contractual or Safety Breach</strong>:<br>1. <strong style="color:var(--color-ink); font-weight:600;">Post-Weekend Rest</strong>: Investigator worked the prior weekend and was scheduled during mandatory recovery days (Thursday to Sunday, or Wednesday).<br>2. <strong style="color:var(--color-ink); font-weight:600;">Blackout Clash</strong>: Member scheduled during approved leave.<br>3. <strong style="color:var(--color-ink); font-weight:600;">Tenure Boundary</strong>: Assigned before hire date or after departure date.<br>4. <strong style="color:var(--color-ink); font-weight:600;">Alternate Weekday</strong>: Alternate assigned routine Mon-Thu weekday shifts without exemption.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Click the day cell and select an eligible investigator to resolve the violation.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Amber Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Warning / Soft Breach</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Operational Warning</strong>:<br>1. <strong style="color:var(--color-ink); font-weight:600;">Consecutive Weekends</strong>: Same investigator assigned back-to-back weekends.<br>2. <strong style="color:var(--color-ink); font-weight:600;">Quota Exceeded</strong>: Alternate exceeds their 6-month weekend limit.<br>3. <strong style="color:var(--color-ink); font-weight:600;">Unassigned Day</strong>: Date has no on-call coverage.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Reassign one of the weekends to another investigator, or assign coverage to the open date.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Blue Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Workload Concentration</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Weekday Clustering</strong>:<br>1. Full-Time investigator assigned to 2 or more weekday shifts (Mon-Thu) in the same work week.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Check if one of the weekday shifts can be swapped with another team member to balance the weekly load.</td></tr></tbody></table></div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">4. Manually Assigning or Adjusting Shifts</h4><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> <strong style="color:var(--color-ink); font-weight:600;">Click any date cell</strong> on the calendar.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> The assignment dialog opens with the investigator dropdown <strong style="color:var(--color-ink); font-weight:600;">focused automatically</strong>.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> <strong style="color:var(--color-ink); font-weight:600;">Quick Selection</strong>: Type the first letter of an investigator name or use the arrow keys, then press <strong style="color:var(--color-ink); font-weight:600;">Enter</strong> to save (or press <strong style="color:var(--color-ink); font-weight:600;">Escape</strong> to cancel).</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> <strong style="color:var(--color-ink); font-weight:600;">Rest Violation Guard</strong>: If you assign an investigator who worked the preceding weekend to Thursday through Sunday (their mandatory rest days), a warning prompt appears asking for explicit confirmation to overwrite.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> <strong style="color:var(--color-ink); font-weight:600;">Clear Shift</strong>: Click <em>Clear Shift</em> inside the dialog to leave that specific date unassigned.</div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">5. Clearing Shifts (Current Month vs Entire Cycle)</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Click <strong style="color:var(--color-ink); font-weight:600;">Clear Calendar</strong> in the top navigation bar.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Choose your target scope:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Current Month Only</strong>: Clears only the active month displayed on screen.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Entire Calendar Year / Block</strong>: Clears all assignments across the selected cycle (H1, H2, or FULL).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Confirm the clear action in the prompt.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Undo / Redo</strong>: Made an accidental change? Press <strong style="color:var(--color-ink); font-weight:600;">Ctrl+Z</strong> (or click Undo) to instantly recover your assignments.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">6. Printing and Exporting</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print Month</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Print</strong> to output the current month formatted for standard landscape 8.5" x 11" paper. Troop H headers appear centered at the top; navigation bars and browser timestamps are omitted.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print All Months</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Print All</strong> to print every month of the cycle sequentially with clean page breaks.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print Matrix</strong>: Switch to the <strong style="color:var(--color-ink); font-weight:600;">Matrix</strong> tab and click <strong style="color:var(--color-ink); font-weight:600;">Print</strong>. Only <strong style="color:var(--color-ink); font-weight:600;">Weekend #</strong>, <strong style="color:var(--color-ink); font-weight:600;">Weekend Dates</strong>, and <strong style="color:var(--color-ink); font-weight:600;">Assigned Personnel</strong> will print.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Export to Excel</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Export Excel</strong> on the far right of the menu bar to generate an official formatted spreadsheet.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Backup &amp; Restore</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Backup</strong> to download a single JSON file containing all rosters, blackouts, requests, and schedules. Use <strong style="color:var(--color-ink); font-weight:600;">Restore</strong> to reload your setup on another computer or roll back to a known snapshot.</li></ul>
+        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">Operational User Guide &amp; Practical Task Manual</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">This guide provides practical instructions for generating, managing, balancing, and printing on-call schedules for the Troop H Fire Marshal Unit.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> <strong style="color:var(--color-ink); font-weight:600;">Verify Roster</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Roster</strong> to confirm active Full-Time (FT) and Alternate (ALT) investigators. Confirm weekend quotas for alternates (default: 3 weekends per 6 months).</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> <strong style="color:var(--color-ink); font-weight:600;">Record Approved Leave</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Blackouts</strong> and log all pre-approved vacations, training blocks, and military leave before generating. The scheduler will never assign shifts during approved leave.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> <strong style="color:var(--color-ink); font-weight:600;">Log Weekend Preferences</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Requests</strong> if investigators submitted specific weekend requests. The engine prioritizes these requests while enforcing safety rules.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> <strong style="color:var(--color-ink); font-weight:600;">Select Cycle &amp; Run Generator</strong>:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Choose <strong style="color:var(--color-ink); font-weight:600;">2027 H1</strong> or <strong style="color:var(--color-ink); font-weight:600;">2027 H2</strong> from the cycle selector.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Click <strong style="color:var(--color-ink); font-weight:600;">Auto-Generate Schedule</strong>.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The engine produces a 100% staffed schedule in under 10 milliseconds with zero rest violations, balanced holidays, and exact alternate quotas.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">2. Multi-Period &amp; Full-Year Scheduling</h4><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The application coordinates H1, H2, and Full-Year schedules together:</p><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">First Half (H1: Jan 1 to Jun 30)</strong>: Generate first or configure manually.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Second Half (H2: Jul 1 to Dec 31)</strong>: When generated, H2 inspects H1 history to balance total annual weekends and holidays across all full-time members. It also protects rest continuity across the June/July boundary.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Full Year (FULL: Jan 1 to Dec 31)</strong>:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Displays all 12 months in one view.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Preservation Lock</strong>: Clicking <strong style="color:var(--color-ink); font-weight:600;">Auto-Generate Schedule</strong> while in FULL year will <strong style="color:var(--color-ink); font-weight:600;">never overwrite</strong> shifts already scheduled in H1 or H2. It only fills remaining unassigned dates, protecting your manual edits and prior work.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">3. What the Dots on the Calendar Mean</h4><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">Small color-coded dots in the upper-right corner of calendar cells provide instant feedback on contract compliance:</p><div style="overflow-x:auto; margin:12px 0;"><table class="matrix-table" style="width:100%; font-size:12px; border-collapse:collapse;"><thead><tr><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Indicator</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Classification</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Rule Definition and Triggers</th><th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); font-weight:600; text-align:left;">Recommended Operational Action</th></tr></thead><tbody><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Red Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Error / Hard Conflict</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Contractual or Safety Breach</strong>:<br>1. <strong style="color:var(--color-ink); font-weight:600;">Post-Weekend Rest</strong>: Investigator worked the prior weekend and was scheduled during mandatory recovery days (Thursday to Sunday, or Wednesday).<br>2. <strong style="color:var(--color-ink); font-weight:600;">Blackout Clash</strong>: Member scheduled during approved leave.<br>3. <strong style="color:var(--color-ink); font-weight:600;">Tenure Boundary</strong>: Assigned before hire date or after departure date.<br>4. <strong style="color:var(--color-ink); font-weight:600;">Alternate Weekday</strong>: Alternate assigned routine Mon-Thu weekday shifts without exemption.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Click the day cell and select an eligible investigator to resolve the violation.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Amber Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Warning / Soft Breach</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Operational Warning</strong>:<br>1. <strong style="color:var(--color-ink); font-weight:600;">Consecutive Weekends</strong>: Same investigator assigned back-to-back weekends.<br>2. <strong style="color:var(--color-ink); font-weight:600;">Quota Exceeded</strong>: Alternate exceeds their 6-month weekend limit.<br>3. <strong style="color:var(--color-ink); font-weight:600;">Unassigned Day</strong>: Date has no on-call coverage.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Reassign one of the weekends to another investigator, or assign coverage to the open date.</td></tr><tr><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Blue Dot</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Workload Concentration</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;"><strong style="color:var(--color-ink); font-weight:600;">Weekday Clustering</strong>:<br>1. Full-Time investigator assigned to 2 or more weekday shifts (Mon-Thu) in the same work week.</td><td style="padding:7px 10px; border:1px solid var(--color-rule); vertical-align:top;">Check if one of the weekday shifts can be swapped with another team member to balance the weekly load.</td></tr></tbody></table></div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">4. Manually Assigning or Adjusting Shifts</h4><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> <strong style="color:var(--color-ink); font-weight:600;">Click any date cell</strong> on the calendar.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> The assignment dialog opens with the investigator dropdown <strong style="color:var(--color-ink); font-weight:600;">focused automatically</strong>.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> <strong style="color:var(--color-ink); font-weight:600;">Quick Selection</strong>: Type the first letter of an investigator name or use the arrow keys, then press <strong style="color:var(--color-ink); font-weight:600;">Enter</strong> to save (or press <strong style="color:var(--color-ink); font-weight:600;">Escape</strong> to cancel).</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> <strong style="color:var(--color-ink); font-weight:600;">Rest Violation Guard</strong>: If you assign an investigator who worked the preceding weekend to Thursday through Sunday (their mandatory rest days), a warning prompt appears asking for explicit confirmation to overwrite.</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> <strong style="color:var(--color-ink); font-weight:600;">Clear Shift</strong>: Click <em>Clear Shift</em> inside the dialog to leave that specific date unassigned.</div><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">5. Clearing Shifts (Current Month vs Entire Cycle)</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Click <strong style="color:var(--color-ink); font-weight:600;">Clear Calendar</strong> in the top navigation bar.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Choose your target scope:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Current Month Only</strong>: Clears only the active month displayed on screen.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Entire Calendar Year / Block</strong>: Clears all assignments across the selected cycle (H1, H2, or FULL).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Confirm the clear action in the prompt.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Undo / Redo</strong>: Made an accidental change? Press <strong style="color:var(--color-ink); font-weight:600;">Ctrl+Z</strong> (or click Undo) to instantly recover your assignments.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">6. Printing and Exporting</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print Month</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Print</strong> to output the current month formatted for standard landscape 8.5" x 11" paper. Troop H headers appear centered at the top; navigation bars and browser timestamps are omitted.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print All Months</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Print All</strong> to print every month of the cycle sequentially with clean page breaks.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Print Matrix</strong>: Switch to the <strong style="color:var(--color-ink); font-weight:600;">Matrix</strong> tab and click <strong style="color:var(--color-ink); font-weight:600;">Print</strong>. Only <strong style="color:var(--color-ink); font-weight:600;">Weekend #</strong>, <strong style="color:var(--color-ink); font-weight:600;">Weekend Dates</strong>, and <strong style="color:var(--color-ink); font-weight:600;">Assigned Personnel</strong> will print.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Export to Excel</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Export Excel</strong> on the far right of the menu bar to generate an official formatted spreadsheet.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);"><strong style="color:var(--color-ink); font-weight:600;">Backup &amp; Restore</strong>: Click <strong style="color:var(--color-ink); font-weight:600;">Backup</strong> to download a single JSON file containing all rosters, blackouts, requests, and schedules. Use <strong style="color:var(--color-ink); font-weight:600;">Restore</strong> to reload your setup on another computer or roll back to a known snapshot.</li></ul>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="closeAllModals()">Close Guide</button>
@@ -1182,10 +1201,40 @@
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
-        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">Scheduling Rules, Contractual Constraints, and Invariant Specification</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">This document details all contractual rules, operational constraints, and algorithmic invariants implemented within the PSP Fire Marshal On-Call Schedule Generator.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">1. Unit Structure and Roles</h3><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Full-Time (FT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Core Personnel: Primary investigators responsible for overall operational readiness and emergency fire investigations across the Troop H coverage area.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope: Full-time members are eligible for on-call duty on all calendar days: regular weekdays (Monday through Thursday night shifts), standard weekends, and official state holidays.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Wolfe, Polcha, Terek, Kemerer.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Alternate (ALT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Relief Personnel: Auxiliary investigators who provide relief coverage to prevent fatigue among full-time investigators.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend-Only Restriction: Alternates may only be assigned to Friday-Sunday weekend duty and attached Monday holidays (such as Labor Day or Memorial Day) when covering that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No Mon-Thu Weekday Duty: Alternates are strictly barred from working routine Monday through Thursday weekday night shifts unless granted an administrative exemption.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quota per 6-Month Block:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standard quota: 3 weekends per 6-month block (H1: Jan-Jun, H2: Jul-Dec), totaling 6 weekends per full calendar year.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quotas are individually customizable in the Personnel Roster.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Spacing / Dispersion Rule:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate weekends are distributed evenly across each 6-month block (approximately once every 4 to 5 weeks).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternates must never be scheduled on back-to-back weekends or consecutive weeks.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Chester, Zeiders, Reed.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Tenure and Active Window</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Each investigator possesses an <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeStart</code> date and an optional <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeEnd</code> date.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No shifts may be assigned to any member outside their active service window.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Members retired or reassigned prior to a cycle start are automatically excluded from that cycle.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">2. Shift and Weekend Definitions</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekday Shift: 15 hours of on-call duty covering 17:00 to 08:00 the following morning (Monday, Tuesday, Wednesday, and Thursday nights).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend Shift Block: 63 consecutive hours from Friday at 17:00 through Monday at 08:00.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">A weekend is staffed as an atomic block: the same investigator covers Friday night, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">An attached holiday (such as Good Friday or Memorial Day) extends the weekend block to 87 hours under the same investigator.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">3. Post-Weekend Rest and Days Off (Crucial Invariant)</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To guarantee officer recovery following high-tempo 72-hour weekend duty, mandatory rest days are enforced:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Mandatory Days Off (Thursday through Sunday):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Any investigator who works a weekend is strictly off duty on the immediately following Thursday, Friday, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Under no circumstances will the automatic solver schedule an investigator on these four recovery days.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Wednesday Recovery Protection:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The Wednesday immediately following a weekend shift is designated as a compensatory rest day; the weekend worker cannot be assigned Wednesday on-call duty.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Manual Override Warning:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">If a supervisor attempts to manually assign an investigator to Thursday, Friday, Saturday, or Sunday following their weekend duty, the system immediately flags the rule violation and requires an explicit confirmation prompt to overwrite.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">4. Week-Shaping Before Weekend Duty</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To prevent pre-weekend fatigue for full-time investigators:</p><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Tuesday: Assigned to another investigator.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Wednesday: Assigned to the upcoming weekend worker (pre-weekend alignment).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Thursday: Assigned to a different investigator (the upcoming weekend worker is given Thursday night off so they are fully rested for Friday 17:00 duty).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">5. Consecutive Weekend Invariant</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Zero Consecutive Weekends: Under no condition may any investigator (FT or ALT) work two consecutive calendar weekends.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Cross-Cycle Continuity: This rule is strictly enforced across the June 30 / July 1 boundary between H1 and H2. The member working the final weekend of June (such as June 25-27) cannot work the first weekend of July (July 2-4).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">6. Proactive Lookahead Alternate Coverage</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When a full-time investigator has an approved blackout or leave starting on a Monday:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">An Alternate investigator is proactively scheduled for the preceding weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">This prevents the departing full-time investigator from working a grueling weekend shift immediately prior to their scheduled leave.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">7. Official State Holidays</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The schedule recognizes 11 Official Pennsylvania State Holidays:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> New Year's Day (January 1)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Martin Luther King Jr. Day (3rd Monday in January)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Presidents' Day (3rd Monday in February)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> Good Friday (Friday before Easter)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> Memorial Day (Last Monday in May)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">6.</strong> Juneteenth National Independence Day (June 19)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">7.</strong> Independence Day (July 4: celebrated strictly on July 4th, never shifted)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">8.</strong> Labor Day (1st Monday in September)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">9.</strong> Columbus Day (2nd Monday in October)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">10.</strong> Veterans Day (November 11)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">11.</strong> Thanksgiving Day (4th Thursday in November)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">12.</strong> Christmas Day (December 25)</div><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Attached vs Standalone Holidays</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Attached Holidays: A holiday falling on a Friday or Monday is attached to the adjacent weekend and is covered by the investigator working that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standalone Holidays: Mid-week holidays (such as Thanksgiving Thursday or midweek July 4th) are distributed equitably among Full-Time investigators as the final stage of scheduling.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">8. Blackouts vs Requested Weekends Precedence</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Blackouts (Approved Leave):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Absolute highest priority hard constraint.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver will never assign an investigator to any date covered by an approved blackout.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Requested Weekends:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored in Stage 1 of schedule generation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored on a first-come basis, provided the request does not conflict with an approved blackout or cause a consecutive-weekend violation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate requests are capped at their assigned block quota (default: 3).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">9. Full-Year Synchronization and Cross-Half Balancing</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Full-Year (<code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">FULL</code>) Autogenerate Preservation:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When Autogenerate Schedule is executed on the FULL year view, shifts previously scheduled in H1 or H2 are automatically locked and preserved.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver fills only unassigned days, preventing accidental overwrites.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> H2 Balancing Against H1:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When generating H2 (July through December), the solver analyzes H1 assignments.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Total weekends, holidays, and weekday loads are calculated across both halves to ensure annual workload parity.</li></ul>
+        <h2 style="font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--color-ink); margin:18px 0 8px 0; border-bottom:1px solid var(--color-rule); padding-bottom:6px;">Pennsylvania State Police: Troop H Fire Marshal Unit</h2><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">Scheduling Rules, Contractual Constraints, and Invariant Specification</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">This document details all contractual rules, operational constraints, and algorithmic invariants implemented within the PSP Fire Marshal On-Call Schedule Generator.</p><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">1. Unit Structure and Roles</h3><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Full-Time (FT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Core Personnel: Primary investigators responsible for overall operational readiness and emergency fire investigations across the Troop H coverage area.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope: Full-time members are eligible for on-call duty on all calendar days: regular weekdays (Monday through Thursday night shifts), standard weekends, and official state holidays.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Wolfe, Polcha, Terek, Kemerer.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Alternate (ALT) Fire Marshals</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Relief Personnel: Auxiliary investigators who provide relief coverage to prevent fatigue among full-time investigators.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Assignment Scope:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend-Only Restriction: Alternates may only be assigned to Friday-Sunday weekend duty and attached Monday holidays (such as Labor Day or Memorial Day) when covering that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No Mon-Thu Weekday Duty: Alternates are strictly barred from working routine Monday through Thursday weekday night shifts unless granted an administrative exemption.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quota per 6-Month Block:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standard quota: 3 weekends per 6-month block (H1: Jan-Jun, H2: Jul-Dec), totaling 6 weekends per full calendar year.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Quotas are individually customizable in the Personnel Roster.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Spacing / Dispersion Rule:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate weekends are distributed evenly across each 6-month block (approximately once every 4 to 5 weeks).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternates must never be scheduled on back-to-back weekends or consecutive weeks.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Roster Defaults: Chester, Zeiders, Reed.</li></ul><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Tenure and Active Window</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Each investigator possesses an <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeStart</code> date and an optional <code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">activeEnd</code> date.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">No shifts may be assigned to any member outside their active service window.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Members retired or reassigned prior to a cycle start are automatically excluded from that cycle.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">2. Shift and Weekend Definitions</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekday Shift: 15 hours of on-call duty covering 17:00 to 08:00 the following morning (Monday, Tuesday, Wednesday, and Thursday nights).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Weekend Shift Block &amp; 80-Hour Cap: 63 consecutive hours from Friday at 17:00 through Monday at 08:00.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">A weekend is staffed as an atomic block: the same investigator covers Friday night, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Troopers are strictly capped at 80 hours in a 2-week period. Someone working the weekend works Monday through the following Wednesday (10 consecutive days, which is 80 hours). If the Trooper has an attached holiday to cover on the Thursday, Friday, or Monday surrounding a weekend, their schedule remains within their mandatory 80-hour limit.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">3. Post-Weekend Rest and Days Off (Crucial Invariant)</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To guarantee Trooper recovery following weekend duty, mandatory rest days are enforced. In a two-week period, a Trooper working the weekend works 80 hours Monday through the following Wednesday, with Thursday through Sunday off as mandatory rest days. During a normal (non on-call) cycle, Troopers work standard Monday through Friday with Saturday and Sunday off:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Mandatory Days Off (Thursday through Sunday):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Any Trooper who works a weekend is strictly off duty on the immediately following Thursday, Friday, Saturday, and Sunday.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Under no circumstances will the automatic solver schedule a Trooper on these four recovery days.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Wednesday Recovery Protection:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The Wednesday immediately following a weekend shift is designated as a compensatory rest day; the weekend worker cannot be assigned Wednesday on-call duty.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Manual Override Warning:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">If a supervisor attempts to manually assign a Trooper to Thursday, Friday, Saturday, or Sunday following their weekend duty, the system immediately flags the rule violation and requires an explicit confirmation prompt to overwrite.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">4. Week-Shaping Before Weekend Duty</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">To prevent pre-weekend fatigue for full-time investigators:</p><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Tuesday: Assigned to another investigator.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Wednesday: Assigned to the upcoming weekend worker (pre-weekend alignment).</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Thursday: Assigned to a different investigator (the upcoming weekend worker is given Thursday night off so they are fully rested for Friday 17:00 duty).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">5. Consecutive Weekend Invariant</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Zero Consecutive Weekends: Under no condition may any investigator (FT or ALT) work two consecutive calendar weekends.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Cross-Cycle Continuity: This rule is strictly enforced across the June 30 / July 1 boundary between H1 and H2. The member working the final weekend of June (such as June 25-27) cannot work the first weekend of July (July 2-4).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">6. Proactive Lookahead Alternate Coverage</h3><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When a full-time investigator has an approved blackout or leave starting on a Monday:</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">An Alternate investigator is proactively scheduled for the preceding weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">This prevents the departing full-time investigator from working a grueling weekend shift immediately prior to their scheduled leave.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">7. Official State Holidays</h3><p style="margin:6px 0 10px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);">The schedule recognizes 11 Official Pennsylvania State Holidays:</p><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> New Year's Day (January 1)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Martin Luther King Jr. Day (3rd Monday in January)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">3.</strong> Presidents' Day (3rd Monday in February)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">4.</strong> Good Friday (Friday before Easter)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">5.</strong> Memorial Day (Last Monday in May)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">6.</strong> Juneteenth National Independence Day (June 19)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">7.</strong> Independence Day (July 4: celebrated strictly on July 4th, never shifted)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">8.</strong> Labor Day (1st Monday in September)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">9.</strong> Columbus Day (2nd Monday in October)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">10.</strong> Veterans Day (November 11)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">11.</strong> Thanksgiving Day (4th Thursday in November)</div><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">12.</strong> Christmas Day (December 25)</div><h4 style="font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--color-ink); margin:12px 0 4px 0;">Attached vs Standalone Holidays</h4><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Attached Holidays: A holiday falling on a Friday or Monday is attached to the adjacent weekend and is covered by the investigator working that weekend.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Standalone Holidays: Mid-week holidays (such as Thanksgiving Thursday or midweek July 4th) are distributed equitably among Full-Time investigators as the final stage of scheduling.</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">8. Blackouts vs Requested Weekends Precedence</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Blackouts (Approved Leave):</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Absolute highest priority hard constraint.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver will never assign an investigator to any date covered by an approved blackout.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> Requested Weekends:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored in Stage 1 of schedule generation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Honored on a first-come basis, provided the request does not conflict with an approved blackout or cause a consecutive-weekend violation.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Alternate requests are capped at their assigned block quota (default: 3).</li></ul><hr style="border:0; border-top:1px solid var(--color-rule); margin:16px 0;"><h3 style="font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--color-accent); margin:16px 0 6px 0;">9. Full-Year Synchronization and Cross-Half Balancing</h3><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">1.</strong> Full-Year (<code style="background:var(--color-paper-2); padding:2px 6px; border-radius:4px; font-size:11px; border:1px solid var(--color-rule); font-family:monospace;">FULL</code>) Autogenerate Preservation:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When Autogenerate Schedule is executed on the FULL year view, shifts previously scheduled in H1 or H2 are automatically locked and preserved.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">The solver fills only unassigned days, preventing accidental overwrites.</li></ul><div style="margin:6px 0; font-size:13px; line-height:1.55; color:var(--color-ink-2);"><strong style="color:var(--color-ink);">2.</strong> H2 Balancing Against H1:</div><ul style="margin:6px 0 10px 20px; line-height:1.55;"><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">When generating H2 (July through December), the solver analyzes H1 assignments.</li><li style="margin-bottom:4px; font-size:13px; color:var(--color-ink-2);">Total weekends, holidays, and weekday loads are calculated across both halves to ensure annual workload parity.</li></ul>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="closeAllModals()">Close Rules</button>
+      </div>
+    </div>
+
+    <!-- 10. Pinned Notes Modal -->
+    <div id="modal-pinned-notes" class="modal modal-wide" style="display:none; max-width:820px;" role="dialog" aria-modal="true" aria-label="Pinned notes and switch suggestions">
+      <div class="modal-header">
+        <div class="modal-title">&#128204; Pinned Notes &amp; Switch Suggestions</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height:72vh; overflow-y:auto; padding:20px;">
+        <div id="pinned-notes-list"></div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between;">
+        <button id="btn-clear-all-pinned" class="btn btn-outline-dark" style="color:var(--danger); border-color:var(--danger-border);">&#128465; Clear All Pinned Notes</button>
+        <button class="btn btn-primary" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+
+    <!-- 11. Schedule Attention & Suggestions Modal -->
+    <div id="modal-schedule-attention" class="modal modal-wide" style="display:none; max-width:760px;" role="dialog" aria-modal="true" aria-label="Schedule generation attention dialog">
+      <div class="modal-header">
+        <div class="modal-title">&#9888; Schedule Generated &mdash; Attention Needed</div>
+        <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height:72vh; overflow-y:auto; padding:20px;">
+        <div id="attention-dialog-content" style="white-space:pre-wrap; font-size:13px; line-height:1.6; color:var(--color-ink); background:var(--color-paper-2); padding:16px; border-radius:8px; border:1px solid var(--border-color);"></div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; gap:10px;">
+        <button id="btn-pin-active-notice" class="btn btn-primary">&#128204; Pin Note &amp; Suggestions</button>
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">OK / Dismiss</button>
       </div>
     </div>
 
@@ -1266,6 +1315,8 @@ function getDayOfWeek(dateOrStr) {
 const DEFAULT_2027_ROSTER = [
   {
     id: 'polcha',
+    rank: 'Trooper',
+    firstName: 'Sean',
     name: 'POLCHA',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -1275,6 +1326,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'terek',
+    rank: 'Trooper',
+    firstName: 'Cory',
     name: 'TEREK',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -1284,6 +1337,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'wolfe',
+    rank: 'Trooper',
+    firstName: 'Jonathon',
     name: 'WOLFE',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -1293,6 +1348,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'kemerer',
+    rank: 'Trooper',
+    firstName: 'Ryan',
     name: 'KEMERER',
     role: 'FT',
     activeStart: '2027-01-01',
@@ -1302,6 +1359,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'chester',
+    rank: 'Trooper',
+    firstName: 'Matthew',
     name: 'CHESTER',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -1312,6 +1371,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'zeiders',
+    rank: 'Trooper',
+    firstName: 'Adam',
     name: 'ZEIDERS',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -1322,6 +1383,8 @@ const DEFAULT_2027_ROSTER = [
   },
   {
     id: 'reed',
+    rank: 'Trooper',
+    firstName: 'Cody',
     name: 'REED',
     role: 'ALT',
     activeStart: '2027-01-01',
@@ -1398,6 +1461,51 @@ const DEFAULT_2027_BLACKOUTS = [
   { id: 'b_terek_3', memberId: 'terek', startDate: '2027-06-26', endDate: '2027-07-03', notes: 'Summer vacation' }
 ];
 
+// Format Weekend On-Call Range for Printing: "Month xx-xx" (e.g. "July 4-6", "May 3-6", "August 4-7", "May 28-31")
+function formatWeekendPrintDate(w, cycleAssignments) {
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const workerId = cycleAssignments ? cycleAssignments[w.saturday] : null;
+
+  // Determine start date (include attached Friday if assigned to this worker)
+  let startStr = w.friday;
+  if (w.attachedFriday && workerId && cycleAssignments[w.attachedFriday] === workerId) {
+    startStr = w.attachedFriday;
+  }
+  // Determine end date (include attached Monday if assigned to this worker)
+  let endStr = w.sunday;
+  if (w.attachedMonday && workerId && cycleAssignments[w.attachedMonday] === workerId) {
+    endStr = w.attachedMonday;
+  }
+
+  const startDate = parseDate(startStr);
+  const endDate = parseDate(endStr);
+
+  const startMonth = MONTH_NAMES[startDate.getMonth()];
+  const endMonth = MONTH_NAMES[endDate.getMonth()];
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`;
+  }
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+}
+
+// Format Member Print Name: "Trooper Sean POLCHA", "Trooper Ryan KEMERER", etc.
+function getMemberPrintName(mem) {
+  if (!mem) return 'UNASSIGNED';
+  const rank = (mem.rank || 'Trooper').trim();
+  const firstName = (mem.firstName || '').trim();
+  const lastName = (mem.name || '').trim();
+  if (firstName) {
+    return `${rank} ${firstName} ${lastName}`.trim();
+  }
+  return `${rank} ${lastName}`.trim();
+}
+
 // Deep copy so state never aliases the shared defaults (or other cycles' snapshots)
 function clone(x) {
   return JSON.parse(JSON.stringify(x));
@@ -1411,6 +1519,7 @@ function createInitialAppState() {
     blackouts: clone(DEFAULT_2027_BLACKOUTS),
     preferredWeekends: [], // { id, memberId, weekendFriday, notes }
     holidays: clone(DEFAULT_2027_HOLIDAYS),
+    pinnedNotes: [], // { id, cycleId, cycleName, title, date, content, switchSuggestions }
     cycles: {
       '2027-H1': {
         id: '2027-H1',
@@ -1678,11 +1787,56 @@ function solveSchedule(cycle, roster, blackouts, holidays, manualOverrides = {},
         .filter(m => m && m.role === 'ALT')
         .map(m => m.name))];
       diagnostics[w.friday] = `Stage 1 Lookahead Warning: No rested Alternate available for lookahead weekend before ${ftOnLeave.name}'s leave.`;
-      scheduleNotices.push(
+
+      // Identify which Alternates are available for weekend w and suggest which weekends could be switched
+      const formatWkShort = (wk) => {
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const f = parseDate(wk.friday);
+        const e = parseDate(wk.attachedMonday || wk.sunday);
+        const mf = MONTHS[f.getMonth()];
+        const me = MONTHS[e.getMonth()];
+        return mf === me ? `${mf} ${f.getDate()}–${e.getDate()}` : `${mf} ${f.getDate()} – ${me} ${e.getDate()}`;
+      };
+
+      const switchSuggestions = [];
+      activeALTs.forEach(alt => {
+        if (!isMemberActive(alt, w.friday) || !isMemberActive(alt, w.sunday)) return;
+        const checkDates = [w.friday, w.saturday, w.sunday];
+        if (w.attachedMonday) checkDates.push(w.attachedMonday);
+        if (w.attachedFriday) checkDates.push(w.attachedFriday);
+        if (checkDates.some(d => isMemberBlackedOut(alt.id, d, blackouts))) return;
+        if (prevWeekendWorker === alt.id || nextWeekendWorker === alt.id) return;
+
+        const altDisplayName = `Trooper ${alt.firstName ? alt.firstName + ' ' : ''}${alt.name}`;
+        const altReqs = preferredWeekends
+          .filter(p => p.memberId === alt.id)
+          .map(p => weekends.find(x => x.friday === p.weekendFriday))
+          .filter(pw => pw && halfOf(pw) === halfOf(w));
+
+        const targetLabel = formatWkShort(w);
+        if (altReqs.length > 0) {
+          const reqLabels = altReqs.map(pw => formatWkShort(pw)).join(' or ');
+          switchSuggestions.push(
+            `${altDisplayName} is available for ${targetLabel}: could switch requested weekend ${reqLabels} to ${targetLabel}.`
+          );
+        } else {
+          switchSuggestions.push(
+            `${altDisplayName} is available for ${targetLabel} and could take this weekend.`
+          );
+        }
+      });
+
+      let noticeText =
         `Weekend ${label} should be worked by an Alternate (${ftOnLeave.name} is off that following week, and the other two full-time members cannot cover it without long stretches), ` +
         `but no Alternate has an open weekend: their requested weekends already use their quota` +
         (withRequests.length ? ` (${withRequests.join(', ')} have requests in this period)` : '') +
-        `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`);
+        `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`;
+
+      if (switchSuggestions.length > 0) {
+        noticeText += '\n\nSuggested Weekend Switches:\n' + switchSuggestions.map(s => '• ' + s).join('\n');
+      }
+
+      scheduleNotices.push(noticeText);
     }
   });
 
@@ -2653,6 +2807,18 @@ class StorageAdapter {
             if (Array.isArray(parsed.holidays)) {
               parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
             }
+            if (!Array.isArray(parsed.pinnedNotes)) {
+              parsed.pinnedNotes = [];
+            }
+            // Ensure rank and firstName are populated from defaults if missing
+            const backfillMember = (m) => {
+              const def = DEFAULT_2027_ROSTER.find(d => d.id === m.id || d.name === m.name);
+              if (!m.rank) m.rank = def && def.rank ? def.rank : 'Trooper';
+              if (!m.firstName && def && def.firstName) m.firstName = def.firstName;
+            };
+            if (Array.isArray(parsed.roster)) {
+              parsed.roster.forEach(backfillMember);
+            }
             // Synchronize full-year and half-year blocks
             if (parsed.cycles) {
               const years = new Set(Object.values(parsed.cycles).map(c => c.year).filter(Boolean));
@@ -2660,6 +2826,11 @@ class StorageAdapter {
                 const full = parsed.cycles[`${y}-FULL`];
                 const h1 = parsed.cycles[`${y}-H1`];
                 const h2 = parsed.cycles[`${y}-H2`];
+                [full, h1, h2].forEach(c => {
+                  if (c && Array.isArray(c.rosterSnapshot)) {
+                    c.rosterSnapshot.forEach(backfillMember);
+                  }
+                });
                 if (full) {
                   if (!full.assignments) full.assignments = {};
                   if (h1 && h1.assignments) {
@@ -2911,6 +3082,9 @@ class StorageAdapter {
         if (Array.isArray(parsed.holidays)) {
           parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
         }
+        if (!Array.isArray(parsed.pinnedNotes)) {
+          parsed.pinnedNotes = [];
+        }
         this.state = parsed;
         this.undoStack = [];
         this.redoStack = [];
@@ -3077,6 +3251,8 @@ class StorageAdapter {
     const modalClearCalendar = document.getElementById('modal-clear-calendar');
     const modalGuide = document.getElementById('modal-guide');
     const modalRules = document.getElementById('modal-rules');
+    const modalPinnedNotes = document.getElementById('modal-pinned-notes');
+    const modalScheduleAttention = document.getElementById('modal-schedule-attention');
 
     function closeAllModals() {
       modalOverlay.classList.remove('open');
@@ -3090,6 +3266,8 @@ class StorageAdapter {
       if (modalClearCalendar) modalClearCalendar.style.display = 'none';
       if (modalGuide) modalGuide.style.display = 'none';
       if (modalRules) modalRules.style.display = 'none';
+      if (modalPinnedNotes) modalPinnedNotes.style.display = 'none';
+      if (modalScheduleAttention) modalScheduleAttention.style.display = 'none';
       if (typeof resetMemberForm === 'function') resetMemberForm();
     }
 
@@ -3231,6 +3409,7 @@ class StorageAdapter {
       rosterCount.textContent = getCycleRoster().length;
       blackoutCount.textContent = cycleBlackouts().length;
       document.getElementById('pref-count').textContent = cyclePrefs().length;
+      updatePinnedNotesButton();
 
       renderMonthTabs();
       renderCalendar();
@@ -3413,9 +3592,9 @@ class StorageAdapter {
         <table class="matrix-table">
           <thead>
             <tr>
-              <th>Weekend #</th>
-              <th>Weekend Dates</th>
-              <th>Assigned Personnel</th>
+              <th class="matrix-print-hide">Weekend #</th>
+              <th><span class="matrix-screen-only">Weekend Dates</span><span class="matrix-print-only">Date</span></th>
+              <th><span class="matrix-screen-only">Assigned Personnel</span><span class="matrix-print-only">Member Name</span></th>
               <th class="matrix-print-hide">Role</th>
               <th class="matrix-print-hide">Attached Holiday</th>
               <th class="matrix-print-hide">Status</th>
@@ -3426,11 +3605,19 @@ class StorageAdapter {
               const workerId = cycle.assignments[w.saturday];
               const mem = window.appState.roster.find(m => m.id === workerId);
               const hol = w.attachedMonday || w.attachedFriday || '-';
+              const printDate = formatWeekendPrintDate(w, cycle.assignments);
+              const printName = getMemberPrintName(mem);
               return `
                 <tr>
-                  <td>Weekend ${w.index + 1}</td>
-                  <td>${w.friday} &rarr; ${w.sunday}</td>
-                  <td><strong>${mem ? esc(mem.name) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>
+                  <td class="matrix-print-hide">Weekend ${w.index + 1}</td>
+                  <td>
+                    <span class="matrix-screen-only">${w.friday} &rarr; ${w.sunday}</span>
+                    <span class="matrix-print-only">${esc(printDate)}</span>
+                  </td>
+                  <td>
+                    <span class="matrix-screen-only"><strong>${mem ? esc(printName) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></span>
+                    <span class="matrix-print-only">${mem ? esc(printName) : 'UNASSIGNED'}</span>
+                  </td>
                   <td class="matrix-print-hide"><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">${mem?.role || '-'}</span></td>
                   <td class="matrix-print-hide">${hol}</td>
                   <td class="matrix-print-hide">${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
@@ -3790,12 +3977,115 @@ class StorageAdapter {
       const prefWarn = result.preferenceWarnings || [];
       if (notices.length || prefWarn.length) {
         let msg = 'Schedule generated.';
-        if (prefWarn.length) msg += '\n\nThese requested weekends could not be honored:\n' + prefWarn.join('\n');
-        if (notices.length) msg += '\n\nNeeds your attention:\n' + notices.join('\n\n');
-        alert(msg);
+        if (prefWarn.length) msg += '
+
+These requested weekends could not be honored:
+' + prefWarn.join('
+');
+        if (notices.length) msg += '
+
+Needs your attention:
+' + notices.join('
+
+');
+        openScheduleAttentionModal(msg);
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
       }
+    });
+
+    let activeAttentionNotice = '';
+    function openScheduleAttentionModal(msg) {
+      activeAttentionNotice = msg;
+      const contentEl = document.getElementById('attention-dialog-content');
+      if (contentEl) contentEl.textContent = msg;
+      closeAllModals();
+      modalOverlay.classList.add('open');
+      modalScheduleAttention.style.display = 'flex';
+    }
+
+    function updatePinnedNotesButton() {
+      const btn = document.getElementById('btn-open-pinned');
+      const countEl = document.getElementById('pinned-count');
+      const notes = window.appState.pinnedNotes || [];
+      if (!btn) return;
+      if (notes.length > 0) {
+        btn.style.display = 'inline-flex';
+        if (countEl) countEl.textContent = notes.length;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    document.getElementById('btn-pin-active-notice').addEventListener('click', () => {
+      if (!activeAttentionNotice) return;
+      if (!window.appState.pinnedNotes) window.appState.pinnedNotes = [];
+      const cycle = getActiveCycle();
+      const cycleName = cycle ? (cycle.blockType === 'FULL' ? `${cycle.year} Full Year` : `${cycle.year} ${cycle.blockType}`) : '';
+      window.appState.pinnedNotes.push({
+        id: 'pin_' + Date.now(),
+        cycleId: cycle ? cycle.id : '',
+        cycleName,
+        title: 'Attention Needed & Switch Suggestions',
+        timestamp: new Date().toLocaleString(),
+        content: activeAttentionNotice
+      });
+      storage.saveState();
+      updatePinnedNotesButton();
+      closeAllModals();
+      showToast('Note and suggestions pinned to top menu bar.');
+    });
+
+    document.getElementById('btn-open-pinned').addEventListener('click', () => {
+      closeAllModals();
+      renderPinnedNotesModal();
+      modalOverlay.classList.add('open');
+      modalPinnedNotes.style.display = 'flex';
+    });
+
+    function renderPinnedNotesModal() {
+      const listEl = document.getElementById('pinned-notes-list');
+      const notes = window.appState.pinnedNotes || [];
+      if (notes.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:24px;">No pinned notes or suggestions.</div>';
+        return;
+      }
+      listEl.innerHTML = notes.map((item, idx) => `
+        <div style="background:var(--color-paper-2); border:1px solid var(--border-color); border-radius:8px; padding:16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--color-rule); padding-bottom:8px;">
+            <div style="font-weight:700; font-size:13px; color:var(--color-ink);">
+              &#128204; ${esc(item.title || 'Pinned Note')} ${item.cycleName ? '(' + esc(item.cycleName) + ')' : ''}
+              <span style="font-size:11px; font-weight:normal; color:var(--text-muted); margin-left:8px;">${esc(item.timestamp || '')}</span>
+            </div>
+            <button class="btn btn-outline-dark btn-delete-single-pin" data-index="${idx}" style="font-size:11px; padding:3px 8px; color:var(--danger); border-color:var(--danger-border);">&#128465; Delete</button>
+          </div>
+          <div style="white-space:pre-wrap; font-size:12.5px; line-height:1.6; color:var(--color-ink);">${esc(item.content)}</div>
+        </div>
+      `).join('');
+
+      listEl.querySelectorAll('.btn-delete-single-pin').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-index'), 10);
+          window.appState.pinnedNotes.splice(idx, 1);
+          storage.saveState();
+          updatePinnedNotesButton();
+          if (window.appState.pinnedNotes.length === 0) {
+            closeAllModals();
+            showToast('Pinned notes cleared.');
+          } else {
+            renderPinnedNotesModal();
+          }
+        });
+      });
+    }
+
+    document.getElementById('btn-clear-all-pinned').addEventListener('click', () => {
+      if (!confirm('Clear all pinned notes and suggestions?')) return;
+      window.appState.pinnedNotes = [];
+      storage.saveState();
+      updatePinnedNotesButton();
+      closeAllModals();
+      showToast('All pinned notes cleared.');
     });
 
     // Clear Calendar
@@ -3959,7 +4249,7 @@ class StorageAdapter {
               <span style="width:16px; height:16px; border-radius:50%; background:${m.color}; display:inline-block; flex-shrink:0;"></span>
               <div>
                 <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
-                  ${esc(m.name)}
+                  ${esc(getMemberPrintName(m))}
                   <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">${m.role === 'FT' ? 'Full-Time (FT)' : 'Alternate (ALT)'}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
@@ -4092,6 +4382,8 @@ class StorageAdapter {
 
     function resetMemberForm() {
       editingMemberId = null;
+      document.getElementById('member-rank-input').value = 'Trooper';
+      document.getElementById('member-firstname-input').value = '';
       document.getElementById('member-name-input').value = '';
       document.getElementById('member-role-input').value = 'FT';
       document.getElementById('member-weekday-input').value = '';
@@ -4110,6 +4402,8 @@ class StorageAdapter {
       const m = window.appState.roster.find(x => x.id === id);
       if (!m) return;
       editingMemberId = id;
+      document.getElementById('member-rank-input').value = m.rank || 'Trooper';
+      document.getElementById('member-firstname-input').value = m.firstName || '';
       document.getElementById('member-name-input').value = m.name;
       document.getElementById('member-role-input').value = m.role;
       document.getElementById('member-weekday-input').value = m.baselineWeekday ? String(m.baselineWeekday) : '';
@@ -4119,7 +4413,7 @@ class StorageAdapter {
       document.getElementById('member-color-input').value = m.color || '#1e3a8a';
       document.getElementById('member-start-input').value = m.activeStart || '';
       document.getElementById('member-end-input').value = m.activeEnd || '';
-      document.getElementById('member-form-title').textContent = 'Editing ' + m.name;
+      document.getElementById('member-form-title').textContent = 'Editing ' + (m.rank ? m.rank + ' ' : '') + (m.firstName ? m.firstName + ' ' : '') + m.name;
       document.getElementById('btn-save-new-member').textContent = 'Save Changes';
       document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
       document.getElementById('member-name-input').focus();
@@ -4128,6 +4422,8 @@ class StorageAdapter {
     document.getElementById('btn-cancel-edit').addEventListener('click', resetMemberForm);
 
     document.getElementById('btn-save-new-member').addEventListener('click', () => {
+      const rank = document.getElementById('member-rank-input').value.trim() || 'Trooper';
+      const firstName = document.getElementById('member-firstname-input').value.trim();
       const nameInput = document.getElementById('member-name-input');
       const name = nameInput.value.trim().toUpperCase();
       if (!name) {
@@ -4155,7 +4451,7 @@ class StorageAdapter {
       if (editingMemberId) {
         const m = window.appState.roster.find(x => x.id === editingMemberId);
         if (m) {
-          Object.assign(m, { name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
+          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
         }
         storage.saveState();
         resetMemberForm();
@@ -4171,6 +4467,8 @@ class StorageAdapter {
         preferredWeekday,
         weekendsPerSixMonths,
         id,
+        rank,
+        firstName,
         name,
         role,
         activeStart,
