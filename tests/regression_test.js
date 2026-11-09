@@ -663,7 +663,7 @@ console.log('PASS lookahead simulation switch suggestions & circular dependency 
   // Requirement 2: Friday weekend fill prompt
   assert(html.includes("Would you like to fill the weekend with '${memDisplayName}'?"), 'Friday click must prompt to fill weekend with member name');
   assert(html.includes("const isFriday = d.getDay() === 5;"), 'Must detect Friday for weekend fill');
-  assert(html.includes("const weekendDays = [sat, sun];"), 'Must identify Saturday and Sunday for weekend fill');
+  assert(html.includes("const weekendDays = [selectedDateForReassign, sat, sun];"), 'Must identify weekend days for weekend fill');
   assert(html.includes("if (attachedMon) weekendDays.push(mon);"), 'Must include attached Monday when holiday is present');
 
   // Requirement 3: Print suppression of adjust instructions and staffed count
@@ -672,6 +672,20 @@ console.log('PASS lookahead simulation switch suggestions & circular dependency 
   assert(html.includes('<div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed:'), 'Staffed count must be wrapped in print-hide');
 }
 console.log('PASS blackouts chronological order, Friday weekend fill prompt, and print suppression verified');
+
+// 31. Alternate quota confirmation prior to manual assignment & automatic pinned note
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert(html.includes('function checkAndConfirmAltQuota('), 'Must include checkAndConfirmAltQuota function');
+  assert(html.includes('Alternate Fire Marshal Quota Exceeded:'), 'Must include quota exceeded confirmation message');
+  assert(html.includes('proposedWeekends.length > targetQuota && proposedWeekends.length > currentWeekends.length'), 'Must check if proposed weekends exceed roster quota');
+  assert(html.includes("title: `Alternate Quota Exceeded: ${memDisplayName}`"), 'Must create pinned note with quota exceeded title');
+  assert(html.includes("type: 'ALT_QUOTA_EXCEEDED'"), 'Must tag pinned note with ALT_QUOTA_EXCEEDED type');
+  assert(html.includes('updatePinnedNotesButton();'), 'Must update pinned notes button when pin is added');
+}
+console.log('PASS alternate quota confirmation and automatic pinned note verified');
+
 
 
 

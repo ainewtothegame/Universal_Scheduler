@@ -3202,6 +3202,90 @@ const htmlContent = `<!DOCTYPE html>
       }, 0);
     }
 
+    function formatWkShort(wk) {
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const f = parseDate(wk.friday);
+      const e = parseDate(wk.attachedMonday || wk.sunday);
+      const mf = MONTHS[f.getMonth()];
+      const me = MONTHS[e.getMonth()];
+      return mf === me ? \`\${mf} \${f.getDate()}–\${e.getDate()}\` : \`\${mf} \${f.getDate()} – \${me} \${e.getDate()}\`;
+    }
+
+    function checkAndConfirmAltQuota(proposedDates, memberId, cycle) {
+      if (!memberId) return true;
+      const mem = window.appState.roster.find(m => m.id === memberId);
+      if (!mem || mem.role !== 'ALT') return true;
+
+      const rawQuota = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null)
+        ? parseInt(mem.weekendsPerSixMonths, 10)
+        : 3;
+      const baseQuota = isNaN(rawQuota) ? 3 : Math.max(0, rawQuota);
+      const targetQuota = cycle.blockType === 'FULL' ? (baseQuota * 2) : baseQuota;
+
+      const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays || []);
+      const testAssignments = { ...(cycle.assignments || {}) };
+      proposedDates.forEach(d => { testAssignments[d] = memberId; });
+
+      const currentWeekends = weekends.filter(w => {
+        return (cycle.assignments || {})[w.friday] === memberId ||
+               (cycle.assignments || {})[w.saturday] === memberId ||
+               (cycle.assignments || {})[w.sunday] === memberId ||
+               (w.attachedMonday && (cycle.assignments || {})[w.attachedMonday] === memberId);
+      });
+
+      const proposedWeekends = weekends.filter(w => {
+        return testAssignments[w.friday] === memberId ||
+               testAssignments[w.saturday] === memberId ||
+               testAssignments[w.sunday] === memberId ||
+               (w.attachedMonday && testAssignments[w.attachedMonday] === memberId);
+      });
+
+      if (proposedWeekends.length > targetQuota && proposedWeekends.length > currentWeekends.length) {
+        const memDisplayName = getMemberPrintName(mem);
+        const confirmMsg =
+          \`Alternate Fire Marshal Quota Exceeded:\\n\\n\` +
+          \`\${memDisplayName} has a configured roster quota of \${targetQuota} weekend\${targetQuota === 1 ? '' : 's'}.\\n\` +
+          \`Assigning this shift will result in \${proposedWeekends.length} scheduled weekends for this period.\\n\\n\` +
+          \`Would you like to confirm this assignment and automatically pin a note for all scheduled weekends?\`;
+
+        if (!confirm(confirmMsg)) {
+          return false;
+        }
+
+        // Automatically add a pinned note on all of the scheduled weekends for that alternate
+        const cycleName = cycle ? (cycle.blockType === 'FULL' ? \`\${cycle.year} Full Year\` : \`\${cycle.year} \${cycle.blockType}\`) : '';
+        const weekendLines = proposedWeekends.map((w, idx) => {
+          const dateRange = \`\${w.friday} to \${w.attachedMonday || w.sunday}\`;
+          return \`• Weekend \${idx + 1}: \${formatWkShort(w)} (\${dateRange})\`;
+        }).join('\\n');
+
+        const noteContent =
+          \`\${memDisplayName} (Alternate Fire Marshal) has been manually assigned to \${proposedWeekends.length} weekends in \${cycleName}, exceeding the roster quota of \${targetQuota} weekend\${targetQuota === 1 ? '' : 's'}.\\n\\n\` +
+          \`All Scheduled Weekends (\${proposedWeekends.length} total):\\n\` +
+          weekendLines;
+
+        if (!window.appState.pinnedNotes) window.appState.pinnedNotes = [];
+        window.appState.pinnedNotes = window.appState.pinnedNotes.filter(
+          p => !(p.cycleId === cycle.id && p.memberId === memberId && p.type === 'ALT_QUOTA_EXCEEDED')
+        );
+
+        window.appState.pinnedNotes.push({
+          id: 'pin_' + Date.now(),
+          cycleId: cycle ? cycle.id : '',
+          cycleName,
+          memberId,
+          type: 'ALT_QUOTA_EXCEEDED',
+          title: \`Alternate Quota Exceeded: \${memDisplayName}\`,
+          timestamp: new Date().toLocaleString(),
+          content: noteContent
+        });
+
+        updatePinnedNotesButton();
+      }
+
+      return true;
+    }
+
     document.getElementById('btn-save-shift').addEventListener('click', () => {
       if (!selectedDateForReassign) return;
       const newMemberId = document.getElementById('reassign-member-select').value;
@@ -3221,17 +3305,6 @@ const htmlContent = `<!DOCTYPE html>
         }
       }
 
-      storage.pushUndo();
-      if (newMemberId) {
-        cycle.assignments[selectedDateForReassign] = newMemberId;
-        cycle.manualOverrides[selectedDateForReassign] = true;
-      } else {
-        delete cycle.assignments[selectedDateForReassign];
-        delete cycle.manualOverrides[selectedDateForReassign];
-      }
-      cycle.updatedAt = Date.now();
-      syncShiftToSiblings(selectedDateForReassign, newMemberId);
-
       // Check if clicked date is Friday and member was changed or added to unscheduled day
       const d = parseDate(selectedDateForReassign);
       const isFriday = d.getDay() === 5;
@@ -3246,11 +3319,11 @@ const htmlContent = `<!DOCTYPE html>
           const mon = formatDate(addDays(d, 3));
           const holidays = window.appState.holidays || [];
           const attachedMon = holidays.find(h => h.date === mon && h.type === 'attached_mon');
-          const weekendDays = [sat, sun];
+          const weekendDays = [selectedDateForReassign, sat, sun];
           if (attachedMon) weekendDays.push(mon);
 
           let weekendViolations = [];
-          weekendDays.forEach(dStr => {
+          weekendDays.slice(1).forEach(dStr => {
             const viols = checkManualAssignmentRuleViolations(dStr, newMemberId);
             const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
             if (blocking.length > 0) {
@@ -3258,29 +3331,48 @@ const htmlContent = `<!DOCTYPE html>
             }
           });
 
-          let proceedFill = true;
           if (weekendViolations.length > 0) {
             const details = weekendViolations.map(v => \`• \${v.message}\`).join('\\n');
             if (!confirm(\`Rule Violation Notification for weekend dates:\\n\\n\${details}\\n\\nDo you want to manually overwrite these rules and assign \${memDisplayName} to the rest of the weekend?\`)) {
-              proceedFill = false;
+              return;
             }
           }
 
-          if (proceedFill) {
-            weekendDays.forEach(dStr => {
-              cycle.assignments[dStr] = newMemberId;
-              cycle.manualOverrides[dStr] = true;
-              syncShiftToSiblings(dStr, newMemberId);
-            });
-            storage.saveState();
-            closeAllModals();
-            renderApp();
-            showToast(\`Weekend (\${selectedDateForReassign} to \${weekendDays[weekendDays.length - 1]}) assigned to \${memDisplayName}.\`);
+          // Check Alternate quota prior to filling
+          if (!checkAndConfirmAltQuota(weekendDays, newMemberId, cycle)) {
             return;
           }
+
+          storage.pushUndo();
+          weekendDays.forEach(dStr => {
+            cycle.assignments[dStr] = newMemberId;
+            cycle.manualOverrides[dStr] = true;
+            syncShiftToSiblings(dStr, newMemberId);
+          });
+          cycle.updatedAt = Date.now();
+          storage.saveState();
+          closeAllModals();
+          renderApp();
+          showToast(\`Weekend (\${selectedDateForReassign} to \${weekendDays[weekendDays.length - 1]}) assigned to \${memDisplayName}.\`);
+          return;
         }
       }
 
+      // Check Alternate quota prior to filling single date
+      if (newMemberId && !checkAndConfirmAltQuota([selectedDateForReassign], newMemberId, cycle)) {
+        return;
+      }
+
+      storage.pushUndo();
+      if (newMemberId) {
+        cycle.assignments[selectedDateForReassign] = newMemberId;
+        cycle.manualOverrides[selectedDateForReassign] = true;
+      } else {
+        delete cycle.assignments[selectedDateForReassign];
+        delete cycle.manualOverrides[selectedDateForReassign];
+      }
+      cycle.updatedAt = Date.now();
+      syncShiftToSiblings(selectedDateForReassign, newMemberId);
       storage.saveState();
       closeAllModals();
       renderApp();
