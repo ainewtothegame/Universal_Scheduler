@@ -756,6 +756,18 @@ console.log('PASS alternate quota confirmation and automatic pinned note verifie
 }
 console.log('PASS New Year cross-year weekend identification, rest day enforcement, and consecutive weekend protection verified');
 
+// 33. Function to remove cycles from dropdown menu
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert(html.includes('id="btn-remove-cycle"'), 'Must include btn-remove-cycle button in header');
+  assert(html.includes('function removeCycle(cycleId)'), 'Must include removeCycle function');
+  assert(html.includes('function renderExistingCyclesList()'), 'Must include renderExistingCyclesList function');
+  assert(html.includes('id="existing-cycles-list"'), 'Must include existing-cycles-list container in modal');
+  assert(html.includes('delete window.appState.cycles[cycleId]'), 'removeCycle must delete cycle from appState.cycles');
+  assert(html.includes('Cannot remove the only remaining cycle'), 'Must prevent removing the last remaining cycle');
+}
+console.log('PASS remove cycles from dropdown menu verified');
+
 
 
 

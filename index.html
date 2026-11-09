@@ -792,6 +792,7 @@
       <label style="font-size:12px; font-weight:600; opacity:0.9;">Cycle:</label>
       <select id="cycle-select" class="cycle-select"></select>
       <button id="btn-open-add-cycle" class="btn btn-outline" title="Add New Year or Schedule Block">+ Add Year / Block</button>
+      <button id="btn-remove-cycle" class="btn btn-outline" title="Remove selected schedule block from dropdown menu">&minus; Remove Cycle</button>
       <button id="btn-undo" class="btn btn-outline" title="Undo (Ctrl+Z)">&#8630; Undo</button>
       <button id="btn-redo" class="btn btn-outline" title="Redo (Ctrl+Y)">&#8631; Redo</button>
       <button id="btn-solve" class="btn btn-light">&#9881; Auto-Generate Schedule</button>
@@ -1052,9 +1053,9 @@
     </div>
 
     <!-- 3b. Add Year / Schedule Block Modal -->
-    <div id="modal-add-cycle" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Add year or block">
+    <div id="modal-add-cycle" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Add or remove schedule blocks">
       <div class="modal-header">
-        <div class="modal-title">&#128197; Add Year / Schedule Block</div>
+        <div class="modal-title">&#128197; Add / Remove Schedule Blocks</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
@@ -1079,10 +1080,17 @@
             Carry forward current active personnel roster
           </label>
         </div>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+          <button id="btn-confirm-add-cycle" class="btn btn-primary">+ Create Schedule Block</button>
+        </div>
+
+        <div style="border-top:1px solid var(--border-color); padding-top:14px;">
+          <div style="font-weight:600; font-size:13px; margin-bottom:8px;">Existing Schedule Blocks in Dropdown Menu:</div>
+          <div id="existing-cycles-list" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-dark" onclick="closeAllModals()">Cancel</button>
-        <button id="btn-confirm-add-cycle" class="btn btn-primary">Create Schedule Block</button>
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Close</button>
       </div>
     </div>
 
@@ -4840,14 +4848,90 @@ class StorageAdapter {
     });
 
     // -------------------------------------------------------------
-    // 3. Add Year / Schedule Block Handlers
+    // 3. Add / Remove Schedule Block Handlers
     // -------------------------------------------------------------
+    function renderExistingCyclesList() {
+      const container = document.getElementById('existing-cycles-list');
+      if (!container) return;
+      const cycleKeys = Object.keys(window.appState.cycles);
+      const activeId = window.appState.activeCycleId;
+      const canRemove = cycleKeys.length > 1;
+
+      container.innerHTML = cycleKeys.map(k => {
+        const c = window.appState.cycles[k];
+        const label = c.blockType === 'FULL' ? `${c.year} Full Year` : `${c.year} ${c.blockType} (${c.startDate} to ${c.endDate})`;
+        const isActive = (k === activeId);
+        return `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--color-paper); border-radius:6px; border:1px solid var(--border-color);">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:600; font-size:13px;">${esc(label)}</span>
+              ${isActive ? '<span style="font-size:10px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:4px; font-weight:600;">ACTIVE</span>' : ''}
+            </div>
+            <button class="btn btn-outline-dark btn-delete-cycle-item" data-cycle-id="${k}" style="color:var(--danger); border-color:var(--danger-border); padding:3px 8px; font-size:11px;" ${!canRemove ? 'disabled title="Cannot remove the only remaining cycle"' : 'title="Remove this cycle from dropdown menu"'}>
+              &#128465; Remove
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.btn-delete-cycle-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cid = btn.getAttribute('data-cycle-id');
+          if (cid) removeCycle(cid);
+        });
+      });
+    }
+
+    function removeCycle(cycleId) {
+      const cycleKeys = Object.keys(window.appState.cycles);
+      if (cycleKeys.length <= 1) {
+        alert('Cannot remove the only remaining cycle. At least one schedule block must remain in the dropdown menu.');
+        return false;
+      }
+      const c = window.appState.cycles[cycleId];
+      if (!c) return false;
+      const label = c.blockType === 'FULL' ? `${c.year} Full Year` : `${c.year} ${c.blockType} (${c.startDate} to ${c.endDate})`;
+      if (!confirm(`Are you sure you want to remove "${label}" from the dropdown menu?\n\nThis will permanently delete this schedule block and all of its shift assignments.`)) {
+        return false;
+      }
+
+      delete window.appState.cycles[cycleId];
+      if (window.appState.savedSnapshots && window.appState.savedSnapshots[cycleId]) {
+        delete window.appState.savedSnapshots[cycleId];
+      }
+
+      // If the removed cycle was currently active, switch to another existing cycle
+      if (window.appState.activeCycleId === cycleId) {
+        const remainingKeys = Object.keys(window.appState.cycles);
+        window.appState.activeCycleId = remainingKeys[0];
+        const newActive = getActiveCycle();
+        if (newActive) {
+          activeMonthIdx = parseDate(newActive.startDate).getMonth();
+        }
+      }
+
+      storage.saveState();
+      renderApp();
+      renderExistingCyclesList();
+      showToast(`Schedule block "${label}" was removed successfully.`);
+      return true;
+    }
+    window.removeCycle = removeCycle;
+
     document.getElementById('btn-open-add-cycle').addEventListener('click', () => {
       const currentCycle = getActiveCycle();
       document.getElementById('new-cycle-year').value = currentCycle ? (currentCycle.year + 1) : 2028;
+      renderExistingCyclesList();
       closeAllModals();
       modalOverlay.classList.add('open');
       modalAddCycle.style.display = 'flex';
+    });
+
+    document.getElementById('btn-remove-cycle').addEventListener('click', () => {
+      const current = getActiveCycle();
+      if (current) {
+        removeCycle(current.id);
+      }
     });
 
     document.getElementById('btn-confirm-add-cycle').addEventListener('click', () => {
