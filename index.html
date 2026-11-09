@@ -753,6 +753,9 @@
       .matrix-print-hide {
         display: none !important;
       }
+      .print-hide {
+        display: none !important;
+      }
       .matrix-screen-only {
         display: none !important;
       }
@@ -846,7 +849,7 @@
         </div>
         <div id="calendar-days-grid" class="calendar-grid"></div>
         <div class="calendar-footer">
-          <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. Click any date cell to manually adjust shift assignment.</div>
+          <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. <span class="print-hide">Click any date cell to manually adjust shift assignment.</span></div>
           <div id="exemption-note" style="color:var(--danger); font-weight:600; display:none;">* Administrative Exemption: Manual Alternate Weekday Assignment</div>
         </div>
       </div>
@@ -3610,7 +3613,7 @@ class StorageAdapter {
           <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
           <div class="calendar-header">
             <div class="calendar-title">${monthTitle}</div>
-            <div style="font-size: 13px; color: var(--text-muted);">Staffed: ${assignedCount} / ${totalMonthDays} Days</div>
+            <div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed: ${assignedCount} / ${totalMonthDays} Days</div>
           </div>
           <div class="calendar-grid">
             <div class="dow-header">Monday</div>
@@ -3623,7 +3626,7 @@ class StorageAdapter {
           </div>
           <div class="calendar-grid">${cellsHtml}</div>
           <div class="calendar-footer">
-            <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. Click any date cell to manually adjust shift assignment.</div>
+            <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. <span class="print-hide">Click any date cell to manually adjust shift assignment.</span></div>
             <div style="color:var(--danger); font-weight:600; display:${hasExemption ? 'block' : 'none'};">* Administrative Exemption: Manual Alternate Weekday Assignment</div>
           </div>
         </div>
@@ -4562,12 +4565,14 @@ class StorageAdapter {
 
     // Helper: Get blackouts for the currently selected cycle
     // In H1/H2, show only blackouts overlapping that portion; in FULL, show all
+    // Arranged in chronological order by date
     function cycleBlackouts() {
       const c = getActiveCycle();
-      if (!c || c.blockType === 'FULL') {
-        return window.appState.blackouts;
+      let list = window.appState.blackouts;
+      if (c && c.blockType !== 'FULL') {
+        list = list.filter(b => b.startDate <= c.endDate && b.endDate >= c.startDate);
       }
-      return window.appState.blackouts.filter(b => b.startDate <= c.endDate && b.endDate >= c.startDate);
+      return list.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '') || (a.endDate || '').localeCompare(b.endDate || '') || (a.memberId || '').localeCompare(b.memberId || ''));
     }
 
     function openBlackoutsModal() {
@@ -4983,13 +4988,14 @@ class StorageAdapter {
       if (!selectedDateForReassign) return;
       const newMemberId = document.getElementById('reassign-member-select').value;
       const cycle = getActiveCycle();
+      const currentAssigned = cycle.assignments[selectedDateForReassign];
 
       if (newMemberId) {
         const violations = checkManualAssignmentRuleViolations(selectedDateForReassign, newMemberId);
         const blockingViolations = violations.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
         if (blockingViolations.length > 0) {
           const mem = window.appState.roster.find(m => m.id === newMemberId);
-          const name = mem ? mem.name : 'this investigator';
+          const name = mem ? (getMemberPrintName(mem) || mem.name) : 'this investigator';
           const details = blockingViolations.map(v => `• ${v.message}`).join('\n');
           if (!confirm(`Rule Violation Notification:\n\n${details}\n\nDo you want to manually overwrite this rule and assign ${name}?`)) {
             return;
@@ -5007,6 +5013,56 @@ class StorageAdapter {
       }
       cycle.updatedAt = Date.now();
       syncShiftToSiblings(selectedDateForReassign, newMemberId);
+
+      // Check if clicked date is Friday and member was changed or added to unscheduled day
+      const d = parseDate(selectedDateForReassign);
+      const isFriday = d.getDay() === 5;
+      const isChangingOrAdding = Boolean(newMemberId && (!currentAssigned || currentAssigned !== newMemberId));
+
+      if (isFriday && isChangingOrAdding) {
+        const mem = window.appState.roster.find(m => m.id === newMemberId);
+        const memDisplayName = getMemberPrintName(mem);
+        if (confirm(`Would you like to fill the weekend with '${memDisplayName}'?`)) {
+          const sat = formatDate(addDays(d, 1));
+          const sun = formatDate(addDays(d, 2));
+          const mon = formatDate(addDays(d, 3));
+          const holidays = window.appState.holidays || [];
+          const attachedMon = holidays.find(h => h.date === mon && h.type === 'attached_mon');
+          const weekendDays = [sat, sun];
+          if (attachedMon) weekendDays.push(mon);
+
+          let weekendViolations = [];
+          weekendDays.forEach(dStr => {
+            const viols = checkManualAssignmentRuleViolations(dStr, newMemberId);
+            const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
+            if (blocking.length > 0) {
+              weekendViolations.push(...blocking);
+            }
+          });
+
+          let proceedFill = true;
+          if (weekendViolations.length > 0) {
+            const details = weekendViolations.map(v => `• ${v.message}`).join('\n');
+            if (!confirm(`Rule Violation Notification for weekend dates:\n\n${details}\n\nDo you want to manually overwrite these rules and assign ${memDisplayName} to the rest of the weekend?`)) {
+              proceedFill = false;
+            }
+          }
+
+          if (proceedFill) {
+            weekendDays.forEach(dStr => {
+              cycle.assignments[dStr] = newMemberId;
+              cycle.manualOverrides[dStr] = true;
+              syncShiftToSiblings(dStr, newMemberId);
+            });
+            storage.saveState();
+            closeAllModals();
+            renderApp();
+            showToast(`Weekend (${selectedDateForReassign} to ${weekendDays[weekendDays.length - 1]}) assigned to ${memDisplayName}.`);
+            return;
+          }
+        }
+      }
+
       storage.saveState();
       closeAllModals();
       renderApp();

@@ -644,5 +644,35 @@ console.log('PASS index.html script tags syntax verified with vm.Script');
 }
 console.log('PASS lookahead simulation switch suggestions & circular dependency prevention verified');
 
+// 30. Blackouts chronological order, Friday weekend fill prompt, and print suppression
+{
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // Requirement 1: Chronological blackouts order
+  assert(html.includes("list.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '')"), 'cycleBlackouts must sort blackouts chronologically by startDate');
+  const unsortedBlackouts = [
+    { id: 'b3', startDate: '2027-05-10', endDate: '2027-05-14' },
+    { id: 'b1', startDate: '2027-01-16', endDate: '2027-01-17' },
+    { id: 'b2', startDate: '2027-03-01', endDate: '2027-03-05' }
+  ];
+  const sorted = unsortedBlackouts.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '') || (a.endDate || '').localeCompare(b.endDate || ''));
+  assert.strictEqual(sorted[0].id, 'b1', 'Earliest blackout must be first');
+  assert.strictEqual(sorted[1].id, 'b2', 'Middle blackout must be second');
+  assert.strictEqual(sorted[2].id, 'b3', 'Latest blackout must be third');
+
+  // Requirement 2: Friday weekend fill prompt
+  assert(html.includes("Would you like to fill the weekend with '${memDisplayName}'?"), 'Friday click must prompt to fill weekend with member name');
+  assert(html.includes("const isFriday = d.getDay() === 5;"), 'Must detect Friday for weekend fill');
+  assert(html.includes("const weekendDays = [sat, sun];"), 'Must identify Saturday and Sunday for weekend fill');
+  assert(html.includes("if (attachedMon) weekendDays.push(mon);"), 'Must include attached Monday when holiday is present');
+
+  // Requirement 3: Print suppression of adjust instructions and staffed count
+  assert(html.includes('.print-hide {\n        display: none !important;\n      }'), 'Print CSS must include .print-hide rule');
+  assert(html.includes('<span class="print-hide">Click any date cell to manually adjust shift assignment.</span>'), 'Adjust shift instructions must be wrapped in print-hide');
+  assert(html.includes('<div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed:'), 'Staffed count must be wrapped in print-hide');
+}
+console.log('PASS blackouts chronological order, Friday weekend fill prompt, and print suppression verified');
+
+
 
 
