@@ -111,8 +111,11 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
     const workerId = assignments[w.saturday];
     const mem = roster.find(m => m.id === workerId);
     if (!mem || mem.role !== 'ALT') return;
-    const half = w.friday.slice(5) < '07-01' ? 'H1' : 'H2';
-    const key = `${w.friday.slice(0, 4)}-${half}-${workerId}`;
+    const cycleYear = cycle.year || (cycle.startDate ? parseInt(cycle.startDate.slice(0, 4), 10) : 2027);
+    const half = (cycle.blockType === 'H1' || cycle.blockType === 'H2')
+      ? cycle.blockType
+      : (w.saturday < `${cycleYear}-07-01` ? 'H1' : 'H2');
+    const key = `${cycleYear}-${half}-${workerId}`;
     altCounts[key] = (altCounts[key] || 0) + 1;
     const maxAllowed = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
       ? Math.max(0, parseInt(mem.weekendsPerSixMonths, 10))

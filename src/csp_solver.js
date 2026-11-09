@@ -99,8 +99,18 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   let priorLastWeekendFriday = null;
 
   const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
-  const halfOf = (w) => w.friday.slice(0, 4) + (w.friday.slice(5) < '07-01' ? 'H1' : 'H2');
-  const halves = [...new Set(weekends.map(halfOf))];
+  const cycleYear = cycle.year || (cycle.startDate ? parseInt(cycle.startDate.slice(0, 4), 10) : 2027);
+  const halfOf = (w) => {
+    if (cycle.blockType === 'H1') return `${cycleYear}H1`;
+    if (cycle.blockType === 'H2') return `${cycleYear}H2`;
+    if (cycle.blockType === 'FULL') return `${cycleYear}${w.saturday < `${cycleYear}-07-01` ? 'H1' : 'H2'}`;
+    const yr = w.saturday.slice(0, 4);
+    return `${yr}${w.saturday.slice(5) < '07-01' ? 'H1' : 'H2'}`;
+  };
+  const halves = (cycle.blockType === 'H1') ? [`${cycleYear}H1`]
+    : (cycle.blockType === 'H2') ? [`${cycleYear}H2`]
+    : (cycle.blockType === 'FULL') ? [`${cycleYear}H1`, `${cycleYear}H2`]
+    : [...new Set(weekends.map(halfOf))];
   const altQuotaConsumed = {};
   const altTargetQuotas = {};
   activeALTs.forEach(a => {

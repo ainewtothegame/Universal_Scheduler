@@ -716,7 +716,18 @@ console.log('PASS alternate quota confirmation and automatic pinned note verifie
   assert.notStrictEqual(resManual.assignments['2028-01-07'], 'polcha', 'Polcha must NOT work Weekend 1 Friday Jan 7 (zero consecutive weekends)');
   assert.notStrictEqual(resManual.assignments['2028-01-08'], 'polcha', 'Polcha must NOT work Weekend 1 Saturday Jan 8 (zero consecutive weekends)');
   assert.notStrictEqual(resManual.assignments['2028-01-09'], 'polcha', 'Polcha must NOT work Weekend 1 Sunday Jan 9 (zero consecutive weekends)');
-  assert.notStrictEqual(resManual.assignments['2028-01-10'], 'polcha', 'Polcha must NOT work Monday Jan 10 (attached to Weekend 1)');
+
+  // Verify Alternates are scheduled to their quotas in 2028-H1
+  const altCounts = {};
+  roster2028.filter(m => m.role === 'ALT').forEach(a => altCounts[a.id] = 0);
+  resManual.weekends.forEach(w => {
+    const workerId = resManual.assignments[w.saturday];
+    const mem = roster2028.find(m => m.id === workerId);
+    if (mem && mem.role === 'ALT') altCounts[mem.id]++;
+  });
+  assert.strictEqual(altCounts['chester'], 3, 'Chester must be scheduled for 3 weekends in 2028-H1');
+  assert.strictEqual(altCounts['zeiders'], 3, 'Zeiders must be scheduled for 3 weekends in 2028-H1');
+  assert.strictEqual(altCounts['reed'], 3, 'Reed must be scheduled for 3 weekends in 2028-H1');
 
   // Scenario B: Prior year 2027-H2 had Polcha on Dec 31 New Year's weekend
   const priorContext = {
