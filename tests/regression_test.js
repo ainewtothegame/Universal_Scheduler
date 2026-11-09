@@ -593,4 +593,21 @@ console.log('PASS menu bar fit, import/export far right, functional guide, and m
 }
 console.log('PASS pinned notes, switch suggestions, roster rank/first name, and matrix print date/name verified');
 
+// 28. Standalone index.html syntax validity across all inline scripts
+{
+  const vm = await import('vm');
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  let scriptCount = 0;
+  while ((match = scriptRegex.exec(html)) !== null) {
+    scriptCount++;
+    const code = match[1];
+    // Will throw SyntaxError if any raw newline or malformed token exists
+    new vm.Script(code);
+  }
+  assert(scriptCount >= 2, 'index.html must have inline scripts');
+}
+console.log('PASS index.html script tags syntax verified with vm.Script');
+
 

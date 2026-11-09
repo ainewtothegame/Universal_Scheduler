@@ -3977,17 +3977,8 @@ class StorageAdapter {
       const prefWarn = result.preferenceWarnings || [];
       if (notices.length || prefWarn.length) {
         let msg = 'Schedule generated.';
-        if (prefWarn.length) msg += '
-
-These requested weekends could not be honored:
-' + prefWarn.join('
-');
-        if (notices.length) msg += '
-
-Needs your attention:
-' + notices.join('
-
-');
+        if (prefWarn.length) msg += '\n\nThese requested weekends could not be honored:\n' + prefWarn.join('\n');
+        if (notices.length) msg += '\n\nNeeds your attention:\n' + notices.join('\n\n');
         openScheduleAttentionModal(msg);
       } else {
         showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
