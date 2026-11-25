@@ -28,6 +28,11 @@ export const BLOCK_PATTERNS = {
     id: 'daily_independent',
     label: 'Daily Independent Shifts',
     description: 'Every day (and each active shift slot) is scheduled independently without multi-day weekend locking.'
+  },
+  custom_block: {
+    id: 'custom_block',
+    label: 'Custom Multi-Day Block',
+    description: 'Select specific days of the week that stay locked together as one multi-day shift block.'
   }
 };
 
@@ -92,6 +97,11 @@ export const WEEKDAY_MODES = {
     label: 'Full-Week Block Assignment',
     description: 'Assigns all active days of a week to the same member.'
   },
+  custom_hybrid: {
+    id: 'custom_hybrid',
+    label: 'Hybrid (Fixed Where Set, Fair Rotation Otherwise)',
+    description: 'Assigns members to their fixed weekday when set, and rotates remaining weekdays fairly.'
+  },
   fire_marshal_phased_2027: {
     id: 'fire_marshal_phased_2027',
     label: 'Fire Marshal 2027 Phased (Fixed Jan–Feb, Dynamic Mar+)',
@@ -154,7 +164,9 @@ export const UNIT_PRESETS = {
       }
     ],
     rules: {
+      regularWorkDays: [1, 2, 3, 4, 5],
       blockPattern: 'fri_sun',
+      customBlockDows: [5, 6, 0],
       restPattern: 'none',
       customRestDows: [],
       weekdayMode: 'dynamic_equity',
@@ -195,9 +207,11 @@ export const UNIT_PRESETS = {
       }
     ],
     rules: {
+      regularWorkDays: [1, 2, 3, 4, 5],
       blockPattern: 'fri_mon_ft',
+      customBlockDows: [5, 6, 0],
       restPattern: 'fire_marshal_thu_sun',
-      customRestDows: [3, 4],
+      customRestDows: [3, 4, 5, 6, 0],
       weekdayMode: 'fire_marshal_phased_2027',
       minWeekendGap: 1,
       enforce80HourCap: true,
@@ -244,7 +258,9 @@ export const UNIT_PRESETS = {
       }
     ],
     rules: {
+      regularWorkDays: [1, 2, 3, 4, 5],
       blockPattern: 'fri_sun',
+      customBlockDows: [5, 6, 0],
       restPattern: 'mon_tue_off',
       customRestDows: [1, 2],
       weekdayMode: 'dynamic_equity',
@@ -285,7 +301,9 @@ export const UNIT_PRESETS = {
       }
     ],
     rules: {
+      regularWorkDays: [1, 2, 3, 4, 5],
       blockPattern: 'full_week',
+      customBlockDows: [5, 6, 0],
       restPattern: 'mon_tue_off',
       customRestDows: [1, 2],
       weekdayMode: 'weekly_block',
@@ -380,6 +398,16 @@ export function normalizeUnitConfig(cfg) {
   merged.rules.minWeekendGap = Math.max(0, parseInt(merged.rules.minWeekendGap ?? 1, 10) || 0);
   merged.rules.lookaheadLeaveThreshold = Math.max(1, parseInt(merged.rules.lookaheadLeaveThreshold ?? 3, 10) || 3);
   if (!Array.isArray(merged.rules.customRestDows)) merged.rules.customRestDows = [];
+  if (!Array.isArray(merged.rules.regularWorkDays) || merged.rules.regularWorkDays.length === 0) {
+    merged.rules.regularWorkDays = [1, 2, 3, 4, 5];
+  } else {
+    merged.rules.regularWorkDays = merged.rules.regularWorkDays.map(Number);
+  }
+  if (!Array.isArray(merged.rules.customBlockDows) || merged.rules.customBlockDows.length === 0) {
+    merged.rules.customBlockDows = [5, 6, 0];
+  } else {
+    merged.rules.customBlockDows = merged.rules.customBlockDows.map(Number);
+  }
 
   return merged;
 }
@@ -626,6 +654,15 @@ export function generateRulesSummaryHtml(unitConfig, holidays = []) {
     `<li><strong>${escapeHtml(h.name)}</strong> (${escapeHtml(h.date)}) &mdash; ${nonPrem.has(h.name) ? 'Standard (0.5)' : 'Premium (1.0)'}${h.type && h.type.startsWith('attached') ? ', Attached to Weekend' : ''}</li>`
   ).join('');
 
+  const regWork = (cfg.rules.regularWorkDays || [1, 2, 3, 4, 5]);
+  const usualOff = [1, 2, 3, 4, 5, 6, 0].filter(d => !regWork.includes(d));
+  const customBlockLabel = cfg.rules.blockPattern === 'custom_block'
+    ? ` (${(cfg.rules.customBlockDows || [5, 6, 0]).map(d => DAY_SHORT[d]).join(', ')})`
+    : '';
+  const restDaysText = rest.allRestDows.length
+    ? `${rest.allRestDows.map(d => DAY_SHORT[d]).join(', ')} (${escapeHtml(rest.label)})`
+    : 'None (No mandatory post-weekend days blocked)';
+
   return `
     <div style="font-size:13px; line-height:1.6; color:var(--color-ink-2);">
       <h2 style="font-family:var(--font-display); font-size:20px; color:var(--color-ink); margin:0 0 4px 0;">${escapeHtml(cfg.agency)}: ${escapeHtml(cfg.unitName)}</h2>
@@ -645,12 +682,13 @@ export function generateRulesSummaryHtml(unitConfig, holidays = []) {
       </table>
       ${isMultiSlotConfig(cfg) ? `<p style="margin:4px 0 12px 0;"><strong>Same-Day AM + PM Assignment:</strong> ${cfg.rules.allowSamePersonAmPm ? 'Allowed' : 'Prohibited (different personnel required for AM and PM)'}</p>` : ''}
 
-      <h3 style="font-size:15px; color:var(--color-accent); margin:14px 0 6px 0;">2. Work Block, Weekday &amp; PSP 80-Hour Rest Rules</h3>
+      <h3 style="font-size:15px; color:var(--color-accent); margin:14px 0 6px 0;">2. Workweek, Block &amp; PSP 80-Hour Rest Rules</h3>
       <ul style="margin:6px 0 12px 20px;">
+        <li><strong>Normal Regular Workweek:</strong> ${regWork.map(d => DAY_SHORT[d]).join(', ')} &bull; <strong>Usual Days Off:</strong> ${usualOff.length ? usualOff.map(d => DAY_SHORT[d]).join(', ') : 'None'}</li>
         <li><strong>Calendar Week Starts:</strong> ${cfg.weekStartDay === 0 ? 'Sunday' : 'Monday'}</li>
-        <li><strong>Block Structure:</strong> ${escapeHtml(blockInfo.label)}</li>
+        <li><strong>Block Structure:</strong> ${escapeHtml(blockInfo.label)}${escapeHtml(customBlockLabel)}</li>
         <li><strong>Weekday Allocation:</strong> ${escapeHtml(weekdayInfo.label)}</li>
-        <li><strong>Post-Weekend Rest / Days Off:</strong> ${escapeHtml(rest.label)}</li>
+        <li><strong>Post-Weekend Blocked Days (Following Week):</strong> ${restDaysText}</li>
         <li><strong>80-Hour Biweekly Pay Period Cap:</strong> ${cfg.rules.enforce80HourCap ? `Enabled (anchored ${escapeHtml(cfg.rules.payPeriodAnchorMonday)})` : 'Disabled'}</li>
         <li><strong>Minimum Weekend Spacing:</strong> ${cfg.rules.minWeekendGap === 0 ? 'Back-to-back allowed' : `At least ${cfg.rules.minWeekendGap} week(s) between weekend blocks`}</li>
         <li><strong>Pre-Weekend Fatigue Shaping:</strong> ${cfg.rules.preWeekendShaping ? 'Enabled (avoids Thu before own weekend)' : 'Disabled'}</li>

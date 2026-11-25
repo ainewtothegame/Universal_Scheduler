@@ -23,12 +23,12 @@ Click **Schedule Rules & Setup** in the top ribbon to configure your unit:
 2. **Unit Identity & Ranks**:
    - Set **Agency**, **Unit Name**, **Schedule Title**, **Member Label**, **Default Rank** (`Trooper`, `Corporal`, `Sergeant`, `Lieutenant`, or none), **Calendar Week Starts On** (Monday or Sunday), and **Footer Note**.
 3. **Daily Coverage Slots (Single vs. AM / PM)**:
-   - Choose **Single On-Call Shift** or **AM / PM Split On-Call**.
-   - Configure each slot's **Label**, **Start Time**, **End Time**, **Active Days** (`Mon`–`Sun`), and whether it activates on **Holidays**.
-4. **PSP 80-Hour Biweekly Pay Period & Rest Patterns**:
-   - Choose your **Weekend / Block Pattern** (`Fri–Sun`, `Fri–Mon FT`, `7-Day Full-Week`, or `Daily Independent`).
-   - Select your **Post-Weekend Rest / Days Off Pattern** (`Mon & Tue Off`, `Tue & Wed Off`, `Thu–Sun Off`, `Fire Marshal Wed/Thu`, `Custom`, or `None`).
-   - Enable **80-Hour Biweekly Pay Period Alert** and set your **Anchor Monday** to flag if a member is scheduled on multiple weekends in the same 14-day pay period.
+   - Choose **Single On-Call Shift** (1 person per day, all 7 days or custom coverage days) or **AM / PM Split On-Call** (configure each slot's **Label**, **Start Time**, **End Time**, **Active Days**, and **Include on State Holidays**).
+4. **Regular Workweek, Block Pattern & PSP 80-Hour Rest Rules**:
+   - Click days on the **Normal Regular Workweek** strip to set your unit's regular work days (usually `Mon–Fri`) and usual days off (`Sat–Sun`).
+   - Choose your **Weekend / Multi-Day Block Pattern** (`Fri–Sun`, `Fri–Mon FT`, `7-Day Full-Week`, `Daily Independent`, or `Custom Multi-Day Block`).
+   - Click days on the **Post-Weekend Rest / Mandatory Days Off** strip (or use the 1-click preset buttons like `10-On / 4-Off`, `Mon–Tue Off`, `Tue–Wed Off`, `Thu–Sun Off`) to mark which days after a worked weekend are blocked for recovery.
+   - Hover over any **?** icon in **Schedule Rules & Setup** for plain-English explanations.
 5. **Roles & PSP Holidays**:
    - Customize role permissions (Weekdays, Weekends, Holidays, optional 6-month weekend quotas).
    - Manage the **13 Official PSP Holidays** (toggle Premium 1.0 vs. Standard 0.5 weight, add custom dates, or reset to official PSP holidays).

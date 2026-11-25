@@ -271,8 +271,18 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     }
   }
 
+  const getMemberMinGap = (memberId) => {
+    const mem = roster.find(m => m.id === memberId);
+    if (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '') {
+      const parsed = parseInt(mem.minWeekendGap, 10);
+      if (!isNaN(parsed)) return Math.max(0, parsed);
+    }
+    return minGap;
+  };
+
   const violatesWeekendGap = (wIdx, memberId, mapObj = weekendAssignments) => {
-    for (let g = 1; g <= minGap; g++) {
+    const gap = getMemberMinGap(memberId);
+    for (let g = 1; g <= gap; g++) {
       if (wIdx - g >= 0 && mapObj[wIdx - g] === memberId) return true;
       if (wIdx - g < 0) {
         const priorIdx = g - 1 - wIdx;
@@ -816,7 +826,11 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     return sum;
   };
   const effectiveLoad = (ft, dow, dateStr) => {
-    let load = (weekdayCounts[ft.id] || 0) - (ft.preferredWeekday === dow ? 1 : 0);
+    const prefDow = (weekdayMode !== 'fire_marshal_phased_2027')
+      ? (ft.preferredWeekday || ft.baselineWeekday || null)
+      : ft.preferredWeekday;
+    const prefBonus = (prefDow === dow) ? (weekdayMode === 'fire_marshal_phased_2027' ? 1 : 1.5) : 0;
+    let load = (weekdayCounts[ft.id] || 0) - prefBonus;
     if (balanceHolidays && dateStr && (holidays || []).some(h => h.date === dateStr)) {
       load += 0.01 * holidayLoadNow(ft.id, dateStr);
     }
@@ -847,7 +861,7 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
       const restBlockedMemberId = (prevWorker && !getRoleConfig(unitConfig, prevWorker.role).quotaEnabled) ? prevWorker.id : null;
       const isDayRestBlocked = midweekBlockedSet.has(dow);
 
-      if (isPhase1Date(dateStr)) {
+      if (isPhase1Date(dateStr) || weekdayMode === 'custom_hybrid') {
         const baselineOwner = effectiveWeekdayPool.find(ft => ft.baselineWeekday === dow && isMemberActive(ft, dateStr));
         let candidateId = baselineOwner ? baselineOwner.id : undefined;
 
@@ -1091,12 +1105,96 @@ function solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOve
     return { assignments, diagnostics, preferenceWarnings, scheduleNotices, weekends };
   }
 
+  // MODE A2: Custom Multi-Day Block
+  if (blockPattern === 'custom_block') {
+    const customBlockSet = new Set(Array.isArray(rules.customBlockDows) && rules.customBlockDows.length ? rules.customBlockDows.map(Number) : [5, 6, 0]);
+    const weeks = identifyWeeks(cycle.startDate, cycle.endDate, unitConfig.weekStartDay);
+    const blockWorker = {};
+
+    weeks.forEach(wk => {
+      unitConfig.coverageSlots.forEach(slot => {
+        const blockDays = wk.days.filter(d => {
+          if (d < cycle.startDate || d > cycle.endDate) return false;
+          return customBlockSet.has(getDayOfWeek(d)) && isSlotActiveOnDate(slot, d, holidays);
+        });
+        if (blockDays.length === 0) return;
+
+        let chosenId = null;
+        for (const d of blockDays) {
+          const existing = getSlotMember(assignments, d, slot.id, unitConfig);
+          if (existing) { chosenId = existing; break; }
+        }
+        if (!chosenId) {
+          const candidates = roster.filter(m => {
+            const roleCfg = getRoleConfig(unitConfig, m.role);
+            if (!roleCfg.canWorkWeekends) return false;
+            if (!memberAllowedForSlot(m, roleCfg, slot.id)) return false;
+            const gap = (m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') ? Math.max(0, parseInt(m.minWeekendGap, 10)) : minGap;
+            for (let g = 1; g <= gap; g++) {
+              if (wk.index - g >= 0 && blockWorker[`${wk.index - g}|${slot.id}`] === m.id) return false;
+            }
+            if (blockDays.some(d => !isMemberActive(m, d) || isMemberBlackedOut(m.id, d, blackouts))) return false;
+            if (blockDays.some(d => worksOtherSlotOnDay(d, slot.id, m.id))) return false;
+            return true;
+          });
+          candidates.sort((a, b) => (blockCounts[a.id] || 0) - (blockCounts[b.id] || 0) || (totalShifts[a.id] || 0) - (totalShifts[b.id] || 0));
+          if (candidates.length > 0) {
+            chosenId = candidates[0].id;
+            blockCounts[chosenId] = (blockCounts[chosenId] || 0) + 1;
+          }
+        }
+        if (chosenId) {
+          blockWorker[`${wk.index}|${slot.id}`] = chosenId;
+          blockDays.forEach(d => {
+            if (!getSlotMember(assignments, d, slot.id, unitConfig)) {
+              setSlotMember(assignments, d, slot.id, chosenId, unitConfig);
+              countAssigned(d, slot.id, chosenId);
+            }
+          });
+        }
+      });
+    });
+
+    // Fall through to assign non-block days
+    const allDays = getAllDays(cycle.startDate, cycle.endDate);
+    allDays.forEach(dateStr => {
+      const dow = getDayOfWeek(dateStr);
+      const isHol = (holidays || []).some(h => h.date === dateStr);
+      const activeSlots = getActiveSlotsForDate(dateStr, unitConfig, holidays);
+      activeSlots.forEach(slot => {
+        if (getSlotMember(assignments, dateStr, slot.id, unitConfig)) return;
+        const candidates = roster.filter(m => {
+          const roleCfg = getRoleConfig(unitConfig, m.role);
+          if (!roleCfg.canWorkWeekdays && !isHol) return false;
+          if (!memberAllowedForSlot(m, roleCfg, slot.id)) return false;
+          if (!isMemberActive(m, dateStr) || isMemberBlackedOut(m.id, dateStr, blackouts)) return false;
+          if (worksOtherSlotOnDay(dateStr, slot.id, m.id)) return false;
+          return true;
+        });
+        candidates.sort((a, b) => {
+          const prefA = (a.baselineWeekday || a.preferredWeekday) === dow ? 1.5 : 0;
+          const prefB = (b.baselineWeekday || b.preferredWeekday) === dow ? 1.5 : 0;
+          return ((totalShifts[a.id] || 0) - prefA) - ((totalShifts[b.id] || 0) - prefB);
+        });
+        if (candidates.length > 0) {
+          setSlotMember(assignments, dateStr, slot.id, candidates[0].id, unitConfig);
+          countAssigned(dateStr, slot.id, candidates[0].id);
+        }
+      });
+    });
+    return { assignments, diagnostics, preferenceWarnings, scheduleNotices, weekends };
+  }
+
   // MODE B: Multi-Slot Weekend+Weekday (e.g., AM/PM Split)
   if (blockPattern === 'fri_sun' || blockPattern === 'fri_mon_ft') {
     const weekendSlotWorker = {};
 
     const violatesSlotGap = (wIdx, slotId, memberId) => {
-      for (let g = 1; g <= minGap; g++) {
+      const mem = roster.find(m => m.id === memberId);
+      const gap = (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '')
+        ? Math.max(0, parseInt(mem.minWeekendGap, 10))
+        : minGap;
+      for (let g = 1; g <= gap; g++) {
         if (wIdx - g >= 0 && weekendSlotWorker[`${wIdx - g}|${slotId}`] === memberId) return true;
         if (wIdx + g < weekends.length && weekendSlotWorker[`${wIdx + g}|${slotId}`] === memberId) return true;
       }
@@ -1211,8 +1309,10 @@ function solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOve
         });
 
         candidates.sort((a, b) => {
-          const loadA = (totalShifts[a.id] || 0) - (a.preferredWeekday === dow ? 0.5 : 0) + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
-          const loadB = (totalShifts[b.id] || 0) - (b.preferredWeekday === dow ? 0.5 : 0) + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
+          const prefA = (a.baselineWeekday || a.preferredWeekday) === dow ? 1.5 : 0;
+          const prefB = (b.baselineWeekday || b.preferredWeekday) === dow ? 1.5 : 0;
+          const loadA = (totalShifts[a.id] || 0) - prefA + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
+          const loadB = (totalShifts[b.id] || 0) - prefB + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
           if (loadA !== loadB) return loadA - loadB;
           return (slotShifts[a.id]?.[slot.id] || 0) - (slotShifts[b.id]?.[slot.id] || 0);
         });
@@ -1251,8 +1351,10 @@ function solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOve
       });
 
       candidates.sort((a, b) => {
-        const loadA = (totalShifts[a.id] || 0) - (a.preferredWeekday === dow ? 0.5 : 0) + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
-        const loadB = (totalShifts[b.id] || 0) - (b.preferredWeekday === dow ? 0.5 : 0) + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
+        const prefA = (a.baselineWeekday || a.preferredWeekday) === dow ? 1.5 : 0;
+        const prefB = (b.baselineWeekday || b.preferredWeekday) === dow ? 1.5 : 0;
+        const loadA = (totalShifts[a.id] || 0) - prefA + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
+        const loadB = (totalShifts[b.id] || 0) - prefB + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
         if (loadA !== loadB) return loadA - loadB;
         return (slotShifts[a.id]?.[slot.id] || 0) - (slotShifts[b.id]?.[slot.id] || 0);
       });

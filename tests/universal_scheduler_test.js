@@ -238,12 +238,82 @@ console.log('PASS v1->v2 migration, config templates & AM/PM undo/redo');
 }
 console.log('PASS AM/PM Excel export/import & live rules summary HTML');
 
-// 8. Built index.html Universal Scheduler hooks
+// 8. Post-weekend rest & consecutive weekend warnings on ALL of Thu, Fri, Sat, Sun
+{
+  const cfg = createUnitConfig('blank_psp', {
+    rules: {
+      blockPattern: 'fri_sun',
+      restPattern: 'custom',
+      customRestDows: [3, 4, 5, 6, 0], // Wed-Sun off after worked weekend
+      minWeekendGap: 1
+    }
+  });
+  const roster = [
+    { id: 't1', name: 'ALPHA', role: 'FT', activeStart: '2027-01-01', activeEnd: null, color: '#111' },
+    { id: 't2', name: 'BRAVO', role: 'FT', activeStart: '2027-01-01', activeEnd: null, color: '#222' }
+  ];
+  const cycle = {
+    id: '2027-JAN',
+    year: 2027,
+    blockType: 'CUSTOM',
+    startDate: '2027-01-01',
+    endDate: '2027-01-31',
+    assignments: {
+      '2027-01-08': 't1', '2027-01-09': 't1', '2027-01-10': 't1' // Worked Jan 8-10 weekend
+    }
+  };
+  // Attempting to schedule t1 on Thu Jan 14, Fri Jan 15, Sat Jan 16, or Sun Jan 17 MUST warn!
+  for (const dStr of ['2027-01-14', '2027-01-15', '2027-01-16', '2027-01-17']) {
+    const viols = evaluateManualSlotAssignment(dStr, 'primary', 't1', cycle, roster, [], [], cfg);
+    assert(
+      viols.some(v => v.type === 'REST_VIOLATION' || v.type === 'CONSECUTIVE_WEEKEND'),
+      `Manual assignment on ${dStr} after worked weekend must trigger a warning`
+    );
+  }
+}
+console.log('PASS post-weekend & consecutive weekend warnings on Thu/Fri/Sat/Sun');
+
+// 9. Per-member weekend cadence (Every 3rd weekend -> minWeekendGap: 2) & Assigned/Preferred Weekday
+{
+  const cfg = createUnitConfig('blank_psp', {
+    rules: {
+      blockPattern: 'fri_sun',
+      restPattern: 'none',
+      weekdayMode: 'dynamic_equity',
+      minWeekendGap: 1
+    }
+  });
+  const roster = [
+    { id: 'm1', name: 'ALPHA', role: 'FT', baselineWeekday: 1, preferredWeekday: 1, minWeekendGap: 2, activeStart: '2027-01-01', color: '#111' },
+    { id: 'm2', name: 'BRAVO', role: 'FT', baselineWeekday: 2, preferredWeekday: 2, activeStart: '2027-01-01', color: '#222' },
+    { id: 'm3', name: 'CHARLIE', role: 'FT', baselineWeekday: 3, preferredWeekday: 3, activeStart: '2027-01-01', color: '#333' },
+    { id: 'm4', name: 'DELTA', role: 'FT', baselineWeekday: 4, preferredWeekday: 4, activeStart: '2027-01-01', color: '#444' }
+  ];
+  const cycle = { id: '2027-Q1', year: 2027, blockType: 'CUSTOM', startDate: '2027-01-01', endDate: '2027-02-28' };
+  const res = solveSchedule(cycle, roster, [], [], {}, [], { unitConfig: cfg });
+  const wknds = identifyWeekends(cycle.startDate, cycle.endDate, []);
+  const m1Weekends = wknds.filter(w => res.assignments[w.saturday] === 'm1').map(w => w.index);
+  for (let i = 1; i < m1Weekends.length; i++) {
+    assert(m1Weekends[i] - m1Weekends[i - 1] >= 3, 'm1 (every 3rd weekend) must have at least 2 weekends off between shifts');
+  }
+  // Verify weekday preference is honored when fair
+  assert.strictEqual(res.assignments['2027-01-04'], 'm1', 'Monday should prefer m1');
+  assert.strictEqual(res.assignments['2027-01-05'], 'm2', 'Tuesday should prefer m2');
+}
+console.log('PASS per-member weekend cadence & assigned/preferred weekday');
+
+// 10. Built index.html Universal Scheduler UX & bugfix hooks
 {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert(html.includes('id="btn-export-config-template"'), 'index.html must include config template export');
   assert(html.includes('id="setup-slot-mode-ampm"'), 'index.html must include AM/PM slot toggle');
   assert(html.includes('id="psp-ranks-list"'), 'index.html must include PSP ranks datalist');
-  assert(html.includes('id="setup-rest-pattern"'), 'index.html must include PSP 80-hr rest pattern selector');
+  assert(html.includes('id="post-weekend-rest-strip"'), 'index.html must include clickable post-weekend rest strip');
+  assert(html.includes('id="regular-workweek-strip"'), 'index.html must include clickable regular workweek strip');
+  assert(html.includes('id="member-weekend-cadence-input"'), 'index.html must include per-member weekend cadence selector');
+  assert(!html.includes('id="member-prefday-input"'), 'index.html must not have duplicate weekday preference dropdown');
+  assert(!html.includes('value="fire_marshal_phased_2027"'), 'index.html weekday dropdown must not show Fire Marshal 2027 phased option');
+  assert(html.includes('class="help-tip"'), 'index.html must include hover tooltips');
+  assert(html.includes('blackoutEndDateTouched'), 'index.html must auto-jump blackout end date to start date');
 }
-console.log('PASS index.html Universal Scheduler UI hooks verified');
+console.log('PASS index.html Universal Scheduler UX & bugfix hooks verified');

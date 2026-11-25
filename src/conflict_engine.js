@@ -17,14 +17,35 @@ import {
   DAY_SHORT
 } from './unit_config.js';
 
+function getWeekendWorkers(w, assignments, unitConfig) {
+  const workers = new Set();
+  [w.friday, w.saturday, w.sunday].forEach(d => {
+    getDayAssignedEntries(assignments, d, unitConfig).forEach(e => {
+      if (e.memberId) workers.add(e.memberId);
+    });
+  });
+  return workers;
+}
+
+const POST_WEEKEND_OFFSET_FROM_FRI = {
+  1: 3, // Mon
+  2: 4, // Tue
+  3: 5, // Wed
+  4: 6, // Thu
+  5: 7, // Fri
+  6: 8, // Sat
+  0: 9  // Sun
+};
+
 export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, assignments, rawUnitConfig = null) {
   const unitConfig = normalizeUnitConfig(rawUnitConfig || createUnitConfig('fire_marshal'));
   const multiSlot = isMultiSlotConfig(unitConfig);
   const rules = unitConfig.rules;
   const minGap = Math.max(0, parseInt(rules.minWeekendGap ?? 1, 10) || 0);
-  const midweekBlockedSet = new Set(getRestBlockedDows(unitConfig).midweekBlocked);
+  const allRestDows = getRestBlockedDows(unitConfig).allRestDows;
   const conflicts = {}; // dateStr -> Array of { type: 'ERROR'|'WARNING'|'ATTENTION', code, message, slotId? }
-  const weekends = identifyWeekends(cycle.startDate, cycle.endDate, holidays);
+  const evalStart = formatDate(addDays(cycle.startDate, -10));
+  const weekends = identifyWeekends(evalStart, cycle.endDate, holidays);
 
   function addConflict(dateStr, type, code, message, slotId = null) {
     if (!conflicts[dateStr]) conflicts[dateStr] = [];
@@ -126,59 +147,72 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
     });
   });
 
-  // 2. Post-Weekend Compensatory Rest Invariants (Driven by unitConfig.rules.restPattern)
-  if (midweekBlockedSet.size > 0 && rules.blockPattern !== 'daily_independent') {
+  // 2. Post-Weekend Compensatory Rest Invariants (checks all configured post-weekend blocked days Mon-Sun)
+  if (allRestDows.length > 0 && rules.blockPattern !== 'daily_independent') {
     weekends.forEach(w => {
-      const weekendWorkers = new Set(
-        getDayAssignedEntries(assignments, w.saturday, unitConfig).map(e => e.memberId)
-      );
+      const weekendWorkers = getWeekendWorkers(w, assignments, unitConfig);
       weekendWorkers.forEach(workerId => {
         const worker = roster.find(m => m.id === workerId);
         if (!worker) return;
-        // Fire Marshal quota-role alternates don't trigger FT midweek comp-rest in FM preset
         if (rules.restPattern === 'fire_marshal_thu_sun' && getRoleConfig(unitConfig, worker.role).quotaEnabled) return;
 
-        midweekBlockedSet.forEach(blockedDow => {
-          // Offset from Friday: Mon=3, Tue=4, Wed=5, Thu=6
-          const offset = (blockedDow - 5 + 7) % 7;
+        allRestDows.forEach(blockedDow => {
+          const offset = POST_WEEKEND_OFFSET_FROM_FRI[blockedDow];
+          if (offset === undefined) return;
           const restDateStr = formatDate(addDays(w.friday, offset));
+          if (restDateStr < cycle.startDate || restDateStr > cycle.endDate) return;
           const entriesOnRest = getDayAssignedEntries(assignments, restDateStr, unitConfig);
           if (entriesOnRest.some(e => e.memberId === worker.id)) {
-            addConflict(
-              restDateStr,
-              'ERROR',
-              'REST_VIOLATION',
-              `Post-Weekend Rest Violation: ${worker.name} worked weekend ${w.friday} and is prohibited on ${DAY_SHORT[blockedDow]} ${restDateStr}.`
-            );
+            const existing = (conflicts[restDateStr] || []).some(c => c.code === 'REST_VIOLATION' && c.message.includes(worker.name));
+            if (!existing) {
+              addConflict(
+                restDateStr,
+                'ERROR',
+                'REST_VIOLATION',
+                `Post-Weekend Rest Violation: ${worker.name} worked weekend ${w.friday} and is scheduled on blocked day ${DAY_SHORT[blockedDow]} ${restDateStr}.`
+              );
+            }
           }
         });
       });
     });
   }
 
-  // 3. Consecutive Weekend / Minimum Gap Violations
-  if (minGap > 0 && rules.blockPattern !== 'daily_independent') {
+  // 3. Consecutive Weekend / Per-Member Weekend Cadence Violations
+  if (rules.blockPattern !== 'daily_independent') {
     for (let i = 0; i < weekends.length; i++) {
       const w1 = weekends[i];
-      const workers1 = new Set(getDayAssignedEntries(assignments, w1.saturday, unitConfig).map(e => e.memberId));
+      const workers1 = getWeekendWorkers(w1, assignments, unitConfig);
       if (workers1.size === 0) continue;
 
-      for (let g = 1; g <= minGap && i + g < weekends.length; g++) {
-        const w2 = weekends[i + g];
-        const workers2 = new Set(getDayAssignedEntries(assignments, w2.saturday, unitConfig).map(e => e.memberId));
-        workers1.forEach(workerId => {
+      workers1.forEach(workerId => {
+        const mem = roster.find(m => m.id === workerId);
+        const effectiveGap = (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '')
+          ? Math.max(0, parseInt(mem.minWeekendGap, 10))
+          : minGap;
+        if (effectiveGap <= 0) return;
+
+        for (let g = 1; g <= effectiveGap && i + g < weekends.length; g++) {
+          const w2 = weekends[i + g];
+          const workers2 = getWeekendWorkers(w2, assignments, unitConfig);
           if (workers2.has(workerId)) {
-            const mem = roster.find(m => m.id === workerId);
             const name = mem?.name || workerId;
-            addConflict(
-              w2.friday,
-              'WARNING',
-              'CONSECUTIVE_WEEKEND',
-              `${name} is assigned to weekends within ${g} week(s) (${w1.friday} and ${w2.friday}).`
-            );
+            [w2.friday, w2.saturday, w2.sunday].forEach(dStr => {
+              if (dStr >= cycle.startDate && dStr <= cycle.endDate && getDayAssignedEntries(assignments, dStr, unitConfig).some(e => e.memberId === workerId)) {
+                const already = (conflicts[dStr] || []).some(c => c.code === 'CONSECUTIVE_WEEKEND' && c.message.includes(name));
+                if (!already) {
+                  addConflict(
+                    dStr,
+                    'WARNING',
+                    'CONSECUTIVE_WEEKEND',
+                    `${name} is assigned to weekends within ${g} week(s) (${w1.friday} and ${w2.friday}).`
+                  );
+                }
+              }
+            });
           }
-        });
-      }
+        }
+      });
     }
   }
 
@@ -189,19 +223,26 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
     const periodWeekendMap = {}; // `${periodIdx}|${memberId}` -> Array<fridayStr>
     weekends.forEach(w => {
       const pIdx = Math.floor((parseDate(w.friday).getTime() - anchorMs) / MS_PER_14_DAYS);
-      const workers = new Set(getDayAssignedEntries(assignments, w.saturday, unitConfig).map(e => e.memberId));
+      const workers = getWeekendWorkers(w, assignments, unitConfig);
       workers.forEach(mId => {
         const key = `${pIdx}|${mId}`;
         if (!periodWeekendMap[key]) periodWeekendMap[key] = [];
         periodWeekendMap[key].push(w.friday);
         if (periodWeekendMap[key].length > 1) {
           const mem = roster.find(m => m.id === mId);
-          addConflict(
-            w.friday,
-            'WARNING',
-            'PAY_PERIOD_80HR_RISK',
-            `80-Hr Pay Period Alert: ${mem?.name || mId} is scheduled on multiple weekends (${periodWeekendMap[key].join(' & ')}) within the same 14-day pay period.`
-          );
+          [w.friday, w.saturday, w.sunday].forEach(dStr => {
+            if (dStr >= cycle.startDate && dStr <= cycle.endDate && getDayAssignedEntries(assignments, dStr, unitConfig).some(e => e.memberId === mId)) {
+              const already = (conflicts[dStr] || []).some(c => c.code === 'PAY_PERIOD_80HR_RISK' && c.message.includes(mem?.name || mId));
+              if (!already) {
+                addConflict(
+                  dStr,
+                  'WARNING',
+                  'PAY_PERIOD_80HR_RISK',
+                  `80-Hr Pay Period Alert: ${mem?.name || mId} is scheduled on multiple weekends (${periodWeekendMap[key].join(' & ')}) within the same 14-day pay period.`
+                );
+              }
+            }
+          });
         }
       });
     });
@@ -322,7 +363,33 @@ export function evaluateManualSlotAssignment(dateStr, slotId, memberId, cycle, r
   }
 
   const allConflicts = evaluateScheduleConflicts(cycle, roster, blackouts, holidays, testAssignments, unitConfig);
-  const dayList = allConflicts[dateStr] || [];
+  const dayList = (allConflicts[dateStr] || []).slice();
+
+  // Also check if assigning this member on dateStr (e.g. w1 Friday) conflicts with an already-assigned following weekend w2
+  const minGap = Math.max(0, parseInt(unitConfig.rules.minWeekendGap ?? 1, 10) || 0);
+  const effectiveGap = (mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '')
+    ? Math.max(0, parseInt(mem.minWeekendGap, 10))
+    : minGap;
+  if (effectiveGap > 0 && unitConfig.rules.blockPattern !== 'daily_independent') {
+    const weekends = identifyWeekends(cycle.startDate, formatDate(addDays(cycle.endDate, 28)), holidays);
+    const curIdx = weekends.findIndex(w => w.friday === dateStr || w.saturday === dateStr || w.sunday === dateStr);
+    if (curIdx !== -1) {
+      for (let g = 1; g <= effectiveGap && curIdx + g < weekends.length; g++) {
+        const nextW = weekends[curIdx + g];
+        if (getWeekendWorkers(nextW, testAssignments, unitConfig).has(memberId)) {
+          const already = dayList.some(c => c.code === 'CONSECUTIVE_WEEKEND');
+          if (!already) {
+            dayList.push({
+              type: 'WARNING',
+              code: 'CONSECUTIVE_WEEKEND',
+              message: `${mem.name} is already assigned to the following weekend (${nextW.friday}).`
+            });
+          }
+        }
+      }
+    }
+  }
+
   return dayList
     .filter(c => c.code !== 'UNASSIGNED_DAY' && c.code !== 'MULTI_SHIFT_FT' && (!c.slotId || c.slotId === slotId))
     .map(c => ({

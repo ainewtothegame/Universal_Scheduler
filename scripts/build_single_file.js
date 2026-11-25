@@ -702,6 +702,83 @@ const htmlContent = `<!DOCTYPE html>
       gap: 10px;
     }
 
+    .help-tip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color-paper-3);
+      color: var(--color-ink-2);
+      border: 1px solid var(--border-color);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: help;
+      position: relative;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    .help-tip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--color-ink);
+      color: var(--color-light);
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.45;
+      white-space: normal;
+      z-index: 200;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+      pointer-events: none;
+    }
+
+    .help-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    .day-pill-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .day-pill {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--color-ink-2);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.12s ease;
+    }
+
+    .day-pill.active-work {
+      background: var(--color-accent-soft);
+      border-color: var(--color-accent);
+      color: var(--color-accent-hi);
+    }
+
+    .day-pill.active-rest {
+      background: var(--danger-soft);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
     .conflict-badges {
       position: absolute;
       top: 6px;
@@ -1116,18 +1193,25 @@ const htmlContent = `<!DOCTYPE html>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Baseline Preferred Weekday</label>
+              <label class="form-label">Assigned / Preferred Weekday <span class="help-tip" data-tip="In Fixed Weekday mode, this member is always assigned this day (unless on leave or resting). In Fair Rotation mode, the scheduler favors this day for them whenever shift counts stay even.">?</span></label>
               <select id="member-weekday-input" class="form-select">
-                <option value="">None / Alternate Rotational</option>
+                <option value="">None / Pure Fair Rotation</option>
                 <option value="1">Monday</option>
                 <option value="2">Tuesday</option>
                 <option value="3">Wednesday</option>
                 <option value="4">Thursday</option>
               </select>
+              <div class="help-desc">Optional: pick a weekday this member normally covers or prefers.</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Badge Color</label>
-              <input type="color" id="member-color-input" class="form-input" value="#1e3a8a" style="height:38px; padding:2px;">
+              <label class="form-label">Weekend Frequency / Spacing <span class="help-tip" data-tip="Override how often this member can work weekends. For example, Every 3rd Weekend ensures at least 2 weekends off between their on-call weekends.">?</span></label>
+              <select id="member-weekend-cadence-input" class="form-select">
+                <option value="">Use Unit Default</option>
+                <option value="1">Every Other Weekend (min 1 weekend off)</option>
+                <option value="2">Every 3rd Weekend (min 2 weekends off)</option>
+                <option value="3">Every 4th Weekend (min 3 weekends off)</option>
+                <option value="0">Back-to-Back Allowed (0 weekends off)</option>
+              </select>
             </div>
           </div>
           <div class="form-row">
@@ -1139,20 +1223,13 @@ const htmlContent = `<!DOCTYPE html>
               <label class="form-label">Active End Date (Optional)</label>
               <input type="date" id="member-end-input" class="form-input" placeholder="Leave blank if indefinite">
             </div>
-          </div>
-          <div class="form-group" id="member-prefday-group" style="display:none;">
-            <label class="form-label">Preferred Day If Available (rotational members only)</label>
-            <select id="member-prefday-input" class="form-select">
-              <option value="">No preference (pure rotation)</option>
-              <option value="1">Monday</option>
-              <option value="2">Tuesday</option>
-              <option value="3">Wednesday</option>
-              <option value="4">Thursday</option>
-            </select>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Used only when it keeps shift counts fair and rest/blackout rules allow it.</div>
+            <div class="form-group">
+              <label class="form-label">Badge Color</label>
+              <input type="color" id="member-color-input" class="form-input" value="#1e3a8a" style="height:38px; padding:2px;">
+            </div>
           </div>
           <div class="form-group" id="member-alt-quota-group" style="display:none;">
-            <label class="form-label">Weekends Per 6 Months (Alternate Fire Marshal Quota)</label>
+            <label class="form-label">Weekends Per 6 Months (Quota-Based Role)</label>
             <input type="number" id="member-alt-quota-input" class="form-input" value="3" min="0" max="26">
             <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Default is 3 weekends per 6-month block (6 for Full Year). Increase or decrease to adjust scheduled weekends.</div>
           </div>
@@ -1444,8 +1521,12 @@ const htmlContent = `<!DOCTYPE html>
         </div>
 
         <div id="rules-config-panel">
+          <div style="background:var(--color-accent-soft); border:1px solid var(--color-accent); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:var(--color-ink);">
+            <strong>New to this scheduler?</strong> Pick a Starter Preset below or walk through sections 1&ndash;6. Hover over any <strong>?</strong> icon for a plain-English explanation of what each rule does.
+          </div>
+
           <div class="setup-section">
-            <div class="setup-section-title">1. Starter Preset &amp; Sample Data</div>
+            <div class="setup-section-title">1. Starter Preset &amp; Sample Data <span class="help-tip" data-tip="Presets pre-fill all rules below for common PSP unit schedules. Applying a preset does not delete your roster.">?</span></div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
               <select id="setup-preset-select" class="form-select" style="flex:1; min-width:220px;">
                 <option value="blank_psp">Blank / Custom PSP Unit</option>
@@ -1459,7 +1540,7 @@ const htmlContent = `<!DOCTYPE html>
           </div>
 
           <div class="setup-section">
-            <div class="setup-section-title">2. Unit Identity &amp; Calendar Labels</div>
+            <div class="setup-section-title">2. Unit Identity &amp; Calendar Labels <span class="help-tip" data-tip="Controls the unit name, print headers, Excel sheet title, and the shift hours note printed at the bottom of each calendar.">?</span></div>
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Agency / Department</label>
@@ -1501,20 +1582,20 @@ const htmlContent = `<!DOCTYPE html>
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label">Footer / Shift Hours Note (printed on calendar &amp; Excel)</label>
-              <input type="text" id="setup-footer-note" class="form-input">
+              <input type="text" id="setup-footer-note" class="form-input" placeholder="e.g. On call starts 1700hrs through 0800hrs the next morning.">
             </div>
           </div>
 
           <div class="setup-section">
-            <div class="setup-section-title">3. Daily Coverage Slots (Single Shift vs. AM / PM Split)</div>
+            <div class="setup-section-title">3. Daily Coverage Type <span class="help-tip" data-tip="Choose Single On-Call Shift if 1 person covers each day. Choose AM / PM Split On-Call if your unit splits days into daytime (AM) and overnight (PM) shifts.">?</span></div>
             <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
               <label style="display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
-                <input type="radio" name="setup-slot-mode" value="single" id="setup-slot-mode-single" checked> Single On-Call Shift
+                <input type="radio" name="setup-slot-mode" value="single" id="setup-slot-mode-single" checked> Single On-Call Shift (1 per day)
               </label>
               <label style="display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
-                <input type="radio" name="setup-slot-mode" value="ampm" id="setup-slot-mode-ampm"> AM / PM Split On-Call
+                <input type="radio" name="setup-slot-mode" value="ampm" id="setup-slot-mode-ampm"> AM / PM Split On-Call (2 shifts per day)
               </label>
-              <label id="setup-same-ampm-wrap" style="display:none; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+              <label id="setup-same-ampm-wrap" style="display:none; align-items:center; gap:6px; font-size:12px; cursor:pointer;" title="If unchecked, the scheduler will never put the same person on both AM and PM on the same day.">
                 <input type="checkbox" id="setup-allow-same-ampm"> Allow same person on both AM &amp; PM
               </label>
             </div>
@@ -1522,69 +1603,78 @@ const htmlContent = `<!DOCTYPE html>
           </div>
 
           <div class="setup-section">
-            <div class="setup-section-title">4. PSP 80-Hour Pay Period &amp; Scheduling Rules</div>
+            <div class="setup-section-title">4. Regular Workweek, Block Pattern &amp; PSP 80-Hour Rest Rules</div>
+
+            <div class="form-group">
+              <label class="form-label">Normal Regular Workweek (Non-On-Call Week) <span class="help-tip" data-tip="Click the days your unit normally works during a regular non-on-call week (usually Mon–Fri). Unchecked days are your usual days off (usually Sat–Sun).">?</span></label>
+              <div id="regular-workweek-strip" class="day-pill-group"></div>
+              <div class="help-desc">Blue = Regular Work Days &bull; Gray = Usual Days Off.</div>
+            </div>
+
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Weekend / Block Pattern</label>
+                <label class="form-label">Weekend / Multi-Day Block Pattern <span class="help-tip" data-tip="Controls which days are locked together as one multi-day shift block when scheduling. Choose Custom Multi-Day Block to pick your own days.">?</span></label>
                 <select id="setup-block-pattern" class="form-select">
-                  <option value="fri_sun">Fri–Sun Weekend Block + Individual Weekdays</option>
-                  <option value="fri_mon_ft">Fri–Mon Extended Weekend (FT) / Fri–Sun (ALT)</option>
+                  <option value="fri_sun">Fri–Sun Weekend Block (3 days) + Individual Weekdays</option>
+                  <option value="fri_mon_ft">Fri–Mon Extended Weekend (4 days for Full-Time)</option>
                   <option value="full_week">7-Day Full-Week On-Call Block</option>
-                  <option value="daily_independent">Daily Independent Shifts</option>
+                  <option value="daily_independent">Daily Independent Shifts (No Multi-Day Block)</option>
+                  <option value="custom_block">Custom Multi-Day Block (Pick Days Below)</option>
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">Weekday Allocation Mode</label>
+                <label class="form-label">Weekday Allocation Mode <span class="help-tip" data-tip="How Monday–Thursday shifts are assigned: Fair Rotation balances everyone evenly; Fixed assigns each member's chosen weekday; Hybrid uses fixed days where set and rotates the rest.">?</span></label>
                 <select id="setup-weekday-mode" class="form-select">
-                  <option value="dynamic_equity">Dynamic Equity Rotation (Balanced)</option>
-                  <option value="fixed_baseline">Fixed Baseline Weekdays</option>
+                  <option value="dynamic_equity">Fair Rotation (Balanced Shifts)</option>
+                  <option value="fixed_baseline">Fixed Assigned Weekdays</option>
+                  <option value="custom_hybrid">Hybrid (Fixed Where Set, Fair Rotation Otherwise)</option>
                   <option value="weekly_block">Full-Week Block Assignment</option>
-                  <option value="fire_marshal_phased_2027">Fire Marshal 2027 Phased (Fixed Jan–Feb, Dynamic Mar+)</option>
                 </select>
               </div>
             </div>
+
+            <div id="setup-custom-block-wrap" style="display:none; margin-bottom:12px;">
+              <label class="form-label">Custom Multi-Day Block Days <span class="help-tip" data-tip="Days highlighted in blue are assigned as a single continuous block to one member each week.">?</span></label>
+              <div id="custom-block-strip" class="day-pill-group"></div>
+            </div>
+
+            <div class="form-group" style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:6px; padding:10px 12px;">
+              <label class="form-label">Post-Weekend Rest / Mandatory Days Off (Week After a Worked Weekend) <span class="help-tip" data-tip="Click any day(s) in the week AFTER a worked weekend that should be blocked for recovery. Scheduling someone on a blocked day triggers a red conflict warning.">?</span></label>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0;">
+                <button type="button" class="btn btn-outline-dark btn-rest-preset" data-dows="3,4,5,6,0" style="padding:3px 8px; font-size:11px;">10-On / 4-Off (Wed–Sun Off)</button>
+                <button type="button" class="btn btn-outline-dark btn-rest-preset" data-dows="1,2" style="padding:3px 8px; font-size:11px;">Mon–Tue Off</button>
+                <button type="button" class="btn btn-outline-dark btn-rest-preset" data-dows="2,3" style="padding:3px 8px; font-size:11px;">Tue–Wed Off</button>
+                <button type="button" class="btn btn-outline-dark btn-rest-preset" data-dows="4,5,6,0" style="padding:3px 8px; font-size:11px;">Thu–Sun Off</button>
+                <button type="button" class="btn btn-outline-dark btn-rest-preset" data-dows="" style="padding:3px 8px; font-size:11px;">Clear All</button>
+              </div>
+              <div id="post-weekend-rest-strip" class="day-pill-group"></div>
+              <div class="help-desc">Red = Blocked recovery day (member cannot be scheduled). Gray = Available.</div>
+            </div>
+
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Post-Weekend Rest / Days Off Pattern</label>
-                <select id="setup-rest-pattern" class="form-select">
-                  <option value="none">None (No Mandatory Post-Weekend Rest)</option>
-                  <option value="fire_marshal_thu_sun">PSP Fire Marshal (Mon–Wed 10-day → Wed comp + Thu–Sun off)</option>
-                  <option value="mon_tue_off">Mon–Sun Stretch → Mon &amp; Tue Off (Work Wed–Wed, Thu–Sun off)</option>
-                  <option value="tue_wed_off">Mon–Sun Stretch → Tue &amp; Wed Off (80-Hr Balance)</option>
-                  <option value="wed_wed_thu_sun">Wed–Wed Stretch → Thu–Sun Off</option>
-                  <option value="custom">Custom Blocked Days</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Minimum Weeks Between Weekends (0 = back-to-back OK)</label>
+                <label class="form-label">Minimum Weeks Between Weekends <span class="help-tip" data-tip="0 = back-to-back weekends allowed; 1 = every other weekend at most; 2 = at least 2 weekends off between shifts (every 3rd weekend). Members can override this in the Roster.">?</span></label>
                 <input type="number" id="setup-min-weekend-gap" class="form-input" min="0" max="4" value="1">
               </div>
-            </div>
-            <div id="setup-custom-rest-wrap" style="display:none; margin-bottom:10px;">
-              <label class="form-label">Blocked Recovery Weekdays After Weekend:</label>
-              <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:12px;">
-                <label><input type="checkbox" class="setup-custom-rest-dow" value="1"> Monday</label>
-                <label><input type="checkbox" class="setup-custom-rest-dow" value="2"> Tuesday</label>
-                <label><input type="checkbox" class="setup-custom-rest-dow" value="3"> Wednesday</label>
-                <label><input type="checkbox" class="setup-custom-rest-dow" value="4"> Thursday</label>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group" style="display:flex; flex-direction:column; gap:6px; justify-content:center;">
-                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
-                  <input type="checkbox" id="setup-enforce-80hr"> Enforce 80-Hour Biweekly Pay Period Alert
-                </label>
-                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
-                  <input type="checkbox" id="setup-preweekend-shaping"> Enable Pre-Weekend Fatigue Shaping (avoid Thu before own weekend)
-                </label>
-                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
-                  <input type="checkbox" id="setup-proactive-lookahead"> Enable Proactive Alternate Lookahead Before Leave
-                </label>
-              </div>
               <div class="form-group">
-                <label class="form-label">Biweekly Pay Period Anchor Monday</label>
+                <label class="form-label">Biweekly Pay Period Anchor Monday <span class="help-tip" data-tip="Any Monday that starts a 14-day (80-hour) PSP pay period. Used to alert if someone is scheduled on 2 weekends inside one pay period.">?</span></label>
                 <input type="date" id="setup-pay-anchor" class="form-input" value="2027-01-04">
               </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                <input type="checkbox" id="setup-enforce-80hr"> Enforce 80-Hour Biweekly Pay Period Alert
+                <span class="help-tip" data-tip="Flags a warning if a member works more than one weekend inside the same 14-day pay period.">?</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                <input type="checkbox" id="setup-preweekend-shaping"> Enable Pre-Weekend Fatigue Shaping
+                <span class="help-tip" data-tip="Avoids scheduling a member on Thursday night immediately before their own Friday–Sunday weekend shift.">?</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                <input type="checkbox" id="setup-proactive-lookahead"> Enable Proactive Alternate Lookahead Before Leave
+                <span class="help-tip" data-tip="If your unit uses Alternates, automatically places an Alternate on the weekend before a Full-Time member takes 3+ days of midweek leave.">?</span>
+              </label>
             </div>
           </div>
 
@@ -2823,7 +2913,56 @@ const htmlContent = `<!DOCTYPE html>
         draftUnitConfig.coverageSlots = [JSON.parse(JSON.stringify(draftUnitConfig.coverageSlots[0] || UNIT_PRESETS.blank_psp.coverageSlots[0]))];
       }
 
-      container.innerHTML = draftUnitConfig.coverageSlots.map((slot, idx) => \`
+      if (!isAmPm) {
+        const slot = draftUnitConfig.coverageSlots[0];
+        const all7 = [0,1,2,3,4,5,6].every(d => slot.activeDays.includes(d));
+        container.innerHTML = \`
+          <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:6px; padding:10px 12px;">
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+              1 person is on call each day. Use the <strong>Footer / Shift Hours Note</strong> above if you want to print what time on-call starts.
+            </div>
+            <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12px;">
+              <strong>Coverage Days:</strong>
+              <label style="cursor:pointer;"><input type="radio" name="single-cov-mode" value="all" \${all7 ? 'checked' : ''}> Every Day (Mon–Sun)</label>
+              <label style="cursor:pointer;"><input type="radio" name="single-cov-mode" value="custom" \${!all7 ? 'checked' : ''}> Custom Coverage Days Only</label>
+              <span class="help-tip" data-tip="Leave on Every Day unless your unit has zero on-call coverage on specific days of the week.">?</span>
+            </div>
+            <div id="single-custom-days-wrap" style="display:\${all7 ? 'none' : 'flex'}; margin-top:8px;" class="day-pill-group">
+              \${[1,2,3,4,5,6,0].map(d => \`
+                <button type="button" class="day-pill setup-slot-dow-pill \${slot.activeDays.includes(d) ? 'active-work' : ''}" data-idx="0" data-dow="\${d}">\${DAY_SHORT[d]}</button>
+              \`).join('')}
+            </div>
+          </div>
+        \`;
+        container.querySelectorAll('input[name="single-cov-mode"]').forEach(r => {
+          r.addEventListener('change', () => {
+            if (r.value === 'all') {
+              slot.activeDays = [0,1,2,3,4,5,6];
+            } else if (slot.activeDays.length === 7) {
+              slot.activeDays = [1,2,3,4,5];
+            }
+            renderSetupSlotsEditor();
+          });
+        });
+        container.querySelectorAll('.setup-slot-dow-pill').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const dow = parseInt(btn.getAttribute('data-dow'), 10);
+            if (slot.activeDays.includes(dow)) {
+              if (slot.activeDays.length > 1) slot.activeDays = slot.activeDays.filter(x => x !== dow);
+            } else {
+              slot.activeDays.push(dow);
+            }
+            renderSetupSlotsEditor();
+          });
+        });
+        return;
+      }
+
+      container.innerHTML = \`
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+          Typical PSP split: <strong>PM On-Call</strong> covers all 7 days after regular shift, while <strong>AM On-Call</strong> covers Sat, Sun, and State Holidays.
+        </div>
+      \` + draftUnitConfig.coverageSlots.map((slot, idx) => \`
         <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:6px; padding:10px 12px; margin-bottom:8px;">
           <div class="form-row" style="margin-bottom:6px;">
             <div class="form-group" style="margin-bottom:0;">
@@ -2846,12 +2985,82 @@ const htmlContent = `<!DOCTYPE html>
                 <input type="checkbox" class="setup-slot-dow" data-idx="\${idx}" value="\${d}" \${slot.activeDays.includes(d) ? 'checked' : ''}> \${DAY_SHORT[d]}
               </label>
             \`).join('')}
-            <label style="margin-left:auto; display:flex; align-items:center; gap:4px; cursor:pointer; font-weight:600;">
-              <input type="checkbox" class="setup-slot-hol" data-idx="\${idx}" \${slot.activeOnHolidays ? 'checked' : ''}> Active on Holidays
+            <label style="margin-left:auto; display:flex; align-items:center; gap:4px; cursor:pointer; font-weight:600;" title="If checked, this shift slot is also scheduled when a State Holiday falls on a weekday.">
+              <input type="checkbox" class="setup-slot-hol" data-idx="\${idx}" \${slot.activeOnHolidays ? 'checked' : ''}> Include on State Holidays
             </label>
           </div>
         </div>
       \`).join('');
+    }
+
+    function renderRegularWorkweekStrip() {
+      const el = document.getElementById('regular-workweek-strip');
+      if (!el || !draftUnitConfig) return;
+      const workDays = new Set((draftUnitConfig.rules.regularWorkDays || [1,2,3,4,5]).map(Number));
+      el.innerHTML = [1,2,3,4,5,6,0].map(d => \`
+        <button type="button" class="day-pill \${workDays.has(d) ? 'active-work' : ''}" data-dow="\${d}">
+          \${DAY_SHORT[d]} \${workDays.has(d) ? '(Work)' : '(Off)'}
+        </button>
+      \`).join('');
+      el.querySelectorAll('.day-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dow = parseInt(btn.getAttribute('data-dow'), 10);
+          if (workDays.has(dow)) {
+            if (workDays.size > 1) workDays.delete(dow);
+          } else {
+            workDays.add(dow);
+          }
+          draftUnitConfig.rules.regularWorkDays = Array.from(workDays);
+          renderRegularWorkweekStrip();
+        });
+      });
+    }
+
+    function renderCustomBlockStrip() {
+      const wrap = document.getElementById('setup-custom-block-wrap');
+      const el = document.getElementById('custom-block-strip');
+      if (!wrap || !el || !draftUnitConfig) return;
+      const pattern = document.getElementById('setup-block-pattern').value;
+      wrap.style.display = pattern === 'custom_block' ? 'block' : 'none';
+      const blockSet = new Set((draftUnitConfig.rules.customBlockDows || [5,6,0]).map(Number));
+      el.innerHTML = [1,2,3,4,5,6,0].map(d => \`
+        <button type="button" class="day-pill \${blockSet.has(d) ? 'active-work' : ''}" data-dow="\${d}">
+          \${DAY_SHORT[d]}
+        </button>
+      \`).join('');
+      el.querySelectorAll('.day-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dow = parseInt(btn.getAttribute('data-dow'), 10);
+          if (blockSet.has(dow)) {
+            if (blockSet.size > 1) blockSet.delete(dow);
+          } else {
+            blockSet.add(dow);
+          }
+          draftUnitConfig.rules.customBlockDows = Array.from(blockSet);
+          renderCustomBlockStrip();
+        });
+      });
+    }
+
+    function renderPostWeekendRestStrip() {
+      const el = document.getElementById('post-weekend-rest-strip');
+      if (!el || !draftUnitConfig) return;
+      const restSet = new Set(getRestBlockedDows(draftUnitConfig).allRestDows.map(Number));
+      el.innerHTML = [1,2,3,4,5,6,0].map(d => \`
+        <button type="button" class="day-pill \${restSet.has(d) ? 'active-rest' : ''}" data-dow="\${d}">
+          \${DAY_SHORT[d]} \${restSet.has(d) ? '(OFF)' : ''}
+        </button>
+      \`).join('');
+      el.querySelectorAll('.day-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dow = parseInt(btn.getAttribute('data-dow'), 10);
+          if (restSet.has(dow)) restSet.delete(dow);
+          else restSet.add(dow);
+          draftUnitConfig.rules.restPattern = restSet.size === 0 ? 'none' : 'custom';
+          draftUnitConfig.rules.customRestDows = Array.from(restSet);
+          renderPostWeekendRestStrip();
+        });
+      });
     }
 
     function renderSetupRolesEditor() {
@@ -2951,25 +3160,22 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('setup-allow-same-ampm').checked = Boolean(draftUnitConfig.rules.allowSamePersonAmPm);
 
       document.getElementById('setup-block-pattern').value = draftUnitConfig.rules.blockPattern || 'fri_sun';
-      document.getElementById('setup-weekday-mode').value = draftUnitConfig.rules.weekdayMode || 'dynamic_equity';
-      document.getElementById('setup-rest-pattern').value = draftUnitConfig.rules.restPattern || 'none';
+      const wdSelect = document.getElementById('setup-weekday-mode');
+      const curWd = draftUnitConfig.rules.weekdayMode || 'dynamic_equity';
+      wdSelect.value = Array.from(wdSelect.options).some(o => o.value === curWd) ? curWd : 'dynamic_equity';
       document.getElementById('setup-min-weekend-gap').value = String(draftUnitConfig.rules.minWeekendGap ?? 1);
       document.getElementById('setup-enforce-80hr').checked = Boolean(draftUnitConfig.rules.enforce80HourCap);
       document.getElementById('setup-pay-anchor').value = draftUnitConfig.rules.payPeriodAnchorMonday || '2027-01-04';
       document.getElementById('setup-preweekend-shaping').checked = Boolean(draftUnitConfig.rules.preWeekendShaping);
       document.getElementById('setup-proactive-lookahead').checked = Boolean(draftUnitConfig.rules.proactiveAltLookahead);
 
-      const customWrap = document.getElementById('setup-custom-rest-wrap');
-      customWrap.style.display = draftUnitConfig.rules.restPattern === 'custom' ? 'block' : 'none';
-      const customSet = new Set((draftUnitConfig.rules.customRestDows || []).map(Number));
-      document.querySelectorAll('.setup-custom-rest-dow').forEach(cb => {
-        cb.checked = customSet.has(parseInt(cb.value, 10));
-      });
-
       document.getElementById('setup-attach-hol').checked = draftUnitConfig.holidayRules.attachFriMonHolidaysToWeekend !== false;
       document.getElementById('setup-balance-hol').checked = draftUnitConfig.holidayRules.balanceHolidays !== false;
 
       renderSetupSlotsEditor();
+      renderRegularWorkweekStrip();
+      renderCustomBlockStrip();
+      renderPostWeekendRestStrip();
       renderSetupRolesEditor();
       renderSetupHolidaysEditor();
     }
@@ -2987,28 +3193,28 @@ const htmlContent = `<!DOCTYPE html>
       cfg.rules.allowSamePersonAmPm = document.getElementById('setup-allow-same-ampm').checked;
       cfg.rules.blockPattern = document.getElementById('setup-block-pattern').value;
       cfg.rules.weekdayMode = document.getElementById('setup-weekday-mode').value;
-      cfg.rules.restPattern = document.getElementById('setup-rest-pattern').value;
       cfg.rules.minWeekendGap = Math.max(0, parseInt(document.getElementById('setup-min-weekend-gap').value, 10) || 0);
       cfg.rules.enforce80HourCap = document.getElementById('setup-enforce-80hr').checked;
       cfg.rules.payPeriodAnchorMonday = document.getElementById('setup-pay-anchor').value || '2027-01-04';
       cfg.rules.preWeekendShaping = document.getElementById('setup-preweekend-shaping').checked;
       cfg.rules.proactiveAltLookahead = document.getElementById('setup-proactive-lookahead').checked;
-      cfg.rules.customRestDows = Array.from(document.querySelectorAll('.setup-custom-rest-dow:checked')).map(cb => parseInt(cb.value, 10));
 
-      // Collect slots
+      // Collect slots (AM/PM has explicit inputs; single-slot updates draftUnitConfig directly via pills)
       const slotsEditor = document.getElementById('setup-slots-editor');
-      cfg.coverageSlots.forEach((slot, idx) => {
-        const lbl = slotsEditor.querySelector(\`.setup-slot-label[data-idx="\${idx}"]\`);
-        const st = slotsEditor.querySelector(\`.setup-slot-start[data-idx="\${idx}"]\`);
-        const en = slotsEditor.querySelector(\`.setup-slot-end[data-idx="\${idx}"]\`);
-        const holCb = slotsEditor.querySelector(\`.setup-slot-hol[data-idx="\${idx}"]\`);
-        const dows = Array.from(slotsEditor.querySelectorAll(\`.setup-slot-dow[data-idx="\${idx}"]:checked\`)).map(x => parseInt(x.value, 10));
-        if (lbl) slot.label = lbl.value.trim() || slot.label;
-        if (st) slot.startTime = st.value || slot.startTime;
-        if (en) slot.endTime = en.value || slot.endTime;
-        if (holCb) slot.activeOnHolidays = holCb.checked;
-        if (dows.length > 0) slot.activeDays = dows;
-      });
+      if (isMultiSlotConfig(cfg)) {
+        cfg.coverageSlots.forEach((slot, idx) => {
+          const lbl = slotsEditor.querySelector(\`.setup-slot-label[data-idx="\${idx}"]\`);
+          const st = slotsEditor.querySelector(\`.setup-slot-start[data-idx="\${idx}"]\`);
+          const en = slotsEditor.querySelector(\`.setup-slot-end[data-idx="\${idx}"]\`);
+          const holCb = slotsEditor.querySelector(\`.setup-slot-hol[data-idx="\${idx}"]\`);
+          const dows = Array.from(slotsEditor.querySelectorAll(\`.setup-slot-dow[data-idx="\${idx}"]:checked\`)).map(x => parseInt(x.value, 10));
+          if (lbl) slot.label = lbl.value.trim() || slot.label;
+          if (st) slot.startTime = st.value || slot.startTime;
+          if (en) slot.endTime = en.value || slot.endTime;
+          if (holCb) slot.activeOnHolidays = holCb.checked;
+          if (dows.length > 0) slot.activeDays = dows;
+        });
+      }
 
       // Collect roles
       const rolesEditor = document.getElementById('setup-roles-editor');
@@ -3041,8 +3247,15 @@ const htmlContent = `<!DOCTYPE html>
 
     document.getElementById('setup-slot-mode-single').addEventListener('change', renderSetupSlotsEditor);
     document.getElementById('setup-slot-mode-ampm').addEventListener('change', renderSetupSlotsEditor);
-    document.getElementById('setup-rest-pattern').addEventListener('change', (e) => {
-      document.getElementById('setup-custom-rest-wrap').style.display = e.target.value === 'custom' ? 'block' : 'none';
+    document.getElementById('setup-block-pattern').addEventListener('change', renderCustomBlockStrip);
+    document.querySelectorAll('.btn-rest-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const raw = btn.getAttribute('data-dows');
+        const dows = raw ? raw.split(',').map(Number) : [];
+        draftUnitConfig.rules.restPattern = dows.length === 0 ? 'none' : 'custom';
+        draftUnitConfig.rules.customRestDows = dows;
+        renderPostWeekendRestStrip();
+      });
     });
 
     document.getElementById('btn-add-setup-role').addEventListener('click', () => {
@@ -3212,6 +3425,7 @@ const htmlContent = `<!DOCTYPE html>
                   Active: \${m.activeStart} \${m.activeEnd ? ('to ' + m.activeEnd) : '(Indefinite)'}
                   \${m.baselineWeekday ? (' &bull; Baseline: ' + weekdayNames[m.baselineWeekday]) : (m.role === 'FT' ? ' &bull; Rotational' : '')}
                   \${(!m.baselineWeekday && m.preferredWeekday) ? (' (prefers ' + weekdayNames[m.preferredWeekday] + ' if available)') : ''}
+                  \${(m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') ? (' &bull; Weekends: every ' + (Number(m.minWeekendGap) + 1) + (Number(m.minWeekendGap) === 0 ? ' (back-to-back OK)' : Number(m.minWeekendGap) === 1 ? 'nd' : Number(m.minWeekendGap) === 2 ? 'rd' : 'th')) : ''}
                   \${m.role === 'ALT' ? (' &bull; <strong>' + ((m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? m.weekendsPerSixMonths : 3) + ' weekends / 6 mos</strong>') : ''}
                 </div>
               </div>
@@ -3331,13 +3545,9 @@ const htmlContent = `<!DOCTYPE html>
       const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const role = document.getElementById('member-role-input').value;
       const roleCfg = getRoleConfig(cfg, role);
-      const rotational = !document.getElementById('member-weekday-input').value && roleCfg.canWorkWeekdays;
-      document.getElementById('member-prefday-group').style.display = rotational ? 'block' : 'none';
-      if (!rotational) document.getElementById('member-prefday-input').value = '';
       const altGroup = document.getElementById('member-alt-quota-group');
       if (altGroup) altGroup.style.display = roleCfg.quotaEnabled ? 'block' : 'none';
     }
-    document.getElementById('member-weekday-input').addEventListener('change', syncPrefDayVisibility);
     document.getElementById('member-role-input').addEventListener('change', syncPrefDayVisibility);
 
     function resetMemberForm() {
@@ -3349,7 +3559,8 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-name-input').value = '';
       document.getElementById('member-role-input').value = (cfg.roles && cfg.roles[0]) ? cfg.roles[0].id : 'FT';
       document.getElementById('member-weekday-input').value = '';
-      document.getElementById('member-prefday-input').value = '';
+      const cadenceEl = document.getElementById('member-weekend-cadence-input');
+      if (cadenceEl) cadenceEl.value = '';
       document.getElementById('member-alt-quota-input').value = '3';
       document.getElementById('member-color-input').value = '#1e3a8a';
       document.getElementById('member-start-input').value = getActiveCycle().startDate;
@@ -3368,10 +3579,14 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-firstname-input').value = m.firstName || '';
       document.getElementById('member-name-input').value = m.name;
       document.getElementById('member-role-input').value = m.role;
-      document.getElementById('member-weekday-input').value = m.baselineWeekday ? String(m.baselineWeekday) : '';
+      const wdVal = m.baselineWeekday || m.preferredWeekday;
+      document.getElementById('member-weekday-input').value = wdVal ? String(wdVal) : '';
+      const cadenceEl = document.getElementById('member-weekend-cadence-input');
+      if (cadenceEl) {
+        cadenceEl.value = (m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') ? String(m.minWeekendGap) : '';
+      }
       document.getElementById('member-alt-quota-input').value = (m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? String(m.weekendsPerSixMonths) : '3';
       syncPrefDayVisibility();
-      document.getElementById('member-prefday-input').value = m.preferredWeekday ? String(m.preferredWeekday) : '';
       document.getElementById('member-color-input').value = m.color || '#1e3a8a';
       document.getElementById('member-start-input').value = m.activeStart || '';
       document.getElementById('member-end-input').value = m.activeEnd || '';
@@ -3389,21 +3604,23 @@ const htmlContent = `<!DOCTYPE html>
       const nameInput = document.getElementById('member-name-input');
       const name = nameInput.value.trim().toUpperCase();
       if (!name) {
-        alert('Please enter the investigator\\'s last name.');
+        alert('Please enter the member\\'s last name.');
         return;
       }
 
       const role = document.getElementById('member-role-input').value;
       const weekdayVal = document.getElementById('member-weekday-input').value;
-      const baselineWeekday = weekdayVal ? parseInt(weekdayVal) : null;
+      const baselineWeekday = weekdayVal ? parseInt(weekdayVal, 10) : null;
+      const preferredWeekday = baselineWeekday;
+      const cadenceRaw = document.getElementById('member-weekend-cadence-input')?.value;
+      const minWeekendGap = (cadenceRaw !== undefined && cadenceRaw !== '') ? parseInt(cadenceRaw, 10) : null;
       const color = document.getElementById('member-color-input').value;
       const activeStart = document.getElementById('member-start-input').value || '2027-01-01';
       const activeEnd = document.getElementById('member-end-input').value || null;
 
-      const prefVal = document.getElementById('member-prefday-input').value;
-      const preferredWeekday = (!baselineWeekday && prefVal) ? parseInt(prefVal) : null;
       const rawAltQuota = parseInt(document.getElementById('member-alt-quota-input').value, 10);
-      const weekendsPerSixMonths = role === 'ALT' ? (isNaN(rawAltQuota) ? 3 : Math.max(0, rawAltQuota)) : null;
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const weekendsPerSixMonths = getRoleConfig(cfg, role).quotaEnabled ? (isNaN(rawAltQuota) ? 3 : Math.max(0, rawAltQuota)) : null;
 
       if (activeEnd && activeEnd < activeStart) {
         alert('Active end date must be on or after the start date.');
@@ -3413,7 +3630,7 @@ const htmlContent = `<!DOCTYPE html>
       if (editingMemberId) {
         const m = window.appState.roster.find(x => x.id === editingMemberId);
         if (m) {
-          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendsPerSixMonths, color });
+          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, minWeekendGap, weekendsPerSixMonths, color });
         }
         storage.saveState();
         resetMemberForm();
@@ -3427,6 +3644,7 @@ const htmlContent = `<!DOCTYPE html>
 
       window.appState.roster.push({
         preferredWeekday,
+        minWeekendGap,
         weekendsPerSixMonths,
         id,
         rank,
@@ -3470,6 +3688,18 @@ const htmlContent = `<!DOCTYPE html>
       return list.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || '') || (a.endDate || '').localeCompare(b.endDate || '') || (a.memberId || '').localeCompare(b.memberId || ''));
     }
 
+    let blackoutEndDateTouched = false;
+    document.getElementById('book-end-input').addEventListener('change', () => { blackoutEndDateTouched = true; });
+    document.getElementById('book-start-input').addEventListener('change', () => {
+      const startVal = document.getElementById('book-start-input').value;
+      const endInput = document.getElementById('book-end-input');
+      if (!startVal) return;
+      endInput.min = startVal;
+      if (!blackoutEndDateTouched || !endInput.value || endInput.value < startVal) {
+        endInput.value = startVal;
+      }
+    });
+
     function openBlackoutsModal() {
       const select = document.getElementById('book-member-select');
       const cycleRoster = getCycleRoster();
@@ -3478,8 +3708,10 @@ const htmlContent = `<!DOCTYPE html>
       \`).join('');
 
       const cycle = getActiveCycle();
+      blackoutEndDateTouched = false;
       document.getElementById('book-start-input').value = cycle.startDate;
       document.getElementById('book-end-input').value = cycle.startDate;
+      document.getElementById('book-end-input').min = cycle.startDate;
 
       renderBlackoutsList();
       closeAllModals();
@@ -3561,6 +3793,7 @@ const htmlContent = `<!DOCTYPE html>
       });
 
       storage.saveState();
+      blackoutEndDateTouched = false;
       renderBlackoutsList();
       renderApp();
       document.getElementById('book-notes-input').value = '';
@@ -4168,7 +4401,7 @@ const htmlContent = `<!DOCTYPE html>
 
         if (newMemberId) {
           const violations = checkManualAssignmentRuleViolations(selectedDateForReassign, newMemberId, slotId);
-          const blockingViolations = violations.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
+          const blockingViolations = violations.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND' || v.type === 'REST_VIOLATION' || v.type === 'PAY_PERIOD_80HR_RISK');
           if (blockingViolations.length > 0) {
             const mem = window.appState.roster.find(m => m.id === newMemberId);
             const name = mem ? (getMemberPrintName(mem, cfg) || mem.name) : 'this member';
