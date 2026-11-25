@@ -679,7 +679,7 @@ console.log('PASS blackouts chronological order, Friday weekend fill prompt, and
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
   assert(html.includes('function checkAndConfirmAltQuota('), 'Must include checkAndConfirmAltQuota function');
-  assert(html.includes('Alternate Fire Marshal Quota Exceeded:'), 'Must include quota exceeded confirmation message');
+  assert(html.includes('Quota Exceeded:'), 'Must include quota exceeded confirmation message');
   assert(html.includes('proposedWeekends.length > targetQuota && proposedWeekends.length > currentWeekends.length'), 'Must check if proposed weekends exceed roster quota');
   assert(html.includes("title: `Alternate Quota Exceeded: ${memDisplayName}`"), 'Must create pinned note with quota exceeded title');
   assert(html.includes("type: 'ALT_QUOTA_EXCEEDED'"), 'Must tag pinned note with ALT_QUOTA_EXCEEDED type');

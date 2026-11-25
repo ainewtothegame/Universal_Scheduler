@@ -1126,7 +1126,7 @@ const htmlContent = `<!DOCTYPE html>
   <main id="main-content">
     <div id="view-calendar-wrapper">
       <div class="calendar-container">
-        <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
+        <div class="print-page-title">PSP On-Call Schedule</div>
         <div class="calendar-header">
           <div id="calendar-month-title" class="calendar-title">January 2027</div>
           <div style="font-size: 13px; color: var(--text-muted);" id="calendar-summary-stat"></div>
@@ -4250,12 +4250,14 @@ const htmlContent = `<!DOCTYPE html>
         return true;
       });
 
+      const multiSlot = isMultiSlotConfig(cfg);
       container.innerHTML = slotsToRender.map((slot, idx) => {
         const currentAssigned = getSlotMember(cycle.assignments, dateStr, slot.id, cfg);
         const selectId = idx === 0 ? 'reassign-member-select' : \`reassign-member-select-\${slot.id}\`;
+        const slotTimeText = multiSlot ? \` (\${esc(slot.startTime)}–\${esc(slot.endTime)})\` : '';
         return \`
           <div class="form-group">
-            <label class="form-label">\${esc(slot.label)} (\${esc(slot.startTime)}–\${esc(slot.endTime)})</label>
+            <label class="form-label">\${esc(slot.label)}\${slotTimeText}</label>
             <select id="\${selectId}" class="form-select reassign-slot-select" data-slot="\${esc(slot.id)}">
               <option value="">-- UNASSIGNED --</option>
               \${availableMembers.map(m => \`
@@ -4330,37 +4332,50 @@ const htmlContent = `<!DOCTYPE html>
 
     function checkAndConfirmAltQuota(proposedDates, memberId, cycle) {
       if (!memberId) return true;
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const mem = window.appState.roster.find(m => m.id === memberId);
-      if (!mem || mem.role !== 'ALT') return true;
+      if (!mem) return true;
+      const roleCfg = getRoleConfig(cfg, mem.role);
+      if (!roleCfg.quotaEnabled) return true;
 
-      const rawQuota = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null)
+      const defaultQ = roleCfg.defaultQuotaPerSixMonths ?? 3;
+      const rawQuota = (mem.weekendsPerSixMonths !== undefined && mem.weekendsPerSixMonths !== null && !isNaN(Number(mem.weekendsPerSixMonths)))
         ? parseInt(mem.weekendsPerSixMonths, 10)
-        : 3;
-      const baseQuota = isNaN(rawQuota) ? 3 : Math.max(0, rawQuota);
+        : defaultQ;
+      const baseQuota = isNaN(rawQuota) ? defaultQ : Math.max(0, rawQuota);
       const targetQuota = cycle.blockType === 'FULL' ? (baseQuota * 2) : baseQuota;
 
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays || []);
-      const testAssignments = { ...(cycle.assignments || {}) };
-      proposedDates.forEach(d => { testAssignments[d] = memberId; });
-
-      const currentWeekends = weekends.filter(w => {
-        return (cycle.assignments || {})[w.friday] === memberId ||
-               (cycle.assignments || {})[w.saturday] === memberId ||
-               (cycle.assignments || {})[w.sunday] === memberId ||
-               (w.attachedMonday && (cycle.assignments || {})[w.attachedMonday] === memberId);
+      const testAssignments = JSON.parse(JSON.stringify(cycle.assignments || {}));
+      proposedDates.forEach(d => {
+        if (isMultiSlotConfig(cfg)) {
+          const cur = (testAssignments[d] && typeof testAssignments[d] === 'object') ? { ...testAssignments[d] } : {};
+          cur[getPrimarySlotId(cfg)] = memberId;
+          testAssignments[d] = cur;
+        } else {
+          testAssignments[d] = memberId;
+        }
       });
 
-      const proposedWeekends = weekends.filter(w => {
-        return testAssignments[w.friday] === memberId ||
-               testAssignments[w.saturday] === memberId ||
-               testAssignments[w.sunday] === memberId ||
-               (w.attachedMonday && testAssignments[w.attachedMonday] === memberId);
-      });
+      const hasMemberOnDate = (asgn, dStr) => dStr && getDayAssignedEntries(asgn, dStr, cfg).some(e => e.memberId === memberId);
+      const currentWeekends = weekends.filter(w =>
+        hasMemberOnDate(cycle.assignments || {}, w.friday) ||
+        hasMemberOnDate(cycle.assignments || {}, w.saturday) ||
+        hasMemberOnDate(cycle.assignments || {}, w.sunday) ||
+        hasMemberOnDate(cycle.assignments || {}, w.attachedMonday)
+      );
+
+      const proposedWeekends = weekends.filter(w =>
+        hasMemberOnDate(testAssignments, w.friday) ||
+        hasMemberOnDate(testAssignments, w.saturday) ||
+        hasMemberOnDate(testAssignments, w.sunday) ||
+        hasMemberOnDate(testAssignments, w.attachedMonday)
+      );
 
       if (proposedWeekends.length > targetQuota && proposedWeekends.length > currentWeekends.length) {
-        const memDisplayName = getMemberPrintName(mem);
+        const memDisplayName = getMemberPrintName(mem, cfg);
         const confirmMsg =
-          \`Alternate Fire Marshal Quota Exceeded:\\n\\n\` +
+          \`\${roleCfg.label} Quota Exceeded:\\n\\n\` +
           \`\${memDisplayName} has a configured roster quota of \${targetQuota} weekend\${targetQuota === 1 ? '' : 's'}.\\n\` +
           \`Assigning this shift will result in \${proposedWeekends.length} scheduled weekends for this period.\\n\\n\` +
           \`Would you like to confirm this assignment and automatically pin a note for all scheduled weekends?\`;
@@ -4369,7 +4384,7 @@ const htmlContent = `<!DOCTYPE html>
           return false;
         }
 
-        // Automatically add a pinned note on all of the scheduled weekends for that alternate
+        // Automatically add a pinned note on all of the scheduled weekends for that quota member
         const cycleName = cycle ? (cycle.blockType === 'FULL' ? \`\${cycle.year} Full Year\` : \`\${cycle.year} \${cycle.blockType}\`) : '';
         const weekendLines = proposedWeekends.map((w, idx) => {
           const dateRange = \`\${w.friday} to \${w.attachedMonday || w.sunday}\`;
@@ -4377,7 +4392,7 @@ const htmlContent = `<!DOCTYPE html>
         }).join('\\n');
 
         const noteContent =
-          \`\${memDisplayName} (Alternate Fire Marshal) has been manually assigned to \${proposedWeekends.length} weekends in \${cycleName}, exceeding the roster quota of \${targetQuota} weekend\${targetQuota === 1 ? '' : 's'}.\\n\\n\` +
+          \`\${memDisplayName} (\${roleCfg.label}) has been manually assigned to \${proposedWeekends.length} weekends in \${cycleName}, exceeding the roster quota of \${targetQuota} weekend\${targetQuota === 1 ? '' : 's'}.\\n\\n\` +
           \`All Scheduled Weekends (\${proposedWeekends.length} total):\\n\` +
           weekendLines;
 
@@ -4432,7 +4447,9 @@ const htmlContent = `<!DOCTYPE html>
 
         const d = parseDate(selectedDateForReassign);
         const isFriday = d.getDay() === 5;
-        const isWeekendBlock = cfg.rules.blockPattern === 'fri_sun' || cfg.rules.blockPattern === 'fri_mon_ft';
+        const isCustomFriSun = cfg.rules.blockPattern === 'custom_block' &&
+          JSON.stringify([...(cfg.rules.customBlockDows || [5, 6, 0])].map(Number).sort((a, b) => a - b)) === '[0,5,6]';
+        const isWeekendBlock = cfg.rules.blockPattern === 'fri_sun' || cfg.rules.blockPattern === 'fri_mon_ft' || isCustomFriSun;
         const isChangingOrAdding = Boolean(newMemberId && (!currentAssigned || currentAssigned !== newMemberId));
 
         if (isFriday && isWeekendBlock && isChangingOrAdding) {
@@ -4450,7 +4467,7 @@ const htmlContent = `<!DOCTYPE html>
             let weekendViolations = [];
             weekendDays.slice(1).forEach(dStr => {
               const viols = checkManualAssignmentRuleViolations(dStr, newMemberId, slotId);
-              const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
+              const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND' || v.type === 'REST_VIOLATION' || v.type === 'PAY_PERIOD_80HR_RISK');
               if (blocking.length > 0) weekendViolations.push(...blocking);
             });
 
@@ -4508,7 +4525,7 @@ const htmlContent = `<!DOCTYPE html>
         const sid = sel.getAttribute('data-slot');
         if (!sel.value) return;
         const viols = evaluateManualSlotAssignment(selectedDateForReassign, sid, sel.value, testCycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cfg);
-        viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND').forEach(v => multiBlocking.push(v));
+        viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND' || v.type === 'REST_VIOLATION' || v.type === 'PAY_PERIOD_80HR_RISK').forEach(v => multiBlocking.push(v));
       });
       if (multiBlocking.length > 0) {
         const details = multiBlocking.map(v => \`• \${v.message}\`).join('\\n');
@@ -4718,7 +4735,7 @@ const htmlContent = `<!DOCTYPE html>
       document.title = '';
     });
     window.addEventListener('afterprint', () => {
-      document.title = window._savedDocTitle || 'PSP Fire Marshal On-Call Schedule Generator';
+      document.title = window._savedDocTitle || \`On Call Schedule v\${APP_VERSION}\`;
     });
 
     // -------------------------------------------------------------

@@ -112,7 +112,7 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
         );
       }
 
-      if (!roleCfg.canWorkWeekdays && dow >= 1 && dow <= 4 && !isAttachedMon) {
+      if (!roleCfg.canWorkWeekdays && dow >= 1 && dow <= 4 && !(isHoliday && roleCfg.canWorkHolidays)) {
         const code = member.role === 'ALT' ? 'ALT_WEEKDAY_VIOLATION' : 'ROLE_WEEKDAY_VIOLATION';
         addConflict(
           dateStr,
@@ -173,6 +173,9 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
           if (offset === undefined) return;
           const restDateStr = formatDate(addDays(w.friday, offset));
           if (restDateStr < cycle.startDate || restDateStr > cycle.endDate) return;
+          if (blockedDow === 1 && unitConfig.holidayRules?.attachFriMonHolidaysToWeekend !== false && w.attachedMonday === restDateStr) {
+            return;
+          }
           const entriesOnRest = getDayAssignedEntries(assignments, restDateStr, unitConfig);
           if (entriesOnRest.some(e => e.memberId === worker.id)) {
             const existing = (conflicts[restDateStr] || []).some(c => c.code === 'REST_VIOLATION' && c.message.includes(worker.name));
@@ -227,7 +230,7 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
   }
 
   // 3b. PSP 80-Hour Biweekly Pay Period Check (2 weekends in same 14-day pay period)
-  if (rules.enforce80HourCap && rules.payPeriodAnchorMonday) {
+  if (rules.enforce80HourCap && rules.payPeriodAnchorMonday && rules.blockPattern !== 'daily_independent') {
     const anchorMs = parseDate(rules.payPeriodAnchorMonday).getTime();
     const MS_PER_14_DAYS = 14 * 24 * 60 * 60 * 1000;
     const periodWeekendMap = {}; // `${periodIdx}|${memberId}` -> Array<fridayStr>
@@ -307,7 +310,7 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
   }
 
   // 5. Multi-Shift Weekday Coverage (Attention Badge)
-  if (!multiSlot) {
+  if (!multiSlot && rules.blockPattern !== 'full_week') {
     let walker = parseDate(cycle.startDate);
     const end = parseDate(cycle.endDate);
     const weekMap = {};

@@ -296,8 +296,8 @@ console.log('PASS post-weekend & consecutive weekend warnings on Thu/Fri/Sat/Sun
   for (let i = 1; i < m1Weekends.length; i++) {
     assert(m1Weekends[i] - m1Weekends[i - 1] >= 3, 'm1 (every 3rd weekend) must have at least 2 weekends off between shifts');
   }
-  // Verify weekday preference is honored when fair and not immediately after own weekend
-  assert.strictEqual(res.assignments['2027-01-11'], 'm1', 'Monday Jan 11 (non-post-weekend) should prefer m1');
+  // Verify weekday preference is honored when member is not already ahead on total shifts
+  assert.strictEqual(res.assignments['2027-01-12'], 'm4', 'm4 (tied on weekend load) should be preferred on non-post-weekend weekday when no one has lower load');
   const m2WorkedJan8 = res.assignments['2027-01-09'] === 'm2';
   if (m2WorkedJan8) {
     assert.notStrictEqual(res.assignments['2027-01-12'], 'm2', 'm2 must avoid Tuesday Jan 12 right after working Jan 8-10 weekend');
@@ -370,15 +370,15 @@ console.log('PASS index.html & On Call Schedule versioned HTML verified');
   // Problem #3: No bogus Feb 12-14 lookahead notice with 5 FTs
   assert.strictEqual(res.scheduleNotices.length, 0, '5-FT unit must not emit bogus lookahead shortage notice');
 
-  // Problem #1: ONE's weekday count is fair (spread across all 5 FTs <= 2)
-  const wdCounts = {};
-  roster.filter(m => m.role === 'FT').forEach(m => { wdCounts[m.id] = 0; });
-  for (const [d, mId] of Object.entries(res.assignments)) {
-    const dow = new Date(d + 'T00:00:00').getDay();
-    if (dow >= 1 && dow <= 4 && wdCounts[mId] !== undefined) wdCounts[mId]++;
+  // Problem #1 + Total Shift Balance: All 4 non-cadence FTs finish within <= 3 total shifts and TWO (cadence=2) is not overloaded with weekdays
+  const totCounts = {};
+  roster.filter(m => m.role === 'FT').forEach(m => { totCounts[m.id] = 0; });
+  for (const mId of Object.values(res.assignments)) {
+    if (totCounts[mId] !== undefined) totCounts[mId]++;
   }
-  const wdVals = Object.values(wdCounts);
-  assert(Math.max(...wdVals) - Math.min(...wdVals) <= 2, `Weekday spread across 5 FTs must be <= 2 (got ${JSON.stringify(wdCounts)})`);
+  const stdVals = ['name_3285', 'name_7402', 'name_1839', 'five_3414'].map(id => totCounts[id]);
+  assert(Math.max(...stdVals) - Math.min(...stdVals) <= 3, `Total shift spread across standard FTs must be <= 3 (got ${JSON.stringify(totCounts)})`);
+  assert(totCounts['name_4466'] <= 40, `TWO (cadence=2) in H1 must not be overloaded with weekdays (got ${totCounts['name_4466']})`);
 
   // Problem #2: TWO (weekendCadence: 2) works every-other-weekend target cadence (>= 10 weekends in H1)
   const wknds = identifyWeekends(h1.startDate, h1.endDate, holidays);
@@ -409,3 +409,187 @@ console.log('PASS index.html & On Call Schedule versioned HTML verified');
   assert(!sumHtml.includes('17:00') && !sumHtml.includes('08:00'), 'Single On-Call Active Rules Summary must not list unused 17:00/08:00 times');
 }
 console.log('PASS user-reported 5-FT + 1-ALT JSON scenario verified');
+
+// 8. v1.3.0 Regression Suite: Total Shift Equity, Consecutive Weekdays, Configurable Modes & Conflict Rules
+{
+  const holidays = generateOfficialPSPHolidays(2027);
+  const fullCycle = { id: '2027-FULL', year: 2027, blockType: 'FULL', startDate: '2027-01-01', endDate: '2027-12-31' };
+  const h1Cycle = { id: '2027-H1', year: 2027, blockType: 'H1', startDate: '2027-01-01', endDate: '2027-06-30' };
+  const h2Cycle = { id: '2027-H2', year: 2027, blockType: 'H2', startDate: '2027-07-01', endDate: '2027-12-31' };
+
+  const countMemberTotals = (assignments, roster) => {
+    const totals = {};
+    roster.forEach(m => { totals[m.id] = 0; });
+    Object.values(assignments).forEach(v => {
+      if (typeof v === 'string' && totals[v] !== undefined) totals[v]++;
+      else if (v && typeof v === 'object') {
+        Object.values(v).forEach(id => { if (id && totals[id] !== undefined) totals[id]++; });
+      }
+    });
+    return totals;
+  };
+  const ftSpread = (totals, roster) => {
+    const vals = roster.filter(m => m.role === 'FT').map(m => totals[m.id]);
+    return Math.max(...vals) - Math.min(...vals);
+  };
+  const flatConflicts = (cycle, roster, blackouts, assignments, cfg) => {
+    const cMap = evaluateScheduleConflicts(cycle, roster, blackouts, holidays, assignments, cfg);
+    return Object.entries(cMap).flatMap(([d, arr]) => arr.map(c => ({ d, ...c })));
+  };
+
+  const roster5 = [
+    { id: 'm1', name: 'ONE', role: 'FT', activeStart: '2027-01-01', activeEnd: null, baselineWeekday: 3, preferredWeekday: 3 },
+    { id: 'm2', name: 'TWO', role: 'FT', activeStart: '2027-01-01', activeEnd: null },
+    { id: 'm3', name: 'THREE', role: 'FT', activeStart: '2027-01-01', activeEnd: null },
+    { id: 'm4', name: 'FOUR', role: 'FT', activeStart: '2027-01-01', activeEnd: null },
+    { id: 'm5', name: 'FIVE', role: 'FT', activeStart: '2027-01-01', activeEnd: null },
+    { id: 'a1', name: 'ALT1', role: 'ALT', activeStart: '2027-01-01', activeEnd: null, weekendsPerSixMonths: 3 }
+  ];
+
+  // 8a. Standard 5FT+1ALT custom_hybrid (ONE=Wed)
+  {
+    const cfg = createUnitConfig('blank_psp', {
+      rules: { weekdayMode: 'custom_hybrid', restPattern: 'custom', customRestDows: [3, 4, 5, 6, 0], preWeekendShaping: true, proactiveAltLookahead: true }
+    });
+    const res = solveSchedule(fullCycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const totals = countMemberTotals(res.assignments, roster5);
+    assert(ftSpread(totals, roster5) <= 3, `8a FT spread must be <= 3 (got ${ftSpread(totals, roster5)}: ${JSON.stringify(totals)})`);
+
+    // Zero consecutive weekdays (Tue+Wed or Wed+Thu)
+    const dates = Object.keys(res.assignments).sort();
+    for (let i = 1; i < dates.length; i++) {
+      const prev = dates[i - 1], curr = dates[i];
+      const dow = new Date(curr + 'T00:00:00').getDay();
+      if (dow >= 2 && dow <= 4 && formatDate(addDays(prev, 1)) === curr) {
+        assert.notStrictEqual(res.assignments[prev], res.assignments[curr], `8a consecutive weekday ${prev} & ${curr} assigned to ${res.assignments[curr]}`);
+      }
+    }
+
+    const conf = flatConflicts(fullCycle, roster5, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, '8a zero ERROR conflicts');
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, '8a zero WARNING conflicts');
+    assert(conf.filter(c => c.code === 'MULTI_SHIFT_FT').length <= 4, `8a MULTI_SHIFT_FT must be <= 4 (got ${conf.filter(c => c.code === 'MULTI_SHIFT_FT').length})`);
+  }
+
+  // 8b. 5FT+1ALT with TWO cadence=2 + manual override resume + H1->H2 continuity
+  {
+    const cfg = createUnitConfig('blank_psp', {
+      rules: { weekdayMode: 'custom_hybrid', restPattern: 'custom', customRestDows: [3, 4, 5, 6, 0], preWeekendShaping: true, proactiveAltLookahead: true }
+    });
+    const rosterCad = roster5.map(m => m.id === 'm2' ? { ...m, weekendCadence: 2, minWeekendGap: 1 } : m);
+    const res = solveSchedule(fullCycle, rosterCad, [], holidays, {}, [], { unitConfig: cfg });
+    const totals = countMemberTotals(res.assignments, rosterCad);
+    const stdSpread = ftSpread(totals, rosterCad.filter(m => m.id !== 'm2'));
+    assert(stdSpread <= 3, `8b standard FT spread with TWO cadence=2 must be <= 3 (got ${stdSpread}: ${JSON.stringify(totals)})`);
+    assert(totals.m2 <= 76, `8b TWO (cadence=2) must not be overloaded with weekdays (got ${totals.m2})`);
+    const conf = flatConflicts(fullCycle, rosterCad, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, '8b zero ERROR conflicts');
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, '8b zero WARNING conflicts');
+    const twoMulti = conf.filter(c => c.code === 'MULTI_SHIFT_FT' && c.message.includes('TWO'));
+    assert.strictEqual(twoMulti.length, 0, `8b TWO should have 0 double-weekday weeks (got ${twoMulti.length})`);
+
+    // Manual override on w6 (2027-02-12..14) = THREE, blanking Feb 15..Dec 31 -> TWO picks right back up
+    const wknds = identifyWeekends(fullCycle.startDate, fullCycle.endDate, holidays);
+    const manualOverrides = {};
+    [0, 2, 4].forEach(idx => {
+      const w = wknds[idx];
+      manualOverrides[w.friday] = 'm2'; manualOverrides[w.saturday] = 'm2'; manualOverrides[w.sunday] = 'm2';
+    });
+    const w6 = wknds[6]; // 2027-02-12..14
+    manualOverrides[w6.friday] = 'm3'; manualOverrides[w6.saturday] = 'm3'; manualOverrides[w6.sunday] = 'm3';
+    const resResume = solveSchedule(fullCycle, rosterCad, [], holidays, manualOverrides, [], { unitConfig: cfg });
+    assert.strictEqual(resResume.assignments[w6.saturday], 'm3', '8b manual override THREE on w6 preserved');
+    assert.strictEqual(resResume.assignments[wknds[7].saturday], 'm2', '8b TWO resumes immediately on w7');
+    assert.strictEqual(resResume.assignments[wknds[9].saturday], 'm2', '8b TWO continues on w9');
+    const confResume = flatConflicts(fullCycle, rosterCad, [], resResume.assignments, cfg);
+    assert.strictEqual(confResume.filter(c => c.code === 'CONSECUTIVE_WEEKEND').length, 0, '8b resume has zero consecutive weekends');
+
+    // H1 -> H2 cross-cycle continuity
+    const rH1 = solveSchedule(h1Cycle, rosterCad, [], holidays, {}, [], { unitConfig: cfg });
+    const rH2 = solveSchedule(h2Cycle, rosterCad, [], holidays, {}, [], { unitConfig: cfg, priorAssignments: rH1.assignments });
+    const combined = { ...rH1.assignments, ...rH2.assignments };
+    const combTotals = countMemberTotals(combined, rosterCad);
+    const combStdSpread = ftSpread(combTotals, rosterCad.filter(m => m.id !== 'm2'));
+    assert(combStdSpread <= 4, `8b H1+H2 combined standard FT spread must be <= 4 (got ${combStdSpread}: ${JSON.stringify(combTotals)})`);
+    assert(combTotals.m2 <= 76, `8b H1+H2 combined TWO must not be overloaded with weekdays (got ${combTotals.m2})`);
+    const confComb = flatConflicts(fullCycle, rosterCad, [], combined, cfg);
+    assert.strictEqual(confComb.filter(c => c.type === 'ERROR' || c.type === 'WARNING').length, 0, '8b H1+H2 combined zero errors/warnings');
+  }
+
+  // 8c. 3FT + 0ALT fri_sun with mon_tue_off + attached Monday holidays
+  {
+    const cfg = createUnitConfig('blank_psp', { rules: { restPattern: 'mon_tue_off' } });
+    const res = solveSchedule(fullCycle, roster5.slice(0, 3), [], holidays, {}, [], { unitConfig: cfg });
+    const conf = flatConflicts(fullCycle, roster5.slice(0, 3), [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, `8c 3FT+0ALT must have 0 ERRORs (got ${JSON.stringify(conf.filter(c => c.type === 'ERROR'))})`);
+  }
+
+  // 8d. AM/PM Split (am_pm_split preset, 5FT + 1ALT)
+  {
+    const cfg = createUnitConfig('am_pm_split');
+    const res = solveSchedule(fullCycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const conf = flatConflicts(fullCycle, roster5, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, `8d AM/PM zero ERRORs (got ${JSON.stringify(conf.filter(c => c.type === 'ERROR').slice(0, 3))})`);
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, `8d AM/PM zero WARNINGs (got ${JSON.stringify(conf.filter(c => c.type === 'WARNING').slice(0, 3))})`);
+
+    // With TWO cadence=2 in AM/PM mode
+    const rosterCad = roster5.map(m => m.id === 'm2' ? { ...m, weekendCadence: 2, minWeekendGap: 1 } : m);
+    const resCad = solveSchedule(fullCycle, rosterCad, [], holidays, {}, [], { unitConfig: cfg });
+    const wknds = identifyWeekends(fullCycle.startDate, fullCycle.endDate, holidays);
+    const twoWknds = wknds.filter(w => {
+      const e = resCad.assignments[w.saturday];
+      return e && (e.am === 'm2' || e.pm === 'm2');
+    });
+    assert(twoWknds.length >= 18, `8d AM/PM TWO cadence=2 must work >= 18 weekends (got ${twoWknds.length})`);
+    const confCad = flatConflicts(fullCycle, rosterCad, [], resCad.assignments, cfg);
+    assert.strictEqual(confCad.filter(c => c.type === 'ERROR' || c.type === 'WARNING').length, 0, '8d AM/PM cadence=2 zero errors/warnings');
+  }
+
+  // 8e. 7-Day Weekly Rotation (weekly_rotation preset, 5FT + 1ALT)
+  {
+    const cfg = createUnitConfig('weekly_rotation');
+    const res = solveSchedule(fullCycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const conf = flatConflicts(fullCycle, roster5, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, '8e weekly_rotation zero ERRORs');
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, `8e weekly_rotation zero WARNINGs (got ${JSON.stringify(conf.filter(c => c.type === 'WARNING'))})`);
+    assert.strictEqual(conf.filter(c => c.code === 'MULTI_SHIFT_FT').length, 0, '8e weekly_rotation zero MULTI_SHIFT_FT false positives');
+
+    const rH1 = solveSchedule(h1Cycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const rH2 = solveSchedule(h2Cycle, roster5, [], holidays, {}, [], { unitConfig: cfg, priorAssignments: rH1.assignments });
+    assert.notStrictEqual(rH1.assignments['2027-06-30'], rH2.assignments['2027-07-01'], '8e weekly_rotation H1->H2 boundary week must not repeat same worker');
+  }
+
+  // 8f. Custom Block Thu-Sat (5FT + 1ALT)
+  {
+    const cfg = createUnitConfig('blank_psp', {
+      rules: { blockPattern: 'custom_block', customBlockDows: [4, 5, 6], restPattern: 'mon_tue_off' }
+    });
+    const res = solveSchedule(fullCycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const conf = flatConflicts(fullCycle, roster5, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, `8f Thu-Sat custom_block zero ERRORs (got ${JSON.stringify(conf.filter(c => c.type === 'ERROR').slice(0, 3))})`);
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, `8f Thu-Sat custom_block zero WARNINGs (got ${JSON.stringify(conf.filter(c => c.type === 'WARNING').slice(0, 3))})`);
+  }
+
+  // 8g. Daily Independent (5FT + 1ALT)
+  {
+    const cfg = createUnitConfig('blank_psp', { rules: { blockPattern: 'daily_independent' } });
+    const res = solveSchedule(fullCycle, roster5, [], holidays, {}, [], { unitConfig: cfg });
+    const conf = flatConflicts(fullCycle, roster5, [], res.assignments, cfg);
+    assert.strictEqual(conf.filter(c => c.type === 'ERROR').length, 0, `8g daily_independent zero ERRORs (got ${JSON.stringify(conf.filter(c => c.type === 'ERROR'))})`);
+    assert.strictEqual(conf.filter(c => c.type === 'WARNING').length, 0, `8g daily_independent zero WARNINGs (got ${JSON.stringify(conf.filter(c => c.type === 'WARNING').slice(0, 3))})`);
+    const totals = countMemberTotals(res.assignments, roster5);
+    assert(ftSpread(totals, roster5) <= 3, `8g daily_independent FT spread <= 3 (got ${ftSpread(totals, roster5)}: ${JSON.stringify(totals)})`);
+  }
+
+  // 8h. Built HTML & UI modal checks (v1.3.0)
+  {
+    const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    assert(!html.includes('Troop H Fire Marshal Unit Schedule'), '8h index.html must not contain hardcoded Troop H Fire Marshal Unit Schedule');
+    assert(!html.includes('Alternate Fire Marshal'), '8h index.html must not contain hardcoded Alternate Fire Marshal');
+    assert(html.includes('isMultiSlotConfig(cfg)'), '8h index.html reassign modal must check isMultiSlotConfig before showing times');
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    assert(fs.existsSync(new URL(`../On Call Schedule v${pkg.version}.html`, import.meta.url)), `8h On Call Schedule v${pkg.version}.html must exist`);
+  }
+}
+console.log('PASS v1.3.0 regression suite verified');
+

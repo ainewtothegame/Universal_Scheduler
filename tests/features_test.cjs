@@ -82,10 +82,10 @@ assert.deepStrictEqual(fullActive, ['m1', 'm2', 'm3'], 'FULL should include m1, 
 console.log('PASS: Members with end date are properly removed from cycles beyond their end date');
 
 console.log('--- Testing Requirement 5: Print Header Title ---');
-assert(html.includes('<div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>'), 'Missing print-page-title div with Troop H Fire Marshal Unit Schedule');
+assert(html.includes('<div class="print-page-title">PSP On-Call Schedule</div>'), 'Missing print-page-title div with PSP On-Call Schedule');
 assert(html.includes('.print-page-title { display: none; }'), 'Print title should be hidden on screen');
 assert(html.includes('text-align: center !important;'), 'Print title should be centered in @media print');
-console.log('PASS: "Troop H Fire Marshal Unit Schedule" is top-centered on each month page when printing');
+console.log('PASS: "PSP On-Call Schedule" (and dynamic unitName) is top-centered on each month page when printing');
 
 console.log('--- Testing Requirement 6: Alternate Fire Marshal Weekends Per 6 Months Block ---');
 assert(html.includes('id="alt-weekends-manager-block"'), 'Missing Alternate Fire Marshals weekends block in Personnel Roster');
