@@ -334,7 +334,10 @@ export class StorageAdapter {
    * Exports full AppState as JSON string.
    */
   exportBackupJSON() {
-    return JSON.stringify(this.state, null, 2);
+    const payload = typeof APP_VERSION !== 'undefined'
+      ? { ...this.state, appVersion: APP_VERSION }
+      : this.state;
+    return JSON.stringify(payload, null, 2);
   }
 
   /**
@@ -366,6 +369,7 @@ export class StorageAdapter {
     return JSON.stringify({
       format: 'psp_universal_scheduler_config',
       version: 2,
+      appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : null,
       exportedAt: new Date().toISOString(),
       unitConfig: normalizeUnitConfig(this.state.unitConfig)
     }, null, 2);

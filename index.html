@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="app-version" content="1.1.0">
   <meta name="description" content="Pennsylvania State Police Universal On-Call Schedule Generator, AM/PM shift planner, and 80-hour fatigue risk management.">
   <title>PSP Universal On-Call Schedule Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -653,6 +654,20 @@
       color: var(--danger);
     }
 
+    .version-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      color: var(--color-light);
+      border: 1px solid rgba(255,255,255,0.3);
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
     .conflict-badges {
       position: absolute;
       top: 6px;
@@ -931,7 +946,10 @@
   <header>
     <div class="brand">
       <div id="brand-title" class="brand-title">Pennsylvania State Police</div>
-      <div id="brand-badge" class="brand-badge">PSP Universal On-Call Scheduler</div>
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+        <div id="brand-badge" class="brand-badge">PSP Universal On-Call Scheduler</div>
+        <span id="app-version-badge" class="version-badge" title="Application version">v1.1.0</span>
+      </div>
     </div>
     <div class="header-controls">
       <label style="font-size:12px; font-weight:600; opacity:0.9;">Cycle:</label>
@@ -1366,7 +1384,7 @@
     <!-- 8. How to Use Modal -->
     <div id="modal-guide" class="modal modal-wide" style="display:none; max-width:880px;" role="dialog" aria-modal="true" aria-label="How to use calendar manual">
       <div class="modal-header">
-        <div class="modal-title">&#128214; On-Call Calendar: User Guide &amp; Feature Manual</div>
+        <div class="modal-title">&#128214; On-Call Calendar: User Guide &amp; Feature Manual (v1.1.0)</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
@@ -1380,7 +1398,7 @@
     <!-- 9. Schedule Rules & Unit Setup Modal -->
     <div id="modal-rules" class="modal modal-wide" style="display:none; max-width:960px;" role="dialog" aria-modal="true" aria-label="Schedule rules and unit setup">
       <div class="modal-header">
-        <div class="modal-title">&#128203; Schedule Rules &amp; Unit Setup</div>
+        <div class="modal-title">&#128203; Schedule Rules &amp; Unit Setup (v1.1.0)</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body" style="max-height:78vh; overflow-y:auto; padding:20px;">
@@ -1658,6 +1676,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   <!-- Inlined Domain & Architecture Modules -->
   <script>
+    const APP_VERSION = '1.1.0';
+
     function esc(v) {
       return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
@@ -5179,7 +5199,10 @@ class StorageAdapter {
    * Exports full AppState as JSON string.
    */
   exportBackupJSON() {
-    return JSON.stringify(this.state, null, 2);
+    const payload = typeof APP_VERSION !== 'undefined'
+      ? { ...this.state, appVersion: APP_VERSION }
+      : this.state;
+    return JSON.stringify(payload, null, 2);
   }
 
   /**
@@ -5211,6 +5234,7 @@ class StorageAdapter {
     return JSON.stringify({
       format: 'psp_universal_scheduler_config',
       version: 2,
+      appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : null,
       exportedAt: new Date().toISOString(),
       unitConfig: normalizeUnitConfig(this.state.unitConfig)
     }, null, 2);

@@ -315,5 +315,8 @@ console.log('PASS per-member weekend cadence & assigned/preferred weekday');
   assert(!html.includes('value="fire_marshal_phased_2027"'), 'index.html weekday dropdown must not show Fire Marshal 2027 phased option');
   assert(html.includes('class="help-tip"'), 'index.html must include hover tooltips');
   assert(html.includes('blackoutEndDateTouched'), 'index.html must auto-jump blackout end date to start date');
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert(pkg.version, 'package.json must define version');
+  assert(html.includes('id="app-version-badge"') && html.includes(`v${pkg.version}`), 'index.html must display app version badge matching package.json');
 }
 console.log('PASS index.html Universal Scheduler UX & bugfix hooks verified');

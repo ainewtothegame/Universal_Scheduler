@@ -6,7 +6,10 @@
 
 import fs from 'fs';
 
-console.log('Building 100% self-contained index.html (zero external dependencies)...');
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const appVersion = pkg.version || '1.0.0';
+
+console.log(`Building 100% self-contained index.html v${appVersion} (zero external dependencies)...`);
 
 const sheetJsCode = fs.readFileSync('xlsx.full.min.js', 'utf8');
 
@@ -129,6 +132,7 @@ const htmlContent = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="app-version" content="${appVersion}">
   <meta name="description" content="Pennsylvania State Police Universal On-Call Schedule Generator, AM/PM shift planner, and 80-hour fatigue risk management.">
   <title>PSP Universal On-Call Schedule Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -779,6 +783,20 @@ const htmlContent = `<!DOCTYPE html>
       color: var(--danger);
     }
 
+    .version-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      color: var(--color-light);
+      border: 1px solid rgba(255,255,255,0.3);
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
     .conflict-badges {
       position: absolute;
       top: 6px;
@@ -1057,7 +1075,10 @@ const htmlContent = `<!DOCTYPE html>
   <header>
     <div class="brand">
       <div id="brand-title" class="brand-title">Pennsylvania State Police</div>
-      <div id="brand-badge" class="brand-badge">PSP Universal On-Call Scheduler</div>
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+        <div id="brand-badge" class="brand-badge">PSP Universal On-Call Scheduler</div>
+        <span id="app-version-badge" class="version-badge" title="Application version">v${appVersion}</span>
+      </div>
     </div>
     <div class="header-controls">
       <label style="font-size:12px; font-weight:600; opacity:0.9;">Cycle:</label>
@@ -1492,7 +1513,7 @@ const htmlContent = `<!DOCTYPE html>
     <!-- 8. How to Use Modal -->
     <div id="modal-guide" class="modal modal-wide" style="display:none; max-width:880px;" role="dialog" aria-modal="true" aria-label="How to use calendar manual">
       <div class="modal-header">
-        <div class="modal-title">&#128214; On-Call Calendar: User Guide &amp; Feature Manual</div>
+        <div class="modal-title">&#128214; On-Call Calendar: User Guide &amp; Feature Manual (v${appVersion})</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
@@ -1506,7 +1527,7 @@ const htmlContent = `<!DOCTYPE html>
     <!-- 9. Schedule Rules & Unit Setup Modal -->
     <div id="modal-rules" class="modal modal-wide" style="display:none; max-width:960px;" role="dialog" aria-modal="true" aria-label="Schedule rules and unit setup">
       <div class="modal-header">
-        <div class="modal-title">&#128203; Schedule Rules &amp; Unit Setup</div>
+        <div class="modal-title">&#128203; Schedule Rules &amp; Unit Setup (v${appVersion})</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body" style="max-height:78vh; overflow-y:auto; padding:20px;">
@@ -1760,6 +1781,8 @@ const htmlContent = `<!DOCTYPE html>
 
   <!-- Inlined Domain & Architecture Modules -->
   <script>
+    const APP_VERSION = '${appVersion}';
+
     function esc(v) {
       return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
