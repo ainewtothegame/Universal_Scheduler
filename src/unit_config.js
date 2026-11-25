@@ -630,14 +630,41 @@ export function generateRulesSummaryHtml(unitConfig, holidays = []) {
   const blockInfo = BLOCK_PATTERNS[cfg.rules.blockPattern] || BLOCK_PATTERNS.fri_sun;
   const weekdayInfo = WEEKDAY_MODES[cfg.rules.weekdayMode] || WEEKDAY_MODES.dynamic_equity;
 
-  const slotsRows = cfg.coverageSlots.map(s => `
-    <tr>
-      <td style="padding:7px 10px; border:1px solid var(--color-rule); font-weight:600;">${escapeHtml(s.label)}</td>
-      <td style="padding:7px 10px; border:1px solid var(--color-rule);">${escapeHtml(s.startTime)} &ndash; ${escapeHtml(s.endTime)}</td>
-      <td style="padding:7px 10px; border:1px solid var(--color-rule);">${s.activeDays.map(d => DAY_SHORT[d]).join(', ')}</td>
-      <td style="padding:7px 10px; border:1px solid var(--color-rule);">${s.activeOnHolidays ? 'Yes' : 'No'}</td>
-    </tr>
-  `).join('');
+  const multiSlot = isMultiSlotConfig(cfg);
+  const singleSlot = cfg.coverageSlots[0];
+  const singleCovText = singleSlot && [0,1,2,3,4,5,6].every(d => singleSlot.activeDays.includes(d))
+    ? 'Every Day (Mon–Sun)'
+    : (singleSlot ? singleSlot.activeDays.map(d => DAY_SHORT[d]).join(', ') : 'Every Day');
+
+  const coverageSummaryHtml = !multiSlot
+    ? `
+      <p style="margin:6px 0 12px 0;">
+        <strong>Single On-Call Shift</strong> (1 member per day) &bull;
+        <strong>Coverage Days:</strong> ${escapeHtml(singleCovText)}<br>
+        <span style="font-size:12px; color:var(--text-muted);">Shift start/end hours are documented in the Schedule Footer Note below.</span>
+      </p>
+    `
+    : `
+      <table class="matrix-table" style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+        <thead>
+          <tr>
+            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Slot</th>
+            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Hours</th>
+            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Active Days</th>
+            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Include on State Holidays</th>
+          </tr>
+        </thead>
+        <tbody>${cfg.coverageSlots.map(s => `
+          <tr>
+            <td style="padding:7px 10px; border:1px solid var(--color-rule); font-weight:600;">${escapeHtml(s.label)}</td>
+            <td style="padding:7px 10px; border:1px solid var(--color-rule);">${escapeHtml(s.startTime)} &ndash; ${escapeHtml(s.endTime)}</td>
+            <td style="padding:7px 10px; border:1px solid var(--color-rule);">${s.activeDays.map(d => DAY_SHORT[d]).join(', ')}</td>
+            <td style="padding:7px 10px; border:1px solid var(--color-rule);">${s.activeOnHolidays ? 'Yes' : 'No'}</td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+      <p style="margin:4px 0 12px 0;"><strong>Same-Day AM + PM Assignment:</strong> ${cfg.rules.allowSamePersonAmPm ? 'Allowed' : 'Prohibited (different personnel required for AM and PM)'}</p>
+    `;
 
   const rolesRows = cfg.roles.map(r => `
     <tr>
@@ -668,19 +695,8 @@ export function generateRulesSummaryHtml(unitConfig, holidays = []) {
       <h2 style="font-family:var(--font-display); font-size:20px; color:var(--color-ink); margin:0 0 4px 0;">${escapeHtml(cfg.agency)}: ${escapeHtml(cfg.unitName)}</h2>
       <p style="margin:0 0 14px 0; color:var(--text-muted);">Live Scheduling Rules, Coverage Slots, and PSP 80-Hour Constraints (${escapeHtml(cfg.presetName || 'Custom')})</p>
 
-      <h3 style="font-size:15px; color:var(--color-accent); margin:14px 0 6px 0;">1. Daily Coverage Slots (${isMultiSlotConfig(cfg) ? 'AM / PM Split' : 'Single Shift'})</h3>
-      <table class="matrix-table" style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-        <thead>
-          <tr>
-            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Slot</th>
-            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Hours</th>
-            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Active Days</th>
-            <th style="background:var(--color-paper-2); padding:8px 10px; border:1px solid var(--color-rule); text-align:left;">Active on Holidays</th>
-          </tr>
-        </thead>
-        <tbody>${slotsRows}</tbody>
-      </table>
-      ${isMultiSlotConfig(cfg) ? `<p style="margin:4px 0 12px 0;"><strong>Same-Day AM + PM Assignment:</strong> ${cfg.rules.allowSamePersonAmPm ? 'Allowed' : 'Prohibited (different personnel required for AM and PM)'}</p>` : ''}
+      <h3 style="font-size:15px; color:var(--color-accent); margin:14px 0 6px 0;">1. Daily Coverage (${multiSlot ? 'AM / PM Split' : 'Single Shift'})</h3>
+      ${coverageSummaryHtml}
 
       <h3 style="font-size:15px; color:var(--color-accent); margin:14px 0 6px 0;">2. Workweek, Block &amp; PSP 80-Hour Rest Rules</h3>
       <ul style="margin:6px 0 12px 20px;">

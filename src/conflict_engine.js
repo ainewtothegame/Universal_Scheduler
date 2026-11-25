@@ -37,6 +37,18 @@ const POST_WEEKEND_OFFSET_FROM_FRI = {
   0: 9  // Sun
 };
 
+function resolveMemberWeekendGap(mem, defaultMinGap) {
+  if (mem && mem.weekendCadence !== undefined && mem.weekendCadence !== null && mem.weekendCadence !== '') {
+    const cad = parseInt(mem.weekendCadence, 10);
+    if (!isNaN(cad)) return Math.max(0, cad - 1);
+  }
+  if (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '') {
+    const g = parseInt(mem.minWeekendGap, 10);
+    if (!isNaN(g)) return Math.max(0, g);
+  }
+  return defaultMinGap;
+}
+
 export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, assignments, rawUnitConfig = null) {
   const unitConfig = normalizeUnitConfig(rawUnitConfig || createUnitConfig('fire_marshal'));
   const multiSlot = isMultiSlotConfig(unitConfig);
@@ -187,9 +199,7 @@ export function evaluateScheduleConflicts(cycle, roster, blackouts, holidays, as
 
       workers1.forEach(workerId => {
         const mem = roster.find(m => m.id === workerId);
-        const effectiveGap = (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '')
-          ? Math.max(0, parseInt(mem.minWeekendGap, 10))
-          : minGap;
+        const effectiveGap = resolveMemberWeekendGap(mem, minGap);
         if (effectiveGap <= 0) return;
 
         for (let g = 1; g <= effectiveGap && i + g < weekends.length; g++) {
@@ -367,9 +377,7 @@ export function evaluateManualSlotAssignment(dateStr, slotId, memberId, cycle, r
 
   // Also check if assigning this member on dateStr (e.g. w1 Friday) conflicts with an already-assigned following weekend w2
   const minGap = Math.max(0, parseInt(unitConfig.rules.minWeekendGap ?? 1, 10) || 0);
-  const effectiveGap = (mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '')
-    ? Math.max(0, parseInt(mem.minWeekendGap, 10))
-    : minGap;
+  const effectiveGap = resolveMemberWeekendGap(mem, minGap);
   if (effectiveGap > 0 && unitConfig.rules.blockPattern !== 'daily_independent') {
     const weekends = identifyWeekends(cycle.startDate, formatDate(addDays(cycle.endDate, 28)), holidays);
     const curIdx = weekends.findIndex(w => w.friday === dateStr || w.saturday === dateStr || w.sunday === dateStr);

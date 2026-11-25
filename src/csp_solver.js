@@ -132,6 +132,19 @@ function getAllDays(startDateStr, endDateStr) {
   return out;
 }
 
+function getMemberTargetCadence(mem) {
+  if (!mem) return null;
+  if (mem.weekendCadence !== undefined && mem.weekendCadence !== null && mem.weekendCadence !== '') {
+    const cad = parseInt(mem.weekendCadence, 10);
+    return (!isNaN(cad) && cad >= 2) ? cad : null;
+  }
+  if (mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '') {
+    const g = parseInt(mem.minWeekendGap, 10);
+    if (!isNaN(g) && g >= 1 && g <= 3) return g + 1;
+  }
+  return null;
+}
+
 /**
  * Master Configurable CSP Solver
  */
@@ -139,8 +152,15 @@ export function solveSchedule(cycle, roster, blackouts, holidays, manualOverride
   const unitConfig = normalizeUnitConfig(context.unitConfig || createUnitConfig('fire_marshal'));
   const multiSlot = isMultiSlotConfig(unitConfig);
   const blockPattern = unitConfig.rules.blockPattern || 'fri_mon_ft';
+  const isCustomFriSun = blockPattern === 'custom_block' &&
+    JSON.stringify([...(unitConfig.rules.customBlockDows || [5, 6, 0])].map(Number).sort((a, b) => a - b)) === '[0,5,6]';
 
-  if (multiSlot || blockPattern === 'full_week' || blockPattern === 'daily_independent') {
+  if (!multiSlot && isCustomFriSun) {
+    const normalizedCfg = normalizeUnitConfig({ ...unitConfig, rules: { ...unitConfig.rules, blockPattern: 'fri_sun' } });
+    return solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manualOverrides, preferredWeekends, context, normalizedCfg);
+  }
+
+  if (multiSlot || blockPattern === 'full_week' || blockPattern === 'daily_independent' || blockPattern === 'custom_block') {
     return solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOverrides, preferredWeekends, context, unitConfig);
   }
 
@@ -273,6 +293,12 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
 
   const getMemberMinGap = (memberId) => {
     const mem = roster.find(m => m.id === memberId);
+    const cad = getMemberTargetCadence(mem);
+    if (cad) return cad - 1;
+    if (mem && mem.weekendCadence !== undefined && mem.weekendCadence !== null && mem.weekendCadence !== '') {
+      const parsedCad = parseInt(mem.weekendCadence, 10);
+      if (!isNaN(parsedCad)) return Math.max(0, parsedCad - 1);
+    }
     if (mem && mem.minWeekendGap !== undefined && mem.minWeekendGap !== null && mem.minWeekendGap !== '') {
       const parsed = parseInt(mem.minWeekendGap, 10);
       if (!isNaN(parsed)) return Math.max(0, parsed);
@@ -356,7 +382,7 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     assignments[pd.date] = mem.id;
   });
 
-  // Pre-calculate lookahead weekends
+  // Pre-calculate lookahead weekends (only when 1 FT on leave leaves <= 2 active FTs)
   const lookaheadWeekendFridays = new Set();
   const lookaheadMeta = new Map();
   if (rules.proactiveAltLookahead && activeALTs.length > 0) {
@@ -364,11 +390,14 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     weekends.forEach(wk => {
       if (!isLookaheadWeekend(wk)) return;
       const midWeekDays = [0, 1, 2, 3].map(n => formatDate(addDays(wk.monday, n)));
-      const leaveFT = activeFTs.find(ft => {
-        if (!isMemberActive(ft, wk.monday)) return false;
-        return midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length >= threshold;
-      });
-      if (leaveFT) {
+      const activeThisWeek = activeFTs.filter(ft => isMemberActive(ft, wk.monday));
+      const leaveFT = activeThisWeek.find(ft =>
+        midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length >= threshold
+      );
+      const remainingActiveFTs = activeThisWeek.filter(ft =>
+        midWeekDays.filter(d => isMemberBlackedOut(ft.id, d, blackouts)).length < threshold
+      ).length;
+      if (leaveFT && remainingActiveFTs <= 2) {
         lookaheadWeekendFridays.add(wk.friday);
         lookaheadMeta.set(wk.friday, { ftMember: leaveFT, weekend: wk });
       }
@@ -496,8 +525,10 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
 
         let noticeText =
           `Weekend ${label} should be worked by an Alternate (${ftDisplayName} is off that following week, and the other full-time members cannot cover it without long stretches), ` +
-          `but no Alternate has an open weekend: their requested weekends already use their quota` +
-          (withRequests.length ? ` (${withRequests.join(', ')} have requests in this period)` : '') +
+          `but no Alternate has an open weekend: ` +
+          (withRequests.length
+            ? `their requested weekends already use their quota (${withRequests.join(', ')} have requests in this period)`
+            : `their 6-month weekend quota is already filled`) +
           `. Please ask an Alternate whether they could give a different weekend or take this one, then run Auto-Generate again.`;
 
         if (cleanRecommendations.length > 0 || secondaryOptions.length > 0 || protectedWarnings.length > 0) {
@@ -525,10 +556,12 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     activeALTs.forEach(a => halves.forEach(h => slots.push({ alt: a, half: h, key: `${a.id}|${h}` })));
 
     const SPREAD_TIERS = [
-      { maxPerMonth: 1, allowAdjacentAlt: false },
-      { maxPerMonth: 1, allowAdjacentAlt: true },
-      { maxPerMonth: 2, allowAdjacentAlt: true },
-      { maxPerMonth: Infinity, allowAdjacentAlt: true }
+      { maxPerMonth: 1, allowAdjacentAlt: false, minSameAltGap: 5 },
+      { maxPerMonth: 1, allowAdjacentAlt: false, minSameAltGap: 3 },
+      { maxPerMonth: 1, allowAdjacentAlt: false, minSameAltGap: 2 },
+      { maxPerMonth: 1, allowAdjacentAlt: true, minSameAltGap: 1 },
+      { maxPerMonth: 2, allowAdjacentAlt: true, minSameAltGap: 1 },
+      { maxPerMonth: Infinity, allowAdjacentAlt: true, minSameAltGap: 1 }
     ];
     const monthOf = (w) => w.friday.slice(0, 7);
     const altIds = new Set(activeALTs.map(a => a.id));
@@ -559,6 +592,13 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
       const neighbourIsAlt = (w) =>
         (w.index > 0 && altIds.has(currentAssignments[w.index - 1])) ||
         (w.index < weekends.length - 1 && altIds.has(currentAssignments[w.index + 1]));
+      const violatesSameAltSpacing = (wIdx, altId) => {
+        for (let g = 1; g <= tier.minSameAltGap; g++) {
+          if (wIdx - g >= 0 && currentAssignments[wIdx - g] === altId) return true;
+          if (wIdx + g < weekends.length && currentAssignments[wIdx + g] === altId) return true;
+        }
+        return false;
+      };
 
       const unmet = slots
         .filter(sl => currentQuotas[sl.key] < altTargetQuotas[sl.key])
@@ -570,6 +610,7 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
             if (!isMemberActive(alt, w.friday)) return false;
             if (!getRoleConfig(unitConfig, alt.role).canWorkWeekends) return false;
             if (violatesWeekendGap(w.index, alt.id, currentAssignments)) return false;
+            if (violatesSameAltSpacing(w.index, alt.id)) return false;
             const datesToCheck = [w.friday, w.saturday, w.sunday];
             if (attachFriMon && w.attachedMonday) datesToCheck.push(w.attachedMonday);
             if (attachFriMon && w.attachedFriday) datesToCheck.push(w.attachedFriday);
@@ -613,6 +654,40 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     }
   }
 
+  // STAGE 2b: Target Cadence Pre-Pass for Non-Quota Members (Every 2nd / 3rd / 4th Weekend)
+  const cadenceMembers = roster
+    .filter(m => !getRoleConfig(unitConfig, m.role).quotaEnabled && getRoleConfig(unitConfig, m.role).canWorkWeekends && getMemberTargetCadence(m))
+    .sort((a, b) => getMemberTargetCadence(a) - getMemberTargetCadence(b));
+
+  cadenceMembers.forEach(mem => {
+    const cad = getMemberTargetCadence(mem);
+    let lastAssignedIdx = -cad;
+    if (priorRecentWeekendWorkers.length > 0) {
+      for (let p = 0; p < Math.min(cad, priorRecentWeekendWorkers.length); p++) {
+        if (priorRecentWeekendWorkers[p] === mem.id) {
+          lastAssignedIdx = -(p + 1);
+          break;
+        }
+      }
+    }
+    weekends.forEach(w => {
+      if (weekendAssignments[w.index] === mem.id) {
+        lastAssignedIdx = w.index;
+        return;
+      }
+      if (weekendAssignments[w.index]) return;
+      if (w.index - lastAssignedIdx < cad) return;
+      if (!isMemberActive(mem, w.friday) || !isMemberActive(mem, w.sunday)) return;
+      if (violatesWeekendGap(w.index, mem.id, weekendAssignments)) return;
+      const checkDates = [w.friday, w.saturday, w.sunday];
+      if (attachFriMon && w.attachedMonday) checkDates.push(w.attachedMonday);
+      if (isExtendedMonWeekend(w)) checkDates.push(w.monday);
+      if (checkDates.some(d => isMemberBlackedOut(mem.id, d, blackouts))) return;
+      weekendAssignments[w.index] = mem.id;
+      lastAssignedIdx = w.index;
+    });
+  });
+
   // STAGE 3: Full-Time Weekend Allocation
   const weekendPool = roster.filter(m => !getRoleConfig(unitConfig, m.role).quotaEnabled && getRoleConfig(unitConfig, m.role).canWorkWeekends);
   const ftWeekendCounts = {};
@@ -654,9 +729,13 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
   let holidayCountTolerance = 1;
   const rankFTs = (w, list) => {
     const hw = weekendHolidayWeight(w);
-    const activeSet = weekendPool.filter(f => isMemberActive(f, w.friday) && isMemberActive(f, w.sunday));
-    const minCount = activeSet.length ? Math.min(...activeSet.map(f => ftWeekendCounts[f.id])) : 0;
+    const activeSet = weekendPool.filter(f => isMemberActive(f, w.friday) && isMemberActive(f, w.sunday) && !getMemberTargetCadence(f));
+    const fallbackSet = activeSet.length > 0 ? activeSet : weekendPool.filter(f => isMemberActive(f, w.friday) && isMemberActive(f, w.sunday));
+    const minCount = fallbackSet.length ? Math.min(...fallbackSet.map(f => ftWeekendCounts[f.id])) : 0;
     return list.sort((a, b) => {
+      const cadA = getMemberTargetCadence(a) ? 1 : 0;
+      const cadB = getMemberTargetCadence(b) ? 1 : 0;
+      if (cadA !== cadB) return cadA - cadB;
       if (hw > 0 && balanceHolidays) {
         const aOk = ftWeekendCounts[a.id] <= minCount + holidayCountTolerance ? 0 : 1;
         const bOk = ftWeekendCounts[b.id] <= minCount + holidayCountTolerance ? 0 : 1;
@@ -731,7 +810,7 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
     }
   };
 
-  const fullTenureFTs = weekendPool.filter(ft => isMemberActive(ft, cycle.startDate) && isMemberActive(ft, cycle.endDate));
+  const fullTenureFTs = weekendPool.filter(ft => isMemberActive(ft, cycle.startDate) && isMemberActive(ft, cycle.endDate) && !getMemberTargetCadence(ft));
   const weekendSpread = () => {
     if (fullTenureFTs.length < 2) return 0;
     const counts = fullTenureFTs.map(ft => ftWeekendCounts[ft.id]);
@@ -825,12 +904,42 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
       .reduce((s, h) => s + holidayWeight(h), 0);
     return sum;
   };
-  const effectiveLoad = (ft, dow, dateStr) => {
-    const prefDow = (weekdayMode !== 'fire_marshal_phased_2027')
-      ? (ft.preferredWeekday || ft.baselineWeekday || null)
-      : ft.preferredWeekday;
-    const prefBonus = (prefDow === dow) ? (weekdayMode === 'fire_marshal_phased_2027' ? 1 : 1.5) : 0;
-    let load = (weekdayCounts[ft.id] || 0) - prefBonus;
+  const workedWeekdayThisWeek = (ftId, dateStr, dow) => {
+    for (let k = 1; k < dow; k++) {
+      const prevD = formatDate(addDays(dateStr, k - dow));
+      if (assignments[prevD] === ftId) return true;
+    }
+    return false;
+  };
+  const ownsLaterBaselineThisWeek = (ft, dow, dateStr) => {
+    if (weekdayMode !== 'custom_hybrid' && weekdayMode !== 'fixed_baseline') return false;
+    if (!ft.baselineWeekday || ft.baselineWeekday <= dow || ft.baselineWeekday > 4) return false;
+    const futureD = formatDate(addDays(dateStr, ft.baselineWeekday - dow));
+    return isMemberActive(ft, futureD) && !isMemberBlackedOut(ft.id, futureD, blackouts);
+  };
+  const effectiveLoad = (ft, dow, dateStr, prevWorkerId = null, minEligibleCount = 0) => {
+    const count = weekdayCounts[ft.id] || 0;
+    let prefBonus = 0;
+    if (weekdayMode === 'fire_marshal_phased_2027') {
+      prefBonus = (ft.preferredWeekday === dow) ? 1 : 0;
+    } else {
+      const prefDow = ft.preferredWeekday || ft.baselineWeekday || null;
+      if (prefDow === dow && count <= minEligibleCount) {
+        prefBonus = 0.85;
+      }
+    }
+    let load = count - prefBonus;
+    if (weekdayMode !== 'fire_marshal_phased_2027') {
+      if (prevWorkerId && ft.id === prevWorkerId && (dow === 1 || dow === 2)) {
+        load += 50; // Last priority on Mon/Tue right after working a weekend
+      }
+      if (dateStr && workedWeekdayThisWeek(ft.id, dateStr, dow)) {
+        load += 1.2;
+      }
+      if (dateStr && ownsLaterBaselineThisWeek(ft, dow, dateStr)) {
+        load += 1.2;
+      }
+    }
     if (balanceHolidays && dateStr && (holidays || []).some(h => h.date === dateStr)) {
       load += 0.01 * holidayLoadNow(ft.id, dateStr);
     }
@@ -861,6 +970,14 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
       const restBlockedMemberId = (prevWorker && !getRoleConfig(unitConfig, prevWorker.role).quotaEnabled) ? prevWorker.id : null;
       const isDayRestBlocked = midweekBlockedSet.has(dow);
 
+      const eligibleForDay = effectiveWeekdayPool.filter(ft => {
+        if (!isMemberActive(ft, dateStr)) return false;
+        if (isMemberBlackedOut(ft.id, dateStr, blackouts)) return false;
+        if (isDayRestBlocked && ft.id === restBlockedMemberId) return false;
+        return true;
+      });
+      const minEligibleCount = eligibleForDay.length ? Math.min(...eligibleForDay.map(f => weekdayCounts[f.id] || 0)) : 0;
+
       if (isPhase1Date(dateStr) || weekdayMode === 'custom_hybrid') {
         const baselineOwner = effectiveWeekdayPool.find(ft => ft.baselineWeekday === dow && isMemberActive(ft, dateStr));
         let candidateId = baselineOwner ? baselineOwner.id : undefined;
@@ -869,43 +986,34 @@ function solveSingleSlotWeekendWeekday(cycle, roster, blackouts, holidays, manua
         const isRestBlocked = isDayRestBlocked && candidateId === restBlockedMemberId;
         const isBlackedOut = isMemberBlackedOut(candidateId, dateStr, blackouts);
         const isActive = candidate && isMemberActive(candidate, dateStr);
+        const isHybridOverloaded = weekdayMode === 'custom_hybrid' && candidate && (
+          (weekdayCounts[candidate.id] || 0) > minEligibleCount ||
+          (prevWorkerId === candidate.id && (dow === 1 || dow === 2)) ||
+          workedWeekdayThisWeek(candidate.id, dateStr, dow)
+        );
 
         const worksNextWeekend = rules.preWeekendShaping && dow === 4 && candidateId && weekendWorkerStartingOn(formatDate(addDays(dateStr, 1))) === candidateId;
-        const swapAvailable = worksNextWeekend && effectiveWeekdayPool.some(ft =>
-          ft.id !== candidateId && isMemberActive(ft, dateStr) && !isMemberBlackedOut(ft.id, dateStr, blackouts) && !(isDayRestBlocked && ft.id === restBlockedMemberId));
+        const swapAvailable = (worksNextWeekend || isHybridOverloaded) && eligibleForDay.some(ft => ft.id !== candidateId);
 
         if (!isRestBlocked && !isBlackedOut && isActive && !swapAvailable) {
           assignments[dateStr] = candidateId;
           weekdayCounts[candidateId] = (weekdayCounts[candidateId] || 0) + 1;
         } else {
-          const eligibleSwaps = effectiveWeekdayPool.filter(ft => {
-            if (!isMemberActive(ft, dateStr)) return false;
-            if (isMemberBlackedOut(ft.id, dateStr, blackouts)) return false;
-            if (isDayRestBlocked && ft.id === restBlockedMemberId) return false;
-            return true;
-          });
-          eligibleSwaps.sort((a, b) => effectiveLoad(a, dow, dateStr) - effectiveLoad(b, dow, dateStr));
+          eligibleForDay.sort((a, b) => effectiveLoad(a, dow, dateStr, prevWorkerId, minEligibleCount) - effectiveLoad(b, dow, dateStr, prevWorkerId, minEligibleCount));
 
-          if (eligibleSwaps.length > 0) {
-            assignments[dateStr] = eligibleSwaps[0].id;
-            weekdayCounts[eligibleSwaps[0].id] = (weekdayCounts[eligibleSwaps[0].id] || 0) + 1;
+          if (eligibleForDay.length > 0) {
+            assignments[dateStr] = eligibleForDay[0].id;
+            weekdayCounts[eligibleForDay[0].id] = (weekdayCounts[eligibleForDay[0].id] || 0) + 1;
           } else {
             diagnostics[dateStr] = `Stage 5 Conflict: Zero eligible members available for ${dateStr} due to rest rule and blackouts.`;
           }
         }
       } else {
-        const eligibleFTs = effectiveWeekdayPool.filter(ft => {
-          if (!isMemberActive(ft, dateStr)) return false;
-          if (isMemberBlackedOut(ft.id, dateStr, blackouts)) return false;
-          if (isDayRestBlocked && ft.id === restBlockedMemberId) return false;
-          return true;
-        });
+        eligibleForDay.sort((a, b) => effectiveLoad(a, dow, dateStr, prevWorkerId, minEligibleCount) - effectiveLoad(b, dow, dateStr, prevWorkerId, minEligibleCount));
 
-        eligibleFTs.sort((a, b) => effectiveLoad(a, dow, dateStr) - effectiveLoad(b, dow, dateStr));
-
-        if (eligibleFTs.length > 0) {
-          assignments[dateStr] = eligibleFTs[0].id;
-          weekdayCounts[eligibleFTs[0].id] = (weekdayCounts[eligibleFTs[0].id] || 0) + 1;
+        if (eligibleForDay.length > 0) {
+          assignments[dateStr] = eligibleForDay[0].id;
+          weekdayCounts[eligibleForDay[0].id] = (weekdayCounts[eligibleForDay[0].id] || 0) + 1;
         } else {
           diagnostics[dateStr] = `Stage 5 Conflict: Zero eligible members available for ${dateStr} due to rest rule and blackouts.`;
         }
@@ -1281,7 +1389,7 @@ function solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOve
       const dow = getDayOfWeek(dateStr);
       const isRestDayDow = restBlockedDows.has(dow);
       let prevWeekendWorkers = new Set();
-      if (isRestDayDow && dow >= 1 && dow <= 4) {
+      if (dow >= 1 && dow <= 4) {
         const daysSinceFriday = (dow + 2) % 7;
         const prevFri = formatDate(addDays(dateStr, -daysSinceFriday));
         const prevW = weekends.find(w => w.friday === prevFri);
@@ -1308,11 +1416,16 @@ function solveConfigurableSchedule(cycle, roster, blackouts, holidays, manualOve
           return true;
         });
 
+        const minTot = candidates.length ? Math.min(...candidates.map(c => totalShifts[c.id] || 0)) : 0;
         candidates.sort((a, b) => {
-          const prefA = (a.baselineWeekday || a.preferredWeekday) === dow ? 1.5 : 0;
-          const prefB = (b.baselineWeekday || b.preferredWeekday) === dow ? 1.5 : 0;
-          const loadA = (totalShifts[a.id] || 0) - prefA + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
-          const loadB = (totalShifts[b.id] || 0) - prefB + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
+          const cntA = totalShifts[a.id] || 0;
+          const cntB = totalShifts[b.id] || 0;
+          const prefA = ((a.baselineWeekday || a.preferredWeekday) === dow && cntA <= minTot) ? 0.85 : 0;
+          const prefB = ((b.baselineWeekday || b.preferredWeekday) === dow && cntB <= minTot) ? 0.85 : 0;
+          const monTuePenA = (prevWeekendWorkers.has(a.id) && (dow === 1 || dow === 2)) ? 50 : 0;
+          const monTuePenB = (prevWeekendWorkers.has(b.id) && (dow === 1 || dow === 2)) ? 50 : 0;
+          const loadA = cntA - prefA + monTuePenA + (isHol && balanceHolidays ? 0.01 * (holLoad[a.id] || 0) : 0);
+          const loadB = cntB - prefB + monTuePenB + (isHol && balanceHolidays ? 0.01 * (holLoad[b.id] || 0) : 0);
           if (loadA !== loadB) return loadA - loadB;
           return (slotShifts[a.id]?.[slot.id] || 0) - (slotShifts[b.id]?.[slot.id] || 0);
         });

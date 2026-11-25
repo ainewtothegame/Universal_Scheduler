@@ -134,7 +134,7 @@ const htmlContent = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="app-version" content="${appVersion}">
   <meta name="description" content="Pennsylvania State Police Universal On-Call Schedule Generator, AM/PM shift planner, and 80-hour fatigue risk management.">
-  <title>PSP Universal On-Call Schedule Generator</title>
+  <title>On Call Schedule v${appVersion}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600&family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1110,7 +1110,7 @@ const htmlContent = `<!DOCTYPE html>
       <button id="btn-open-pinned" class="btn btn-outline-dark" style="display:none;" title="Pinned Notes &amp; Switch Suggestions">&#128204; Pinned Notes (<span id="pinned-count">0</span>)</button>
       <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Unit Setup">&#128203; Schedule Rules &amp; Setup</button>
       <div class="ribbon-divider"></div>
-      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
+      <button id="btn-backup-export" class="btn btn-outline-dark" title="Download full backup (Unit Rules &amp; Setup, Roster, Blackouts, Requests, and Schedules) as a JSON file">&#128190; Backup</button>
       <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
       <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;">
       <div class="ribbon-divider"></div>
@@ -1225,13 +1225,13 @@ const htmlContent = `<!DOCTYPE html>
               <div class="help-desc">Optional: pick a weekday this member normally covers or prefers.</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Weekend Frequency / Spacing <span class="help-tip" data-tip="Override how often this member can work weekends. For example, Every 3rd Weekend ensures at least 2 weekends off between their on-call weekends.">?</span></label>
+              <label class="form-label">Weekend Frequency / Spacing <span class="help-tip" data-tip="Actively schedules this member every 2nd, 3rd, or 4th weekend when available, instead of standard unit rotation.">?</span></label>
               <select id="member-weekend-cadence-input" class="form-select">
-                <option value="">Use Unit Default</option>
-                <option value="1">Every Other Weekend (min 1 weekend off)</option>
-                <option value="2">Every 3rd Weekend (min 2 weekends off)</option>
-                <option value="3">Every 4th Weekend (min 3 weekends off)</option>
-                <option value="0">Back-to-Back Allowed (0 weekends off)</option>
+                <option value="">Use Unit Rotation (Fair Share)</option>
+                <option value="2">Every Other Weekend (Target Every 2nd)</option>
+                <option value="3">Every 3rd Weekend (Target Every 3rd)</option>
+                <option value="4">Every 4th Weekend (Target Every 4th)</option>
+                <option value="1">Back-to-Back Allowed (No Rest Gap)</option>
               </select>
             </div>
           </div>
@@ -1556,7 +1556,6 @@ const htmlContent = `<!DOCTYPE html>
                 <option value="weekly_rotation">PSP 7-Day Weekly Rotation</option>
               </select>
               <button id="btn-apply-preset" class="btn btn-primary" type="button">Apply Preset</button>
-              <button id="btn-load-fm-sample" class="btn btn-outline-dark" type="button" title="Load Troop H Fire Marshal 2027 sample roster &amp; blackouts">Load Fire Marshal Sample Roster</button>
             </div>
           </div>
 
@@ -2007,7 +2006,7 @@ const htmlContent = `<!DOCTYPE html>
     // Refresh UI
     function renderApp() {
       const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
-      document.title = \`\${cfg.unitName} — \${cfg.scheduleTitle}\`;
+      document.title = \`\${cfg.unitName} — On Call Schedule (v\${APP_VERSION})\`;
       const bt = document.getElementById('brand-title');
       const bb = document.getElementById('brand-badge');
       const mpt = document.getElementById('matrix-print-title');
@@ -3304,21 +3303,6 @@ const htmlContent = `<!DOCTYPE html>
       showToast('Loaded preset: ' + preset.presetName + '. Click "Save & Apply Unit Rules" to apply.');
     });
 
-    document.getElementById('btn-load-fm-sample').addEventListener('click', () => {
-      if (window.appState.roster.length > 0 && !confirm('Load the 2027 Troop H Fire Marshal sample roster and blackouts? This replaces your current roster and blackouts.')) {
-        return;
-      }
-      const fmState = createInitialAppState();
-      window.appState.roster = fmState.roster;
-      window.appState.blackouts = fmState.blackouts;
-      window.appState.holidays = fmState.holidays;
-      populateSetupForm(fmState.unitConfig);
-      window.appState.unitConfig = fmState.unitConfig;
-      storage.saveState();
-      renderApp();
-      showToast('Loaded Fire Marshal 2027 sample roster & rules.');
-    });
-
     document.getElementById('btn-reset-psp-holidays').addEventListener('click', () => {
       const cycle = getActiveCycle();
       const yr = cycle ? cycle.year : 2027;
@@ -3448,7 +3432,10 @@ const htmlContent = `<!DOCTYPE html>
                   Active: \${m.activeStart} \${m.activeEnd ? ('to ' + m.activeEnd) : '(Indefinite)'}
                   \${m.baselineWeekday ? (' &bull; Baseline: ' + weekdayNames[m.baselineWeekday]) : (m.role === 'FT' ? ' &bull; Rotational' : '')}
                   \${(!m.baselineWeekday && m.preferredWeekday) ? (' (prefers ' + weekdayNames[m.preferredWeekday] + ' if available)') : ''}
-                  \${(m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') ? (' &bull; Weekends: every ' + (Number(m.minWeekendGap) + 1) + (Number(m.minWeekendGap) === 0 ? ' (back-to-back OK)' : Number(m.minWeekendGap) === 1 ? 'nd' : Number(m.minWeekendGap) === 2 ? 'rd' : 'th')) : ''}
+                  \${(m.weekendCadence || (m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '')) ? (() => {
+                    const cad = m.weekendCadence ? Number(m.weekendCadence) : (Number(m.minWeekendGap) + 1);
+                    return cad === 1 ? ' &bull; Weekends: Back-to-Back OK' : \` &bull; Weekends: Every \${cad}\${cad === 2 ? 'nd' : cad === 3 ? 'rd' : 'th'}\`;
+                  })() : ''}
                   \${m.role === 'ALT' ? (' &bull; <strong>' + ((m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? m.weekendsPerSixMonths : 3) + ' weekends / 6 mos</strong>') : ''}
                 </div>
               </div>
@@ -3606,7 +3593,13 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('member-weekday-input').value = wdVal ? String(wdVal) : '';
       const cadenceEl = document.getElementById('member-weekend-cadence-input');
       if (cadenceEl) {
-        cadenceEl.value = (m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') ? String(m.minWeekendGap) : '';
+        if (m.weekendCadence !== undefined && m.weekendCadence !== null && m.weekendCadence !== '') {
+          cadenceEl.value = String(m.weekendCadence);
+        } else if (m.minWeekendGap !== undefined && m.minWeekendGap !== null && m.minWeekendGap !== '') {
+          cadenceEl.value = String(Number(m.minWeekendGap) + 1);
+        } else {
+          cadenceEl.value = '';
+        }
       }
       document.getElementById('member-alt-quota-input').value = (m.weekendsPerSixMonths !== undefined && m.weekendsPerSixMonths !== null) ? String(m.weekendsPerSixMonths) : '3';
       syncPrefDayVisibility();
@@ -3636,7 +3629,8 @@ const htmlContent = `<!DOCTYPE html>
       const baselineWeekday = weekdayVal ? parseInt(weekdayVal, 10) : null;
       const preferredWeekday = baselineWeekday;
       const cadenceRaw = document.getElementById('member-weekend-cadence-input')?.value;
-      const minWeekendGap = (cadenceRaw !== undefined && cadenceRaw !== '') ? parseInt(cadenceRaw, 10) : null;
+      const weekendCadence = (cadenceRaw !== undefined && cadenceRaw !== '') ? parseInt(cadenceRaw, 10) : null;
+      const minWeekendGap = weekendCadence !== null ? Math.max(0, weekendCadence - 1) : null;
       const color = document.getElementById('member-color-input').value;
       const activeStart = document.getElementById('member-start-input').value || '2027-01-01';
       const activeEnd = document.getElementById('member-end-input').value || null;
@@ -3653,7 +3647,7 @@ const htmlContent = `<!DOCTYPE html>
       if (editingMemberId) {
         const m = window.appState.roster.find(x => x.id === editingMemberId);
         if (m) {
-          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, minWeekendGap, weekendsPerSixMonths, color });
+          Object.assign(m, { rank, firstName, name, role, activeStart, activeEnd, baselineWeekday, preferredWeekday, weekendCadence, minWeekendGap, weekendsPerSixMonths, color });
         }
         storage.saveState();
         resetMemberForm();
@@ -3667,6 +3661,7 @@ const htmlContent = `<!DOCTYPE html>
 
       window.appState.roster.push({
         preferredWeekday,
+        weekendCadence,
         minWeekendGap,
         weekendsPerSixMonths,
         id,
@@ -4763,7 +4758,7 @@ const htmlContent = `<!DOCTYPE html>
           activeMonthIdx = parseDate(c.startDate).getMonth();
           closeAllModals();
           renderApp();
-          showToast('Backup restored.');
+          showToast('Full backup restored (including unit rules, roster, blackouts, and schedules).');
         } else {
           alert('That file is not a valid backup from this program.');
         }
@@ -4778,5 +4773,14 @@ const htmlContent = `<!DOCTYPE html>
 </html>
 `;
 
+// Clean up any older versioned standalone HTML files
+for (const f of fs.readdirSync('.')) {
+  if (/^On Call Schedule v.*\.html$/.test(f)) {
+    fs.unlinkSync(f);
+  }
+}
+
+const versionedFileName = `On Call Schedule v${appVersion}.html`;
+fs.writeFileSync(versionedFileName, htmlContent, 'utf8');
 fs.writeFileSync('index.html', htmlContent, 'utf8');
-console.log('Successfully generated 100% self-contained index.html!');
+console.log(`Successfully generated 100% self-contained ${versionedFileName} and index.html!`);

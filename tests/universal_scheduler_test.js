@@ -296,9 +296,12 @@ console.log('PASS post-weekend & consecutive weekend warnings on Thu/Fri/Sat/Sun
   for (let i = 1; i < m1Weekends.length; i++) {
     assert(m1Weekends[i] - m1Weekends[i - 1] >= 3, 'm1 (every 3rd weekend) must have at least 2 weekends off between shifts');
   }
-  // Verify weekday preference is honored when fair
-  assert.strictEqual(res.assignments['2027-01-04'], 'm1', 'Monday should prefer m1');
-  assert.strictEqual(res.assignments['2027-01-05'], 'm2', 'Tuesday should prefer m2');
+  // Verify weekday preference is honored when fair and not immediately after own weekend
+  assert.strictEqual(res.assignments['2027-01-11'], 'm1', 'Monday Jan 11 (non-post-weekend) should prefer m1');
+  const m2WorkedJan8 = res.assignments['2027-01-09'] === 'm2';
+  if (m2WorkedJan8) {
+    assert.notStrictEqual(res.assignments['2027-01-12'], 'm2', 'm2 must avoid Tuesday Jan 12 right after working Jan 8-10 weekend');
+  }
 }
 console.log('PASS per-member weekend cadence & assigned/preferred weekday');
 
@@ -318,5 +321,91 @@ console.log('PASS per-member weekend cadence & assigned/preferred weekday');
   const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert(pkg.version, 'package.json must define version');
   assert(html.includes('id="app-version-badge"') && html.includes(`v${pkg.version}`), 'index.html must display app version badge matching package.json');
+  assert(!html.includes('btn-load-fm-sample'), 'index.html must not include Load Fire Marshal Sample Roster button');
+  const versionedHtmlPath = new URL(`../On Call Schedule v${pkg.version}.html`, import.meta.url);
+  assert(fs.existsSync(versionedHtmlPath), `On Call Schedule v${pkg.version}.html must exist`);
+  assert.strictEqual(fs.readFileSync(versionedHtmlPath, 'utf8'), html, 'Versioned HTML and index.html must match');
 }
-console.log('PASS index.html Universal Scheduler UX & bugfix hooks verified');
+console.log('PASS index.html & On Call Schedule versioned HTML verified');
+
+// 11. User-reported 5-FT + 1-ALT JSON scenario (equity, cadence, ALT spacing, Mon/Tue rest, no bogus lookahead, clean rules summary)
+{
+  const cfg = createUnitConfig('fire_marshal', {
+    weekStartDay: 0,
+    rules: {
+      regularWorkDays: [1, 2, 3, 4, 5],
+      blockPattern: 'custom_block',
+      customBlockDows: [5, 6, 0],
+      restPattern: 'custom',
+      customRestDows: [3, 4, 5, 6, 0],
+      weekdayMode: 'custom_hybrid',
+      minWeekendGap: 1,
+      enforce80HourCap: true,
+      payPeriodAnchorMonday: '2027-01-04',
+      preWeekendShaping: true,
+      proactiveAltLookahead: true,
+      lookaheadLeaveThreshold: 3,
+      allowSamePersonAmPm: false
+    }
+  });
+  const roster = [
+    { id: 'name_3285', rank: 'Trooper', firstName: 'one', name: 'ONE', role: 'FT', baselineWeekday: 3, preferredWeekday: 3, activeStart: '2027-01-01', activeEnd: null, color: '#1e3a8a', minWeekendGap: null },
+    { id: 'name_4466', rank: 'Trooper', firstName: 'two', name: 'TWO', role: 'FT', baselineWeekday: null, preferredWeekday: null, activeStart: '2027-01-01', activeEnd: null, color: '#1e8a78', weekendCadence: 2, minWeekendGap: 1 },
+    { id: 'name_7402', rank: 'Trooper', firstName: 'Three', name: 'THREE', role: 'FT', baselineWeekday: null, preferredWeekday: null, activeStart: '2027-01-01', activeEnd: null, color: '#08f70c' },
+    { id: 'name_1839', rank: 'Trooper', firstName: 'Four', name: 'FOUR', role: 'FT', baselineWeekday: null, preferredWeekday: null, activeStart: '2027-01-01', activeEnd: null, color: '#f8f11b' },
+    { id: 'five_3414', rank: 'Trooper', firstName: 'Five', name: 'FIVE', role: 'FT', baselineWeekday: null, preferredWeekday: null, activeStart: '2027-01-01', activeEnd: null, color: '#f8311b' },
+    { id: 'six_8261', rank: 'Trooper', firstName: 'alt', name: 'SIX', role: 'ALT', baselineWeekday: null, preferredWeekday: null, weekendsPerSixMonths: 3, activeStart: '2027-01-01', activeEnd: null, color: '#e760f0' }
+  ];
+  const blackouts = [
+    { id: 'b1', memberId: 'name_3285', startDate: '2027-01-09', endDate: '2027-01-17', year: 2027 },
+    { id: 'b2', memberId: 'name_1839', startDate: '2027-01-26', endDate: '2027-01-31', year: 2027 },
+    { id: 'b3', memberId: 'name_4466', startDate: '2027-01-08', endDate: '2027-01-10', year: 2027 },
+    { id: 'b4', memberId: 'five_3414', startDate: '2027-02-06', endDate: '2027-02-13', year: 2027 },
+    { id: 'b5', memberId: 'name_3285', startDate: '2027-02-15', endDate: '2027-02-20', year: 2027 }
+  ];
+  const holidays = generateOfficialPSPHolidays(2027);
+  const h1 = { id: '2027-H1', year: 2027, blockType: 'H1', startDate: '2027-01-01', endDate: '2027-06-30' };
+  const res = solveSchedule(h1, roster, blackouts, holidays, {}, [], { unitConfig: cfg });
+
+  // Problem #3: No bogus Feb 12-14 lookahead notice with 5 FTs
+  assert.strictEqual(res.scheduleNotices.length, 0, '5-FT unit must not emit bogus lookahead shortage notice');
+
+  // Problem #1: ONE's weekday count is fair (spread across all 5 FTs <= 2)
+  const wdCounts = {};
+  roster.filter(m => m.role === 'FT').forEach(m => { wdCounts[m.id] = 0; });
+  for (const [d, mId] of Object.entries(res.assignments)) {
+    const dow = new Date(d + 'T00:00:00').getDay();
+    if (dow >= 1 && dow <= 4 && wdCounts[mId] !== undefined) wdCounts[mId]++;
+  }
+  const wdVals = Object.values(wdCounts);
+  assert(Math.max(...wdVals) - Math.min(...wdVals) <= 2, `Weekday spread across 5 FTs must be <= 2 (got ${JSON.stringify(wdCounts)})`);
+
+  // Problem #2: TWO (weekendCadence: 2) works every-other-weekend target cadence (>= 10 weekends in H1)
+  const wknds = identifyWeekends(h1.startDate, h1.endDate, holidays);
+  const twoWeekends = wknds.filter(w => res.assignments[w.saturday] === 'name_4466').map(w => w.index);
+  assert(twoWeekends.length >= 10, `TWO with every-other-weekend cadence should work >= 10 weekends in H1 (got ${twoWeekends.length})`);
+  for (let i = 1; i < twoWeekends.length; i++) {
+    assert(twoWeekends[i] - twoWeekends[i - 1] >= 2, 'TWO must never work back-to-back weekends');
+  }
+
+  // Problem #4: SIX (ALT) works 3 weekends in H1 spaced well apart (gap >= 4 weekends)
+  const sixWeekends = wknds.filter(w => res.assignments[w.saturday] === 'six_8261').map(w => w.index);
+  assert.strictEqual(sixWeekends.length, 3, 'SIX must work 3 weekends in H1');
+  for (let i = 1; i < sixWeekends.length; i++) {
+    assert(sixWeekends[i] - sixWeekends[i - 1] >= 4, `SIX ALT weekends must be spaced across H1, not every other weekend (indices: ${sixWeekends.join(',')})`);
+  }
+
+  // Problem #5: Zero Fri-Tue stretches (weekend worker never works following Tue in H1 when other FTs exist)
+  wknds.forEach(w => {
+    const wkWorker = res.assignments[w.saturday];
+    const tueStr = formatDate(addDays(w.friday, 4));
+    if (tueStr <= h1.endDate) {
+      assert.notStrictEqual(res.assignments[tueStr], wkWorker, `Weekend worker ${wkWorker} on ${w.friday} must not work following Tuesday ${tueStr}`);
+    }
+  });
+
+  // Problem #7: Single-shift Active Rules Summary must NOT list 17:00 or 08:00
+  const sumHtml = generateRulesSummaryHtml(cfg, holidays);
+  assert(!sumHtml.includes('17:00') && !sumHtml.includes('08:00'), 'Single On-Call Active Rules Summary must not list unused 17:00/08:00 times');
+}
+console.log('PASS user-reported 5-FT + 1-ALT JSON scenario verified');
