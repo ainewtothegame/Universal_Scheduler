@@ -1,69 +1,74 @@
-# Pennsylvania State Police: Troop H Fire Marshal Unit
-## Operational User Guide & Practical Task Manual
+# PSP Universal Scheduler — User Guide
 
-This guide provides practical instructions for generating, managing, balancing, and printing on-call schedules for the Troop H Fire Marshal Unit.
-
----
-
-1. **Verify Roster**: Click **Roster** to confirm active Full-Time (FT) and Alternate (ALT) investigators. Confirm weekend quotas for alternates (default: 3 weekends per 6 months).
-2. **Record Approved Leave**: Click **Blackouts** and log all pre-approved vacations, training blocks, and military leave before generating. The scheduler will never assign shifts during approved leave.
-3. **Log Weekend Preferences**: Click **Requests** if investigators submitted specific weekend requests. The engine prioritizes these requests while enforcing safety rules.
-4. **Select Cycle & Run Generator**:
-   - Choose **2027 H1** or **2027 H2** from the cycle selector.
-   - Click **Auto-Generate Schedule**.
-   - The engine produces a 100% staffed schedule in under 10 milliseconds with zero rest violations, balanced holidays, and exact alternate quotas.
+The **PSP Universal Scheduler** is a standalone, single-file (`index.html`) on-call scheduling application designed for Pennsylvania State Police (PSP) specialty units. Each unit runs its own independent schedule, roster, and ruleset directly in the browser with full JSON backup/restore.
 
 ---
 
-### 2. Multi-Period & Full-Year Scheduling
+## Quick-Start Workflow (Common Tasks)
 
-The application coordinates H1, H2, and Full-Year schedules together:
+1. **Unit Setup**: Open **Schedule Rules & Setup** and select your unit's preset (or configure AM/PM slots and 80-hour rest rules).
+2. **Verify Roster**: Open **Roster** to add or verify your Troopers, Corporals, or Sergeants.
+3. **Blackouts & Requests**: Add **Blackouts** (leave/training) and **Requests**, then click **Auto-Generate Schedule**.
+4. **Review & Export**: Review the **Matrix** and **Breakdown** tabs, then **Print** or **Export Excel**.
 
-- **First Half (H1: Jan 1 to Jun 30)**: Generate first or configure manually.
-- **Second Half (H2: Jul 1 to Dec 31)**: When generated, H2 inspects H1 history to balance total annual weekends and holidays across all full-time members. It also protects rest continuity across the June/July boundary.
-- **Full Year (FULL: Jan 1 to Dec 31)**:
-  - Displays all 12 months in one view.
-  - **Preservation Lock**: Clicking **Auto-Generate Schedule** while in FULL year will **never overwrite** shifts already scheduled in H1 or H2. It only fills remaining unassigned dates, protecting your manual edits and prior work.
+## 1. Initial Unit Setup (`Schedule Rules & Setup`)
 
----
+Click **Schedule Rules & Setup** in the top ribbon to configure your unit:
 
-### 3. What the Dots on the Calendar Mean
-
-Small color-coded dots in the upper-right corner of calendar cells provide instant feedback on contract compliance:
-
-| Indicator | Classification | Rule Definition and Triggers | Recommended Operational Action |
-|:---:|:---:|:---|:---|
-| Red Dot | Error / Hard Conflict | **Contractual or Safety Breach**:<br>1. **Post-Weekend Rest**: Investigator worked the prior weekend and was scheduled during mandatory recovery days (Thursday to Sunday, or Wednesday).<br>2. **Blackout Clash**: Member scheduled during approved leave.<br>3. **Tenure Boundary**: Assigned before hire date or after departure date.<br>4. **Alternate Weekday**: Alternate assigned routine Mon-Thu weekday shifts without exemption. | Click the day cell and select an eligible investigator to resolve the violation. |
-| Amber Dot | Warning / Soft Breach | **Operational Warning**:<br>1. **Consecutive Weekends**: Same investigator assigned back-to-back weekends.<br>2. **Quota Exceeded**: Alternate exceeds their 6-month weekend limit.<br>3. **Unassigned Day**: Date has no on-call coverage. | Reassign one of the weekends to another investigator, or assign coverage to the open date. |
-| Blue Dot | Workload Concentration | **Weekday Clustering**:<br>1. Full-Time investigator assigned to 2 or more weekday shifts (Mon-Thu) in the same work week. | Check if one of the weekday shifts can be swapped with another team member to balance the weekly load. |
-
----
-
-### 4. Manually Assigning or Adjusting Shifts
-
-1. **Click any date cell** on the calendar.
-2. The assignment dialog opens with the investigator dropdown **focused automatically**.
-3. **Quick Selection**: Type the first letter of an investigator name or use the arrow keys, then press **Enter** to save (or press **Escape** to cancel).
-4. **Rest Violation Guard**: If you assign an investigator who worked the preceding weekend to Thursday through Sunday (their mandatory rest days), a warning prompt appears asking for explicit confirmation to overwrite.
-5. **Clear Shift**: Click *Clear Shift* inside the dialog to leave that specific date unassigned.
-
----
-
-### 5. Clearing Shifts (Current Month vs Entire Cycle)
-
-- Click **Clear Calendar** in the top navigation bar.
-- Choose your target scope:
-  - **Current Month Only**: Clears only the active month displayed on screen.
-  - **Entire Calendar Year / Block**: Clears all assignments across the selected cycle (H1, H2, or FULL).
-- Confirm the clear action in the prompt.
-- **Undo / Redo**: Made an accidental change? Press **Ctrl+Z** (or click Undo) to instantly recover your assignments.
+1. **Starter Presets**:
+   - **Blank / Custom PSP Unit**: Clean slate with PSP official holidays and default settings.
+   - **PSP Fire Marshal (Troop H Rules)**: Exact Troop H Fire Marshal ruleset (Fri–Mon FT weekends, Wed/Thu post-weekend rest, proactive Alternate lookahead).
+   - **PSP AM / PM Split On-Call**: Two daily slots — `PM On-Call` (Mon–Sun after shift) and `AM On-Call` (Sat–Sun & Holidays) — with optional prohibition on the same member working both AM and PM.
+   - **PSP 7-Day Weekly Rotation**: Full-week (Mon–Sun or Sun–Sat) on-call blocks with post-rotation days off.
+2. **Unit Identity & Ranks**:
+   - Set **Agency**, **Unit Name**, **Schedule Title**, **Member Label**, **Default Rank** (`Trooper`, `Corporal`, `Sergeant`, `Lieutenant`, or none), **Calendar Week Starts On** (Monday or Sunday), and **Footer Note**.
+3. **Daily Coverage Slots (Single vs. AM / PM)**:
+   - Choose **Single On-Call Shift** or **AM / PM Split On-Call**.
+   - Configure each slot's **Label**, **Start Time**, **End Time**, **Active Days** (`Mon`–`Sun`), and whether it activates on **Holidays**.
+4. **PSP 80-Hour Biweekly Pay Period & Rest Patterns**:
+   - Choose your **Weekend / Block Pattern** (`Fri–Sun`, `Fri–Mon FT`, `7-Day Full-Week`, or `Daily Independent`).
+   - Select your **Post-Weekend Rest / Days Off Pattern** (`Mon & Tue Off`, `Tue & Wed Off`, `Thu–Sun Off`, `Fire Marshal Wed/Thu`, `Custom`, or `None`).
+   - Enable **80-Hour Biweekly Pay Period Alert** and set your **Anchor Monday** to flag if a member is scheduled on multiple weekends in the same 14-day pay period.
+5. **Roles & PSP Holidays**:
+   - Customize role permissions (Weekdays, Weekends, Holidays, optional 6-month weekend quotas).
+   - Manage the **13 Official PSP Holidays** (toggle Premium 1.0 vs. Standard 0.5 weight, add custom dates, or reset to official PSP holidays).
+6. **Active Rules Summary**:
+   - Switch to the **Active Rules Summary** tab at any time to view or print your unit's live rules.
 
 ---
 
-### 6. Printing and Exporting
+## 2. Managing Personnel (`Roster`)
 
-- **Print Month**: Click **Print** to output the current month formatted for standard landscape 8.5" x 11" paper. Troop H headers appear centered at the top; navigation bars and browser timestamps are omitted.
-- **Print All Months**: Click **Print All** to print every month of the cycle sequentially with clean page breaks.
-- **Print Matrix**: Switch to the **Matrix** tab and click **Print**. Only **Weekend #**, **Weekend Dates**, and **Assigned Personnel** will print.
-- **Export to Excel**: Click **Export Excel** on the far right of the menu bar to generate an official formatted spreadsheet.
-- **Backup & Restore**: Click **Backup** to download a single JSON file containing all rosters, blackouts, requests, and schedules. Use **Restore** to reload your setup on another computer or roll back to a known snapshot.
+- Click **Roster** to add members with **Rank** (`Trooper`, `Corporal`, `Sergeant`, `Lieutenant`, or custom), **First Name**, **Last Name**, **Role**, **Active Start/End Dates**, and **Badge Color**.
+- Optional **Baseline Preferred Weekday** or **Preferred Day If Available** lets members express weekday preferences without breaking fairness.
+
+---
+
+## 3. Blackouts, Requests & Auto-Generate
+
+- **Blackouts**: Enter approved leave or training ranges. The solver treats blackouts as hard constraints.
+- **Requests**: Lock in **Requested Weekends** or **Specific Date / Shift Slot** requests before generating.
+- **Auto-Generate Schedule**: Builds a conflict-free, balanced schedule respecting your unit's slots, roles, PSP 80-hour rest rules, and holidays.
+
+---
+
+## 4. Manually Assigning or Adjusting Shifts, Clearing, Views & Exports
+
+- **Manually Assigning or Adjusting Shifts**: Click any calendar cell (or specific **AM / PM** badge) to reassign or clear a shift. Live rule checks warn before saving any rest, blackout, or same-day AM/PM conflicts.
+- **Clearing Shifts (Current Month vs Entire Cycle)**: Click **Clear Calendar** to wipe either the active month or the entire schedule block.
+- **Multi-Period & Full-Year Scheduling**: Use the **Cycle** dropdown or **+ Add Year / Block** to manage H1, H2, and Full-Year blocks; generating H2 automatically balances against H1.
+- **Printing and Exporting**: Use **Print**, **Print All**, or **Export Excel** to output single months, full cycles, or `.xlsx` workbooks.
+- **Matrix & Breakdown Views**: Inspect weekend/slot coverage and role-by-role fairness totals.
+- **What the Dots on the Calendar Mean**:
+  - **Red Dot**: Hard rule conflict (approved blackout, post-weekend rest violation, tenure boundary, or same-day AM/PM double-booking).
+  - **Amber Dot**: Warning (consecutive weekend, 80-hour biweekly pay period alert, quota exceeded, or unassigned shift).
+  - **Blue Dot**: Attention notice (multi-shift midweek coverage).
+- **Matrix & Breakdown Views**: Inspect weekend/slot coverage and role-by-role fairness totals.
+- **Print / Print All / Export Excel**: Print single months or the full cycle, or export to `.xlsx`.
+
+---
+
+## 5. Backups & Reusable Config Templates
+
+- **Backup / Restore (Top Ribbon)**: Saves or restores **everything** (unit configuration, roster, blackouts, requests, and all schedules). Legacy `Work_Calendar` v1 backups are automatically migrated on restore.
+- **Export Config / Import Config (Inside Schedule Rules & Setup)**: Saves or loads **only your unit's rules, slots, roles, and branding** as a reusable `.json` template without touching your roster or schedules.

@@ -1,12 +1,18 @@
 /**
  * storage_adapter.js
- * Unified document persistence adapter with in-memory undo/redo and JSON backup/restore.
+ * Unified document persistence adapter with in-memory undo/redo, v1->v2 migration,
+ * full backup/restore, and reusable unit config template export/import.
  */
 
-import { createInitialAppState, DEFAULT_2027_ROSTER } from './domain_data.js';
+import { createUniversalAppState, DEFAULT_2027_ROSTER } from './domain_data.js';
+import { createUnitConfig, normalizeUnitConfig, normalizeAssignmentsForConfig } from './unit_config.js';
 
-const STORAGE_KEY = 'psp_fire_marshal_schedule_v1';
+const STORAGE_KEY = 'psp_universal_scheduler_v1';
 const MAX_UNDO_STACK = 50;
+
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 export class StorageAdapter {
   constructor() {
@@ -16,7 +22,78 @@ export class StorageAdapter {
   }
 
   /**
-   * Loads state from localStorage or initializes default.
+   * Migrates a v1 (Work_Calendar) or v2 (Universal Scheduler) state object to current v2 schema.
+   */
+  migrateState(parsed) {
+    if (!parsed || (parsed.version !== 1 && parsed.version !== 2)) return null;
+    const isV1 = parsed.version === 1;
+    const out = deepClone(parsed);
+
+    out.version = 2;
+    out.unitConfig = out.unitConfig
+      ? normalizeUnitConfig(out.unitConfig)
+      : createUnitConfig(isV1 ? 'fire_marshal' : 'blank_psp');
+
+    if (!Array.isArray(out.roster)) out.roster = [];
+    if (!Array.isArray(out.blackouts)) out.blackouts = [];
+    if (!Array.isArray(out.preferredWeekends)) out.preferredWeekends = [];
+    if (!Array.isArray(out.preferredDates)) out.preferredDates = [];
+    if (!Array.isArray(out.pinnedNotes)) out.pinnedNotes = [];
+    if (!out.savedSnapshots || typeof out.savedSnapshots !== 'object') out.savedSnapshots = {};
+
+    if (Array.isArray(out.holidays)) {
+      out.holidays = out.holidays.filter(
+        h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name && h.name.includes('Independence Day'))
+      );
+    } else {
+      out.holidays = [];
+    }
+
+    const backfillMember = (m) => {
+      if (isV1) {
+        const def = DEFAULT_2027_ROSTER.find(d => d.id === m.id || d.name === m.name);
+        if (!m.rank) m.rank = def && def.rank ? def.rank : 'Trooper';
+        if (!m.firstName && def && def.firstName) m.firstName = def.firstName;
+      } else if (m.rank === undefined || m.rank === null) {
+        m.rank = out.unitConfig.defaultRank || 'Trooper';
+      }
+    };
+    out.roster.forEach(backfillMember);
+
+    if (out.cycles && typeof out.cycles === 'object') {
+      const years = new Set(Object.values(out.cycles).map(c => c.year).filter(Boolean));
+      years.forEach(y => {
+        const full = out.cycles[`${y}-FULL`];
+        const h1 = out.cycles[`${y}-H1`];
+        const h2 = out.cycles[`${y}-H2`];
+        [full, h1, h2].forEach(c => {
+          if (c && Array.isArray(c.rosterSnapshot)) {
+            c.rosterSnapshot.forEach(backfillMember);
+          }
+        });
+        if (full) {
+          if (!full.assignments) full.assignments = {};
+          if (h1 && h1.assignments) {
+            for (const [d, val] of Object.entries(h1.assignments)) {
+              if (!full.assignments[d]) full.assignments[d] = deepClone(val);
+            }
+          }
+          if (h2 && h2.assignments) {
+            for (const [d, val] of Object.entries(h2.assignments)) {
+              if (!full.assignments[d]) full.assignments[d] = deepClone(val);
+            }
+          }
+        }
+      });
+    } else {
+      out.cycles = {};
+    }
+
+    return out;
+  }
+
+  /**
+   * Loads state from localStorage or initializes a clean Universal Scheduler state.
    */
   loadState() {
     try {
@@ -30,59 +107,18 @@ export class StorageAdapter {
             this._preserveUnreadable(raw);
             throw parseErr;
           }
-          if (!parsed || parsed.version !== 1) this._preserveUnreadable(raw);
-          if (parsed && parsed.version === 1) {
-            // Prune invalid observed holidays (e.g. Independence Day Observed)
-            if (Array.isArray(parsed.holidays)) {
-              parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
-            }
-            if (!Array.isArray(parsed.pinnedNotes)) {
-              parsed.pinnedNotes = [];
-            }
-            // Ensure rank and firstName are populated from defaults if missing
-            const backfillMember = (m) => {
-              const def = DEFAULT_2027_ROSTER.find(d => d.id === m.id || d.name === m.name);
-              if (!m.rank) m.rank = def && def.rank ? def.rank : 'Trooper';
-              if (!m.firstName && def && def.firstName) m.firstName = def.firstName;
-            };
-            if (Array.isArray(parsed.roster)) {
-              parsed.roster.forEach(backfillMember);
-            }
-            // Synchronize full-year and half-year blocks
-            if (parsed.cycles) {
-              const years = new Set(Object.values(parsed.cycles).map(c => c.year).filter(Boolean));
-              years.forEach(y => {
-                const full = parsed.cycles[`${y}-FULL`];
-                const h1 = parsed.cycles[`${y}-H1`];
-                const h2 = parsed.cycles[`${y}-H2`];
-                [full, h1, h2].forEach(c => {
-                  if (c && Array.isArray(c.rosterSnapshot)) {
-                    c.rosterSnapshot.forEach(backfillMember);
-                  }
-                });
-                if (full) {
-                  if (!full.assignments) full.assignments = {};
-                  if (h1 && h1.assignments) {
-                    for (const [d, id] of Object.entries(h1.assignments)) {
-                      if (!full.assignments[d]) full.assignments[d] = id;
-                    }
-                  }
-                  if (h2 && h2.assignments) {
-                    for (const [d, id] of Object.entries(h2.assignments)) {
-                      if (!full.assignments[d]) full.assignments[d] = id;
-                    }
-                  }
-                }
-              });
-            }
-            return parsed;
+          const migrated = this.migrateState(parsed);
+          if (!migrated) {
+            this._preserveUnreadable(raw);
+          } else {
+            return migrated;
           }
         }
       }
     } catch (e) {
       console.warn('Could not read from localStorage, using initial state:', e);
     }
-    return createInitialAppState();
+    return createUniversalAppState('blank_psp', 2027);
   }
 
   /**
@@ -124,22 +160,22 @@ export class StorageAdapter {
   }
 
   /**
-   * Captures the current assignments of a cycle for the undo/redo stacks.
+   * Captures the current assignments of a cycle for the undo/redo stacks (deep-cloned for multi-slot safety).
    */
   _capture(cycleId) {
     const c = this.state.cycles[cycleId];
     return {
       cycleId,
-      assignments: { ...c.assignments },
-      manualOverrides: { ...c.manualOverrides }
+      assignments: deepClone(c.assignments || {}),
+      manualOverrides: deepClone(c.manualOverrides || {})
     };
   }
 
   _apply(entry) {
     const c = this.state.cycles[entry.cycleId];
     if (!c) return false;
-    c.assignments = { ...entry.assignments };
-    c.manualOverrides = { ...entry.manualOverrides };
+    c.assignments = deepClone(entry.assignments || {});
+    c.manualOverrides = deepClone(entry.manualOverrides || {});
     c.updatedAt = Date.now();
     this.state.activeCycleId = entry.cycleId; // show the cycle that changed
 
@@ -302,19 +338,15 @@ export class StorageAdapter {
   }
 
   /**
-   * Imports and restores full AppState from JSON string.
+   * Imports and restores full AppState (v1 or v2) from JSON string.
    */
   importBackupJSON(jsonStr) {
     try {
       const parsed = JSON.parse(jsonStr);
-      if (parsed && parsed.version === 1 && parsed.roster && parsed.cycles) {
-        if (Array.isArray(parsed.holidays)) {
-          parsed.holidays = parsed.holidays.filter(h => h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day')));
-        }
-        if (!Array.isArray(parsed.pinnedNotes)) {
-          parsed.pinnedNotes = [];
-        }
-        this.state = parsed;
+      if (parsed && (parsed.version === 1 || parsed.version === 2) && parsed.roster && parsed.cycles) {
+        const migrated = this.migrateState(parsed);
+        if (!migrated) return false;
+        this.state = migrated;
         this.undoStack = [];
         this.redoStack = [];
         this.saveState();
@@ -324,5 +356,52 @@ export class StorageAdapter {
       console.error('Invalid backup JSON:', e);
     }
     return false;
+  }
+
+  /**
+   * Exports only the Unit Configuration (branding, slots, roles, rules, holiday settings)
+   * as a reusable JSON template without personal schedules or blackouts.
+   */
+  exportConfigTemplateJSON() {
+    return JSON.stringify({
+      format: 'psp_universal_scheduler_config',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      unitConfig: normalizeUnitConfig(this.state.unitConfig)
+    }, null, 2);
+  }
+
+  /**
+   * Imports a reusable Unit Configuration template without wiping existing roster or blackouts.
+   * Normalizes cycle assignments if slot mode changed between single and multi-slot.
+   */
+  importConfigTemplateJSON(jsonStr) {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      const rawCfg = (parsed && parsed.format === 'psp_universal_scheduler_config' && parsed.unitConfig)
+        ? parsed.unitConfig
+        : (parsed && parsed.unitConfig ? parsed.unitConfig : null);
+      if (!rawCfg || !Array.isArray(rawCfg.coverageSlots)) return false;
+
+      const nextCfg = normalizeUnitConfig(rawCfg);
+      this.state.unitConfig = nextCfg;
+      if (this.state.cycles && typeof this.state.cycles === 'object') {
+        Object.values(this.state.cycles).forEach(c => {
+          if (c && c.assignments) {
+            c.assignments = normalizeAssignmentsForConfig(c.assignments, nextCfg);
+          }
+          if (c && c.manualOverrides) {
+            c.manualOverrides = normalizeAssignmentsForConfig(c.manualOverrides, nextCfg);
+          }
+        });
+      }
+      this.undoStack = [];
+      this.redoStack = [];
+      this.saveState();
+      return true;
+    } catch (e) {
+      console.error('Invalid config template JSON:', e);
+      return false;
+    }
   }
 }

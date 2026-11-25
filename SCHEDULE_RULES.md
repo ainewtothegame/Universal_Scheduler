@@ -1,7 +1,7 @@
 # Pennsylvania State Police: Troop H Fire Marshal Unit
-## Scheduling Rules, Contractual Constraints, and Invariant Specification
+## Scheduling Rules, Contractual Constraints, and Invariant Specification (Fire Marshal Preset Reference)
 
-This document details all contractual rules, operational constraints, and algorithmic invariants implemented within the PSP Fire Marshal On-Call Schedule Generator.
+> **Note:** In **PSP Universal Scheduler**, live scheduling rules for any unit are configured directly inside the **Schedule Rules & Unit Setup** dialog. This document serves as the reference specification for the built-in **PSP Fire Marshal (Troop H)** preset.
 
 ---
 

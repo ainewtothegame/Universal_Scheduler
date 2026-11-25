@@ -148,14 +148,14 @@ console.log('PASS ft weekend backtracking');
 
 // 9. Unreadable saved state is preserved, not silently overwritten
 {
-  const store = { psp_fire_marshal_schedule_v1: '{"version":2,"cycles":{}}' };
+  const store = { psp_universal_scheduler_v1: '{"version":99,"cycles":{}}' };
   globalThis.window = { localStorage: { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } };
   const s = new StorageAdapter();
-  assert.strictEqual(store.psp_fire_marshal_schedule_v1_unreadable_backup, '{"version":2,"cycles":{}}');
-  assert.strictEqual(s.state.version, 1);
-  store.psp_fire_marshal_schedule_v1 = '{not json';
+  assert.strictEqual(store.psp_universal_scheduler_v1_unreadable_backup, '{"version":99,"cycles":{}}');
+  assert.strictEqual(s.state.version, 2);
+  store.psp_universal_scheduler_v1 = '{not json';
   new StorageAdapter();
-  assert.strictEqual(store.psp_fire_marshal_schedule_v1_unreadable_backup, '{not json');
+  assert.strictEqual(store.psp_universal_scheduler_v1_unreadable_backup, '{not json');
   delete globalThis.window;
 }
 console.log('PASS unreadable state preserved');
@@ -410,7 +410,7 @@ console.log('PASS clear month engine and undo/redo');
   // 1. Show All button
   assert(html.includes('>Show All</button>'), 'missing Show All month button');
   // 2. Dropdown focus
-  assert(html.includes('select.focus()'), 'missing select.focus() in reassignment modal');
+  assert(html.includes('focusEl.focus()') || html.includes('select.focus()'), 'missing dropdown focus in reassignment modal');
   // 3. Clear Calendar scope modal
   assert(html.includes('id="modal-clear-calendar"'), 'missing modal-clear-calendar');
   assert(html.includes('id="clear-scope-month"'), 'missing clear-scope-month radio');
@@ -581,8 +581,8 @@ console.log('PASS menu bar fit, import/export far right, functional guide, and m
   // Matrix print date and member name formats
   assert(html.includes('formatWeekendPrintDate'), 'missing formatWeekendPrintDate helper');
   assert(html.includes('getMemberPrintName'), 'missing getMemberPrintName helper');
-  assert(html.includes('Trooper Sean POLCHA'), 'missing default full name formatting in domain roster');
-  assert(html.includes('Trooper Ryan KEMERER'), 'missing default full name formatting in domain roster');
+  assert.strictEqual(D.getMemberPrintName(D.DEFAULT_2027_ROSTER[0]), 'Trooper Sean POLCHA');
+  assert.strictEqual(D.getMemberPrintName(D.DEFAULT_2027_ROSTER[3]), 'Trooper Ryan KEMERER');
 
   // Rules text: 80 hours cap and Trooper recovery
   const rules = fs.readFileSync(new URL('../SCHEDULE_RULES.md', import.meta.url), 'utf8');
@@ -667,9 +667,10 @@ console.log('PASS lookahead simulation switch suggestions & circular dependency 
   assert(html.includes("if (attachedMon) weekendDays.push(mon);"), 'Must include attached Monday when holiday is present');
 
   // Requirement 3: Print suppression of adjust instructions and staffed count
-  assert(html.includes('.print-hide {\n        display: none !important;\n      }'), 'Print CSS must include .print-hide rule');
-  assert(html.includes('<span class="print-hide">Click any date cell to manually adjust shift assignment.</span>'), 'Adjust shift instructions must be wrapped in print-hide');
-  assert(html.includes('<div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed:'), 'Staffed count must be wrapped in print-hide');
+  const normHtml = html.replace(/\r\n/g, '\n');
+  assert(normHtml.includes('.print-hide {\n        display: none !important;\n      }'), 'Print CSS must include .print-hide rule');
+  assert(normHtml.includes('<span class="print-hide">Click any date cell to manually adjust shift assignment.</span>'), 'Adjust shift instructions must be wrapped in print-hide');
+  assert(normHtml.includes('<div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed:'), 'Staffed count must be wrapped in print-hide');
 }
 console.log('PASS blackouts chronological order, Friday weekend fill prompt, and print suppression verified');
 

@@ -22,6 +22,7 @@ function cleanModuleCode(filePath) {
   return code;
 }
 
+const unitConfigCode = cleanModuleCode('src/unit_config.js');
 const domainDataCode = cleanModuleCode('src/domain_data.js');
 const cspSolverCode = cleanModuleCode('src/csp_solver.js');
 const conflictEngineCode = cleanModuleCode('src/conflict_engine.js');
@@ -128,8 +129,8 @@ const htmlContent = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Pennsylvania State Police Troop H Fire Marshal on-call schedule generator, fatigue risk management, and duty assignment planner.">
-  <title>PSP Fire Marshal On-Call Schedule Generator</title>
+  <meta name="description" content="Pennsylvania State Police Universal On-Call Schedule Generator, AM/PM shift planner, and 80-hour fatigue risk management.">
+  <title>PSP Universal On-Call Schedule Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600&family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -633,6 +634,74 @@ const htmlContent = `<!DOCTYPE html>
       font-size: 11px;
     }
 
+    .multi-slot-stack {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slot-chip {
+      padding: 4px 6px;
+      border-radius: var(--radius-inner);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      box-shadow: var(--shadow-chip);
+      cursor: pointer;
+    }
+
+    .slot-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.22);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .setup-tab-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+
+    .setup-section {
+      background: var(--color-paper-2);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+
+    .setup-section-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    .empty-roster-banner {
+      background: var(--color-accent-soft);
+      border: 1px solid var(--color-accent);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     .conflict-badges {
       position: absolute;
       top: 6px;
@@ -910,8 +979,8 @@ const htmlContent = `<!DOCTYPE html>
   <!-- Top Navigation Bar -->
   <header>
     <div class="brand">
-      <div class="brand-title">Pennsylvania State Police</div>
-      <div class="brand-badge">Fire Marshal On-Call Scheduler</div>
+      <div id="brand-title" class="brand-title">Pennsylvania State Police</div>
+      <div id="brand-badge" class="brand-badge">PSP Universal On-Call Scheduler</div>
     </div>
     <div class="header-controls">
       <label style="font-size:12px; font-weight:600; opacity:0.9;">Cycle:</label>
@@ -941,7 +1010,7 @@ const htmlContent = `<!DOCTYPE html>
       <div class="ribbon-divider"></div>
       <button id="btn-open-guide" class="btn btn-outline-dark" title="Operational User Guide &amp; Task Manual">&#128214; How to Use</button>
       <button id="btn-open-pinned" class="btn btn-outline-dark" style="display:none;" title="Pinned Notes &amp; Switch Suggestions">&#128204; Pinned Notes (<span id="pinned-count">0</span>)</button>
-      <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Constraints Specification">&#128203; Schedule Rules</button>
+      <button id="btn-open-rules" class="btn btn-outline-dark" title="Schedule Rules &amp; Unit Setup">&#128203; Schedule Rules &amp; Setup</button>
       <div class="ribbon-divider"></div>
       <button id="btn-backup-export" class="btn btn-outline-dark" title="Download all data (roster, blackouts, requests, schedules) as a JSON backup file">&#128190; Backup</button>
       <button id="btn-backup-restore" class="btn btn-outline-dark" title="Restore everything from a JSON backup file">&#128194; Restore</button>
@@ -996,7 +1065,7 @@ const htmlContent = `<!DOCTYPE html>
     <!-- Matrix View (Hidden by default) -->
     <div id="view-matrix-wrapper" style="display:none;">
       <div class="calendar-container" style="padding:20px;">
-        <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
+        <div id="matrix-print-title" class="print-page-title">PSP Specialty Unit Schedule</div>
         <h2 style="font-size:18px; margin-bottom:16px;">Cycle Shift Matrix &amp; Weekend Rest Overview</h2>
         <div id="matrix-table-container"></div>
       </div>
@@ -1015,11 +1084,17 @@ const htmlContent = `<!DOCTYPE html>
       <div class="modal-body">
         <!-- Add Member Form -->
         <div style="background:var(--color-paper-2); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
-          <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Investigator to Roster</div>
+          <div id="member-form-title" style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">+ Add Member to Roster</div>
+          <datalist id="psp-ranks-list">
+            <option value="Trooper">
+            <option value="Corporal">
+            <option value="Sergeant">
+            <option value="Lieutenant">
+          </datalist>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Rank</label>
-              <input type="text" id="member-rank-input" class="form-input" placeholder="e.g. Trooper" value="Trooper">
+              <input type="text" id="member-rank-input" class="form-input" list="psp-ranks-list" placeholder="e.g. Trooper, Corporal, Sergeant" value="Trooper">
             </div>
             <div class="form-group">
               <label class="form-label">First Name</label>
@@ -1028,14 +1103,14 @@ const htmlContent = `<!DOCTYPE html>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Investigator Last Name *</label>
+              <label class="form-label">Last Name *</label>
               <input type="text" id="member-name-input" class="form-input" placeholder="e.g. POLCHA">
             </div>
             <div class="form-group">
               <label class="form-label">Role Classification *</label>
               <select id="member-role-input" class="form-select">
-                <option value="FT">Full-Time Fire Marshal (FT)</option>
-                <option value="ALT">Alternate Fire Marshal (ALT)</option>
+                <option value="FT">Full-Time (FT)</option>
+                <option value="ALT">Alternate (ALT)</option>
               </select>
             </div>
           </div>
@@ -1082,7 +1157,7 @@ const htmlContent = `<!DOCTYPE html>
             <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Default is 3 weekends per 6-month block (6 for Full Year). Increase or decrease to adjust scheduled weekends.</div>
           </div>
           <div style="display:flex; gap:8px;">
-            <button id="btn-save-new-member" class="btn btn-primary" style="flex:1; justify-content:center; padding:9px;">+ Add Investigator to Active Roster</button>
+            <button id="btn-save-new-member" class="btn btn-primary" style="flex:1; justify-content:center; padding:9px;">+ Add Member to Active Roster</button>
             <button id="btn-cancel-edit" class="btn btn-outline-dark" style="display:none; padding:9px;">Cancel Edit</button>
           </div>
         </div>
@@ -1090,8 +1165,8 @@ const htmlContent = `<!DOCTYPE html>
         <div id="alt-weekends-manager-block" style="background:var(--warning-soft); padding:14px 16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--warning-soft-border);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
             <div>
-              <div style="font-weight:700; font-size:13px; color:var(--warning-text);">Alternate Fire Marshals: Weekends Per 6 Months</div>
-              <div style="font-size:11px; color:var(--warning-border);">Adjust the number of weekends each Alternate Fire Marshal is scheduled per 6-month block (default: 3).</div>
+              <div style="font-weight:700; font-size:13px; color:var(--warning-text);">Quota-Based Members: Weekends Per 6 Months</div>
+              <div style="font-size:11px; color:var(--warning-border);">Adjust the number of weekends each quota-based member is scheduled per 6-month block (default: 3).</div>
             </div>
           </div>
           <div id="alt-quota-controls-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px;"></div>
@@ -1143,20 +1218,19 @@ const htmlContent = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- 3. Add Year / Schedule Block Modal -->
-    <div id="modal-prefs" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Requested weekends">
+    <!-- 3. Requested Shifts / Weekends Modal -->
+    <div id="modal-prefs" class="modal modal-wide" style="display:none;" role="dialog" aria-modal="true" aria-label="Requested shifts and weekends">
       <div class="modal-header">
-        <div class="modal-title">&#11088; Requested Weekends (Want to Work)</div>
+        <div class="modal-title">&#11088; Requested Weekends &amp; Specific Dates</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:14px; color:var(--text-muted);">
-          Weekends listed here are locked in for that person when you click Auto-Generate. All other weekends are scheduled around them.
-          A request is skipped only if it is impossible (blackout, same weekend requested by two people, or back-to-back weekends for one person), and you will be told which.
+          Requests listed here are locked in first when you click Auto-Generate. All other shifts are scheduled around them.
         </p>
         <div style="background:var(--color-paper-2); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
           <div class="form-group">
-            <label class="form-label">Investigator *</label>
+            <label class="form-label">Member *</label>
             <select id="pref-member-select" class="form-select"></select>
           </div>
           <div class="form-group">
@@ -1165,10 +1239,30 @@ const htmlContent = `<!DOCTYPE html>
           </div>
           <div class="form-group">
             <label class="form-label">Notes (optional)</label>
-            <input type="text" id="pref-notes-input" class="form-input" placeholder="e.g. Swapped with Terek">
+            <input type="text" id="pref-notes-input" class="form-input" placeholder="e.g. Swapped shift">
           </div>
           <button id="btn-save-new-pref" class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;">Add Requested Weekend</button>
         </div>
+
+        <div style="background:var(--color-paper-2); padding:14px 16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border-color);">
+          <div style="font-weight:700; font-size:13px; color:var(--primary); margin-bottom:10px;">+ Request Specific Date / Shift Slot</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Member *</label>
+              <select id="pref-date-member-select" class="form-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date *</label>
+              <input type="date" id="pref-date-input" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shift Slot</label>
+              <select id="pref-slot-select" class="form-select"></select>
+            </div>
+          </div>
+          <button id="btn-save-new-pref-date" class="btn btn-outline-dark" style="width:100%; justify-content:center; padding:8px;">+ Add Specific Date Request</button>
+        </div>
+
         <div style="font-weight:700; font-size:14px; margin-bottom:10px;">Requests for this block (<span id="modal-pref-count">0</span>)</div>
         <div id="pref-items-container"></div>
       </div>
@@ -1220,18 +1314,20 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <!-- 4. Reassign Shift Modal -->
-    <div id="modal-reassign" class="modal" style="width:400px; display:none;">
+    <div id="modal-reassign" class="modal" style="width:440px; display:none;">
       <div class="modal-header">
         <div id="reassign-date-title" class="modal-title">Reassign Shift</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Assign Duty Investigator</label>
-          <select id="reassign-member-select" class="form-select"></select>
+        <div id="reassign-slots-container">
+          <div class="form-group">
+            <label class="form-label">Assign Duty Member</label>
+            <select id="reassign-member-select" class="form-select"></select>
+          </div>
         </div>
         <div id="reassign-conflict-preview" style="padding:10px; border-radius:6px; background:var(--color-paper); font-size:12px; min-height:40px;">
-          Select an investigator to evaluate fatigue rest rules.
+          Select a member to evaluate fatigue and rest rules.
         </div>
       </div>
       <div class="modal-footer">
@@ -1330,17 +1426,205 @@ const htmlContent = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- 9. Schedule Rules Modal -->
-    <div id="modal-rules" class="modal modal-wide" style="display:none; max-width:880px;" role="dialog" aria-modal="true" aria-label="Schedule rules and constraints">
+    <!-- 9. Schedule Rules & Unit Setup Modal -->
+    <div id="modal-rules" class="modal modal-wide" style="display:none; max-width:960px;" role="dialog" aria-modal="true" aria-label="Schedule rules and unit setup">
       <div class="modal-header">
-        <div class="modal-title">&#128203; Troop H Fire Marshal: Schedule Rules &amp; Invariants</div>
+        <div class="modal-title">&#128203; Schedule Rules &amp; Unit Setup</div>
         <button class="modal-close" onclick="closeAllModals()" aria-label="Close dialog">&times;</button>
       </div>
-      <div class="modal-body doc-content" style="max-height:75vh; overflow-y:auto; padding:24px;">
-        ${scheduleRulesHtml}
+      <div class="modal-body" style="max-height:78vh; overflow-y:auto; padding:20px;">
+        <div class="setup-tab-bar">
+          <button id="btn-rules-tab-config" class="btn btn-primary" type="button">Configure Unit &amp; Rules</button>
+          <button id="btn-rules-tab-summary" class="btn btn-outline-dark" type="button">Active Rules Summary</button>
+          <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+            <button id="btn-export-config-template" class="btn btn-outline-dark" type="button" title="Export only Unit Rules &amp; Setup as reusable JSON template">&#128190; Export Config</button>
+            <button id="btn-import-config-template" class="btn btn-outline-dark" type="button" title="Import a saved Unit Config JSON template">&#128194; Import Config</button>
+            <input type="file" id="config-template-file-input" accept=".json,application/json" style="display:none;">
+          </div>
+        </div>
+
+        <div id="rules-config-panel">
+          <div class="setup-section">
+            <div class="setup-section-title">1. Starter Preset &amp; Sample Data</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <select id="setup-preset-select" class="form-select" style="flex:1; min-width:220px;">
+                <option value="blank_psp">Blank / Custom PSP Unit</option>
+                <option value="fire_marshal">PSP Fire Marshal (Troop H Rules)</option>
+                <option value="am_pm_split">PSP AM / PM Split On-Call</option>
+                <option value="weekly_rotation">PSP 7-Day Weekly Rotation</option>
+              </select>
+              <button id="btn-apply-preset" class="btn btn-primary" type="button">Apply Preset</button>
+              <button id="btn-load-fm-sample" class="btn btn-outline-dark" type="button" title="Load Troop H Fire Marshal 2027 sample roster &amp; blackouts">Load Fire Marshal Sample Roster</button>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-section-title">2. Unit Identity &amp; Calendar Labels</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agency / Department</label>
+                <input type="text" id="setup-agency" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Unit Name</label>
+                <input type="text" id="setup-unit-name" class="form-input">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Schedule Title</label>
+                <input type="text" id="setup-schedule-title" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Member Label (e.g. Member, Investigator)</label>
+                <input type="text" id="setup-member-label" class="form-input">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Default Rank</label>
+                <select id="setup-default-rank" class="form-select">
+                  <option value="Trooper">Trooper</option>
+                  <option value="Corporal">Corporal</option>
+                  <option value="Sergeant">Sergeant</option>
+                  <option value="Lieutenant">Lieutenant</option>
+                  <option value="">None (No Rank Prefix)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Calendar Week Starts On</label>
+                <select id="setup-week-start" class="form-select">
+                  <option value="1">Monday (Mon–Sun)</option>
+                  <option value="0">Sunday (Sun–Sat)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Footer / Shift Hours Note (printed on calendar &amp; Excel)</label>
+              <input type="text" id="setup-footer-note" class="form-input">
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-section-title">3. Daily Coverage Slots (Single Shift vs. AM / PM Split)</div>
+            <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+              <label style="display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+                <input type="radio" name="setup-slot-mode" value="single" id="setup-slot-mode-single" checked> Single On-Call Shift
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+                <input type="radio" name="setup-slot-mode" value="ampm" id="setup-slot-mode-ampm"> AM / PM Split On-Call
+              </label>
+              <label id="setup-same-ampm-wrap" style="display:none; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                <input type="checkbox" id="setup-allow-same-ampm"> Allow same person on both AM &amp; PM
+              </label>
+            </div>
+            <div id="setup-slots-editor"></div>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-section-title">4. PSP 80-Hour Pay Period &amp; Scheduling Rules</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Weekend / Block Pattern</label>
+                <select id="setup-block-pattern" class="form-select">
+                  <option value="fri_sun">Fri–Sun Weekend Block + Individual Weekdays</option>
+                  <option value="fri_mon_ft">Fri–Mon Extended Weekend (FT) / Fri–Sun (ALT)</option>
+                  <option value="full_week">7-Day Full-Week On-Call Block</option>
+                  <option value="daily_independent">Daily Independent Shifts</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Weekday Allocation Mode</label>
+                <select id="setup-weekday-mode" class="form-select">
+                  <option value="dynamic_equity">Dynamic Equity Rotation (Balanced)</option>
+                  <option value="fixed_baseline">Fixed Baseline Weekdays</option>
+                  <option value="weekly_block">Full-Week Block Assignment</option>
+                  <option value="fire_marshal_phased_2027">Fire Marshal 2027 Phased (Fixed Jan–Feb, Dynamic Mar+)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Post-Weekend Rest / Days Off Pattern</label>
+                <select id="setup-rest-pattern" class="form-select">
+                  <option value="none">None (No Mandatory Post-Weekend Rest)</option>
+                  <option value="fire_marshal_thu_sun">PSP Fire Marshal (Mon–Wed 10-day → Wed comp + Thu–Sun off)</option>
+                  <option value="mon_tue_off">Mon–Sun Stretch → Mon &amp; Tue Off (Work Wed–Wed, Thu–Sun off)</option>
+                  <option value="tue_wed_off">Mon–Sun Stretch → Tue &amp; Wed Off (80-Hr Balance)</option>
+                  <option value="wed_wed_thu_sun">Wed–Wed Stretch → Thu–Sun Off</option>
+                  <option value="custom">Custom Blocked Days</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Minimum Weeks Between Weekends (0 = back-to-back OK)</label>
+                <input type="number" id="setup-min-weekend-gap" class="form-input" min="0" max="4" value="1">
+              </div>
+            </div>
+            <div id="setup-custom-rest-wrap" style="display:none; margin-bottom:10px;">
+              <label class="form-label">Blocked Recovery Weekdays After Weekend:</label>
+              <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:12px;">
+                <label><input type="checkbox" class="setup-custom-rest-dow" value="1"> Monday</label>
+                <label><input type="checkbox" class="setup-custom-rest-dow" value="2"> Tuesday</label>
+                <label><input type="checkbox" class="setup-custom-rest-dow" value="3"> Wednesday</label>
+                <label><input type="checkbox" class="setup-custom-rest-dow" value="4"> Thursday</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="display:flex; flex-direction:column; gap:6px; justify-content:center;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="setup-enforce-80hr"> Enforce 80-Hour Biweekly Pay Period Alert
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="setup-preweekend-shaping"> Enable Pre-Weekend Fatigue Shaping (avoid Thu before own weekend)
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="setup-proactive-lookahead"> Enable Proactive Alternate Lookahead Before Leave
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Biweekly Pay Period Anchor Monday</label>
+                <input type="date" id="setup-pay-anchor" class="form-input" value="2027-01-04">
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div class="setup-section-title" style="margin-bottom:0;">5. Personnel Roles &amp; Permissions</div>
+              <button id="btn-add-setup-role" class="btn btn-outline-dark" type="button" style="padding:3px 10px; font-size:11px;">+ Add Role</button>
+            </div>
+            <div id="setup-roles-editor"></div>
+          </div>
+
+          <div class="setup-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+              <div class="setup-section-title" style="margin-bottom:0;">6. PSP Official Holidays</div>
+              <div style="display:flex; gap:12px; font-size:12px; align-items:center;">
+                <label><input type="checkbox" id="setup-attach-hol"> Attach Fri/Mon Holidays to Weekend</label>
+                <label><input type="checkbox" id="setup-balance-hol"> Fair Holiday Balancing</label>
+                <button id="btn-reset-psp-holidays" class="btn btn-outline-dark" type="button" style="padding:3px 10px; font-size:11px;">Reset Official PSP Holidays</button>
+              </div>
+            </div>
+            <div id="setup-holidays-editor" style="max-height:190px; overflow-y:auto; margin-bottom:10px;"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input type="date" id="setup-new-hol-date" class="form-input" style="width:150px;">
+              <input type="text" id="setup-new-hol-name" class="form-input" placeholder="Custom holiday name" style="flex:1; min-width:160px;">
+              <select id="setup-new-hol-type" class="form-select" style="width:150px;">
+                <option value="midweek">Midweek</option>
+                <option value="attached_fri">Attached Friday</option>
+                <option value="attached_mon">Attached Monday</option>
+                <option value="weekend">Weekend</option>
+              </select>
+              <button id="btn-add-custom-holiday" class="btn btn-outline-dark" type="button">+ Add Holiday</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="rules-summary-panel" class="doc-content" style="display:none;"></div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="closeAllModals()">Close Rules</button>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; gap:8px;">
+        <button id="btn-save-unit-config" class="btn btn-primary" type="button">&#10003; Save &amp; Apply Unit Rules</button>
+        <button class="btn btn-outline-dark" onclick="closeAllModals()">Close</button>
       </div>
     </div>
 
@@ -1390,6 +1674,9 @@ const htmlContent = `<!DOCTYPE html>
       return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
 
+    // --- unit_config.js ---
+    ${unitConfigCode}
+
     // --- domain_data.js ---
     ${domainDataCode}
 
@@ -1405,115 +1692,12 @@ const htmlContent = `<!DOCTYPE html>
     // --- storage_adapter.js ---
     ${storageAdapterCode}
 
-    // --- Algorithmic Holiday Generator for Any Year ---
-    function getNthWeekdayOfMonth(year, monthIndex, weekday, n) {
-      let count = 0;
-      for (let d = 1; d <= 31; d++) {
-        const dt = new Date(year, monthIndex, d);
-        if (dt.getMonth() !== monthIndex) break;
-        if (dt.getDay() === weekday) {
-          count++;
-          if (count === n) return dt;
-        }
-      }
-      return null;
-    }
-
-    function getLastWeekdayOfMonth(year, monthIndex, weekday) {
-      let last = null;
-      for (let d = 1; d <= 31; d++) {
-        const dt = new Date(year, monthIndex, d);
-        if (dt.getMonth() !== monthIndex) break;
-        if (dt.getDay() === weekday) last = dt;
-      }
-      return last;
-    }
-
-    function getEasterSunday(year) {
-      const a = year % 19;
-      const b = Math.floor(year / 100);
-      const c = year % 100;
-      const d = Math.floor(b / 4);
-      const e = b % 4;
-      const f = Math.floor((b + 8) / 25);
-      const g = Math.floor((b - f + 1) / 3);
-      const h = (19 * a + b - d - g + 15) % 30;
-      const i = Math.floor(c / 4);
-      const k = c % 4;
-      const l = (32 + 2 * e + 2 * i - h - k) % 7;
-      const m = Math.floor((a + 11 * h + 22 * l) / 451);
-      const month = Math.floor((h + l - 7 * m + 114) / 31);
-      const day = ((h + l - 7 * m + 114) % 31) + 1;
-      return new Date(year, month - 1, day);
-    }
-
-    function generateOfficialPSPHolidays(year) {
-      const holidays = [];
-      function addHol(dt, name, type) {
-        if (!dt) return;
-        holidays.push({ date: formatDate(dt), year, name, type });
-      }
-
-      // New Year's Day: Jan 1
-      const ny = new Date(year, 0, 1);
-      const nyDow = ny.getDay();
-      addHol(ny, "New Year's Day", nyDow === 5 ? 'attached_fri' : (nyDow === 1 ? 'attached_mon' : (nyDow === 0 || nyDow === 6 ? 'weekend' : 'midweek')));
-
-      // Martin Luther King Day: 3rd Monday in Jan
-      addHol(getNthWeekdayOfMonth(year, 0, 1, 3), "Martin Luther King Day", 'attached_mon');
-
-      // Presidents' Day: 3rd Monday in Feb
-      addHol(getNthWeekdayOfMonth(year, 1, 1, 3), "Presidents' Day", 'attached_mon');
-
-      // Good Friday: 2 days before Easter Sunday
-      const easter = getEasterSunday(year);
-      const goodFriday = new Date(easter.getTime() - 2 * 24 * 60 * 60 * 1000);
-      addHol(goodFriday, 'Good Friday', 'attached_fri');
-
-      // Memorial Day: Last Monday in May
-      addHol(getLastWeekdayOfMonth(year, 4, 1), 'Memorial Day', 'attached_mon');
-
-      // Juneteenth: June 19
-      const june19 = new Date(year, 5, 19);
-      const jDow = june19.getDay();
-      addHol(june19, 'Juneteenth', jDow === 5 ? 'attached_fri' : (jDow === 1 ? 'attached_mon' : (jDow === 0 || jDow === 6 ? 'weekend' : 'midweek')));
-
-      // Independence Day: July 4 (always July 4th, no observed holiday)
-      const jul4 = new Date(year, 6, 4);
-      const julDow = jul4.getDay();
-      addHol(jul4, 'Independence Day', julDow === 5 ? 'attached_fri' : (julDow === 1 ? 'attached_mon' : (julDow === 0 || julDow === 6 ? 'weekend' : 'midweek')));
-
-      // Labor Day: 1st Monday in Sept
-      addHol(getNthWeekdayOfMonth(year, 8, 1, 1), 'Labor Day', 'attached_mon');
-
-      // Columbus Day: 2nd Monday in Oct
-      addHol(getNthWeekdayOfMonth(year, 9, 1, 2), 'Columbus Day', 'attached_mon');
-
-      // General Election Day: Tuesday after 1st Monday in Nov
-      const firstMonNov = getNthWeekdayOfMonth(year, 10, 1, 1);
-      const electionDay = new Date(firstMonNov.getTime() + 24 * 60 * 60 * 1000);
-      addHol(electionDay, 'General Election Day', 'midweek');
-
-      // Veterans Day: Nov 11
-      const vetDay = new Date(year, 10, 11);
-      const vetDow = vetDay.getDay();
-      addHol(vetDay, 'Veterans Day', vetDow === 5 ? 'attached_fri' : (vetDow === 1 ? 'attached_mon' : (vetDow === 0 || vetDow === 6 ? 'weekend' : 'midweek')));
-
-      // Thanksgiving Day: 4th Thursday in Nov
-      addHol(getNthWeekdayOfMonth(year, 10, 4, 4), 'Thanksgiving Day', 'midweek');
-
-      // Christmas Day: Dec 25
-      const xmas = new Date(year, 11, 25);
-      const xDow = xmas.getDay();
-      addHol(xmas, 'Christmas Day', xDow === 5 ? 'attached_fri' : (xDow === 1 ? 'attached_mon' : (xDow === 0 || xDow === 6 ? 'weekend' : 'midweek')));
-
-      return holidays;
-    }
-
     // --- UI Controller & Application Bootstrap ---
     const storage = new StorageAdapter();
     window.appState = storage.state;
     if (!window.appState.preferredWeekends) window.appState.preferredWeekends = [];
+    if (!window.appState.preferredDates) window.appState.preferredDates = [];
+    if (!window.appState.unitConfig) window.appState.unitConfig = createUnitConfig('blank_psp');
 
     let activeMonthIdx = 0; // 0=Jan
     let selectedDateForReassign = null;
@@ -1709,12 +1893,20 @@ const htmlContent = `<!DOCTYPE html>
 
     // Refresh UI
     function renderApp() {
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      document.title = \`\${cfg.unitName} — \${cfg.scheduleTitle}\`;
+      const bt = document.getElementById('brand-title');
+      const bb = document.getElementById('brand-badge');
+      const mpt = document.getElementById('matrix-print-title');
+      if (bt) bt.textContent = cfg.agency || 'Pennsylvania State Police';
+      if (bb) bb.textContent = \`\${cfg.unitName} — \${cfg.scheduleTitle}\`;
+      if (mpt) mpt.textContent = \`\${cfg.unitName} Schedule\`;
+
       syncCycleAssignments();
       refreshCycleDropdown();
-      const cycle = getActiveCycle();
       rosterCount.textContent = getCycleRoster().length;
       blackoutCount.textContent = cycleBlackouts().length;
-      document.getElementById('pref-count').textContent = cyclePrefs().length;
+      document.getElementById('pref-count').textContent = cyclePrefs().length + cyclePreferredDates().length;
       updatePinnedNotesButton();
 
       renderMonthTabs();
@@ -1763,31 +1955,30 @@ const htmlContent = `<!DOCTYPE html>
     }
 
     function renderSingleMonthHtml(cycle, targetYear, targetMonthIdx, conflicts) {
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const multiSlot = isMultiSlotConfig(cfg);
+      const weekStartDay = cfg.weekStartDay === 0 ? 0 : 1;
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const monthTitle = \`\${monthNames[targetMonthIdx]} \${targetYear}\`;
 
       const firstDay = new Date(targetYear, targetMonthIdx, 1);
       const lastDay = new Date(targetYear, targetMonthIdx + 1, 0);
-      const firstDow = firstDay.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-      const mondayOffset = firstDow === 0 ? -6 : (1 - firstDow);
-      let weekMonday = addDays(firstDay, mondayOffset);
+      const firstDow = firstDay.getDay();
+      const startOffset = -((firstDow - weekStartDay + 7) % 7);
+      let weekStart = addDays(firstDay, startOffset);
 
       let cellsHtml = '';
-      let assignedCount = 0;
-      const totalMonthDays = lastDay.getDate();
+      let assignedSlotsCount = 0;
+      let totalActiveSlots = 0;
       let hasExemption = false;
 
-      while (weekMonday <= lastDay) {
+      while (weekStart <= lastDay) {
         for (let i = 0; i < 7; i++) {
-          const d = addDays(weekMonday, i);
+          const d = addDays(weekStart, i);
           const dStr = formatDate(d);
           const isCurrentMonth = d.getMonth() === targetMonthIdx;
           const dow = d.getDay();
           const isWeekend = (dow === 0 || dow === 6);
-
-          const assignedId = cycle.assignments[dStr];
-          const member = window.appState.roster.find(m => m.id === assignedId);
-          if (isCurrentMonth && assignedId) assignedCount++;
 
           const holiday = window.appState.holidays.find(h => h.date === dStr);
           const dayConflicts = conflicts[dStr] || [];
@@ -1795,27 +1986,58 @@ const htmlContent = `<!DOCTYPE html>
           const hasWarning = dayConflicts.some(c => c.type === 'WARNING');
           const hasAttention = dayConflicts.some(c => c.type === 'ATTENTION');
 
-          if (dayConflicts.some(c => c.code === 'ALT_WEEKDAY_VIOLATION')) {
+          if (dayConflicts.some(c => c.code === 'ALT_WEEKDAY_VIOLATION' || c.code === 'ROLE_WEEKDAY_VIOLATION')) {
             hasExemption = true;
           }
 
+          const activeSlots = getActiveSlotsForDate(dStr, cfg, window.appState.holidays);
+          if (isCurrentMonth) totalActiveSlots += activeSlots.length;
+
           let chipHtml = '';
-          if (member) {
-            chipHtml = \`
-              <div class="assignment-chip" style="background:\${member.color};">
-                <span>\${esc(member.name)}</span>
-                <span style="font-size:10px; opacity:0.85;">\${member.role}</span>
-              </div>
-            \`;
+          if (activeSlots.length === 0) {
+            chipHtml = '<div style="margin-top:auto; font-size:10px; color:var(--text-muted); text-align:center; padding:4px;">No On-Call</div>';
+          } else if (!multiSlot) {
+            const slot = activeSlots[0];
+            const assignedId = getSlotMember(cycle.assignments, dStr, slot.id, cfg);
+            const member = window.appState.roster.find(m => m.id === assignedId);
+            if (isCurrentMonth && assignedId) assignedSlotsCount++;
+            if (member) {
+              chipHtml = \`
+                <div class="assignment-chip" style="background:\${member.color};">
+                  <span>\${esc(member.name)}</span>
+                  <span style="font-size:10px; opacity:0.85;">\${esc(member.role)}</span>
+                </div>
+              \`;
+            } else {
+              chipHtml = \`<div class="assignment-chip unassigned-chip">UNASSIGNED</div>\`;
+            }
           } else {
-            chipHtml = \`<div class="assignment-chip unassigned-chip">UNASSIGNED</div>\`;
+            chipHtml = '<div class="multi-slot-stack">' + activeSlots.map(slot => {
+              const assignedId = getSlotMember(cycle.assignments, dStr, slot.id, cfg);
+              const member = window.appState.roster.find(m => m.id === assignedId);
+              if (isCurrentMonth && assignedId) assignedSlotsCount++;
+              if (member) {
+                return \`
+                  <div class="slot-chip" data-slot="\${esc(slot.id)}" style="background:\${member.color};" title="\${esc(slot.label)} (\${esc(slot.startTime)}–\${esc(slot.endTime)})">
+                    <span class="slot-tag">\${esc(slot.id.toUpperCase())}</span>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">\${esc(member.name)}</span>
+                  </div>
+                \`;
+              }
+              return \`
+                <div class="slot-chip unassigned-chip" data-slot="\${esc(slot.id)}" title="\${esc(slot.label)} (\${esc(slot.startTime)}–\${esc(slot.endTime)})">
+                  <span class="slot-tag" style="background:rgba(180,0,0,0.12); color:var(--danger);">\${esc(slot.id.toUpperCase())}</span>
+                  <span>OPEN</span>
+                </div>
+              \`;
+            }).join('') + '</div>';
           }
 
           let dotsHtml = '';
           if (hasError || hasWarning || hasAttention) {
             dotsHtml = '<div class="conflict-badges">';
-            if (hasError) dotsHtml += '<div class="conflict-dot dot-error" title="Contractual Fatigue / Blackout Conflict"></div>';
-            if (hasWarning) dotsHtml += '<div class="conflict-dot dot-warning" title="Warning / Quota Breach"></div>';
+            if (hasError) dotsHtml += '<div class="conflict-dot dot-error" title="Fatigue / Rest / Blackout Conflict"></div>';
+            if (hasWarning) dotsHtml += '<div class="conflict-dot dot-warning" title="Warning / Quota / 80-Hr Alert"></div>';
             if (hasAttention) dotsHtml += '<div class="conflict-dot dot-attention" title="Multi-Shift Coverage"></div>';
             dotsHtml += '</div>';
           }
@@ -1824,36 +2046,48 @@ const htmlContent = `<!DOCTYPE html>
             <div class="day-cell \${!isCurrentMonth ? 'other-month' : ''} \${isWeekend ? 'weekend-col' : ''}" data-date="\${dStr}">
               <div class="day-top">
                 <span class="day-num">\${d.getDate()}</span>
-                \${holiday ? \`<span class="holiday-pill \${isPremiumHoliday(holiday) ? 'premium' : 'standard'}" title="\${esc(holiday.name)}\${isPremiumHoliday(holiday) ? ' (premium)' : ' (non-premium)'}">\${esc(holiday.name)}\${isPremiumHoliday(holiday) ? ' (premium)' : ''}</span>\` : ''}
+                \${holiday ? \`<span class="holiday-pill \${isPremiumHoliday(holiday, cfg) ? 'premium' : 'standard'}" title="\${esc(holiday.name)}\${isPremiumHoliday(holiday, cfg) ? ' (premium)' : ' (non-premium)'}">\${esc(holiday.name)}\${isPremiumHoliday(holiday, cfg) ? ' (premium)' : ''}</span>\` : ''}
               </div>
               \${dotsHtml}
               \${chipHtml}
             </div>
           \`;
         }
-        weekMonday = addDays(weekMonday, 7);
+        weekStart = addDays(weekStart, 7);
       }
+
+      const dowHeaders = [];
+      for (let i = 0; i < 7; i++) {
+        dowHeaders.push(\`<div class="dow-header">\${DAY_NAMES[(weekStartDay + i) % 7]}</div>\`);
+      }
+
+      const emptyBanner = (window.appState.roster.length === 0) ? \`
+        <div class="empty-roster-banner print-hide">
+          <div>
+            <strong>Get Started:</strong> Configure your unit&apos;s rules (AM/PM slots, PSP 80-hour pattern) and add your roster members to generate a schedule.
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('btn-open-rules').click()">&#128203; Unit Setup &amp; Rules</button>
+            <button type="button" class="btn btn-outline-dark" onclick="document.getElementById('btn-open-roster').click()">&#128101; Add Roster</button>
+          </div>
+        </div>
+      \` : '';
 
       return \`
         <div class="calendar-container" style="margin-bottom:24px;">
-          <div class="print-page-title">Troop H Fire Marshal Unit Schedule</div>
+          \${emptyBanner}
+          <div class="print-page-title">\${esc(cfg.unitName || 'PSP Specialty Unit')} Schedule</div>
           <div class="calendar-header">
             <div class="calendar-title">\${monthTitle}</div>
-            <div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed: \${assignedCount} / \${totalMonthDays} Days</div>
+            <div class="print-hide" style="font-size: 13px; color: var(--text-muted);">Staffed: \${assignedSlotsCount} / \${totalActiveSlots} Shifts</div>
           </div>
           <div class="calendar-grid">
-            <div class="dow-header">Monday</div>
-            <div class="dow-header">Tuesday</div>
-            <div class="dow-header">Wednesday</div>
-            <div class="dow-header">Thursday</div>
-            <div class="dow-header">Friday</div>
-            <div class="dow-header">Saturday</div>
-            <div class="dow-header">Sunday</div>
+            \${dowHeaders.join('')}
           </div>
           <div class="calendar-grid">\${cellsHtml}</div>
           <div class="calendar-footer">
-            <div><strong>Rule Note:</strong> On call starts PM that day (after scheduled shift) through 0600hrs the next morning. <span class="print-hide">Click any date cell to manually adjust shift assignment.</span></div>
-            <div style="color:var(--danger); font-weight:600; display:\${hasExemption ? 'block' : 'none'};">* Administrative Exemption: Manual Alternate Weekday Assignment</div>
+            <div><strong>Rule Note:</strong> \${esc(cfg.footerNote || 'On-call coverage per unit rules.')} <span class="print-hide">Click any date cell to manually adjust shift assignment.</span></div>
+            <div style="color:var(--danger); font-weight:600; display:\${hasExemption ? 'block' : 'none'};">* Administrative Exemption: Manual Role Override Assignment</div>
           </div>
         </div>
       \`;
@@ -1862,7 +2096,8 @@ const htmlContent = `<!DOCTYPE html>
     // Render 7-Column Calendar Grid
     function renderCalendar() {
       const cycle = getActiveCycle();
-      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cycle.assignments);
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const conflicts = evaluateScheduleConflicts(cycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cycle.assignments, cfg);
       const start = parseDate(cycle.startDate);
       const end = parseDate(cycle.endDate);
 
@@ -1879,11 +2114,13 @@ const htmlContent = `<!DOCTYPE html>
         viewCalendarWrapper.innerHTML = renderSingleMonthHtml(cycle, cycle.year, activeMonthIdx, conflicts);
       }
 
-      // Cell click handler for reassigning
+      // Cell / slot click handler for reassigning
       viewCalendarWrapper.querySelectorAll('.day-cell').forEach(cell => {
-        cell.addEventListener('click', () => {
+        cell.addEventListener('click', (e) => {
           const dateStr = cell.getAttribute('data-date');
-          openReassignModal(dateStr);
+          const slotChip = e.target.closest('.slot-chip');
+          const slotId = slotChip ? slotChip.getAttribute('data-slot') : null;
+          openReassignModal(dateStr, slotId);
         });
       });
     }
@@ -1891,6 +2128,8 @@ const htmlContent = `<!DOCTYPE html>
     // Render Matrix Overview
     function renderMatrix() {
       const cycle = getActiveCycle();
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const multiSlot = isMultiSlotConfig(cfg);
       const weekends = identifyWeekends(cycle.startDate, cycle.endDate, window.appState.holidays);
       const container = document.getElementById('matrix-table-container');
 
@@ -1900,19 +2139,45 @@ const htmlContent = `<!DOCTYPE html>
             <tr>
               <th class="matrix-print-hide">Weekend #</th>
               <th><span class="matrix-screen-only">Weekend Dates</span><span class="matrix-print-only">Date</span></th>
-              <th><span class="matrix-screen-only">Assigned Personnel</span><span class="matrix-print-only">Member Name</span></th>
-              <th class="matrix-print-hide">Role</th>
+              \${multiSlot ? cfg.coverageSlots.map(s => \`<th>\${esc(s.label)}</th>\`).join('') : \`
+                <th><span class="matrix-screen-only">Assigned Personnel</span><span class="matrix-print-only">Member Name</span></th>
+                <th class="matrix-print-hide">Role</th>
+              \`}
               <th class="matrix-print-hide">Attached Holiday</th>
               <th class="matrix-print-hide">Status</th>
             </tr>
           </thead>
           <tbody>
             \${weekends.map(w => {
-              const workerId = cycle.assignments[w.saturday];
-              const mem = window.appState.roster.find(m => m.id === workerId);
               const hol = w.attachedMonday || w.attachedFriday || '-';
               const printDate = formatWeekendPrintDate(w, cycle.assignments);
-              const printName = getMemberPrintName(mem);
+              if (!multiSlot) {
+                const workerId = getSlotMember(cycle.assignments, w.saturday, null, cfg);
+                const mem = window.appState.roster.find(m => m.id === workerId);
+                const printName = getMemberPrintName(mem, cfg);
+                return \`
+                  <tr>
+                    <td class="matrix-print-hide">Weekend \${w.index + 1}</td>
+                    <td>
+                      <span class="matrix-screen-only">\${w.friday} &rarr; \${w.sunday}</span>
+                      <span class="matrix-print-only">\${esc(printDate)}</span>
+                    </td>
+                    <td>
+                      <span class="matrix-screen-only"><strong>\${mem ? esc(printName) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></span>
+                      <span class="matrix-print-only">\${mem ? esc(printName) : 'UNASSIGNED'}</span>
+                    </td>
+                    <td class="matrix-print-hide"><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${esc(mem?.role || '-')}</span></td>
+                    <td class="matrix-print-hide">\${hol}</td>
+                    <td class="matrix-print-hide">\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
+                  </tr>
+                \`;
+              }
+              const slotCells = cfg.coverageSlots.map(s => {
+                const wId = getSlotMember(cycle.assignments, w.saturday, s.id, cfg);
+                const mem = window.appState.roster.find(m => m.id === wId);
+                return \`<td><strong>\${mem ? esc(getMemberPrintName(mem, cfg)) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></td>\`;
+              }).join('');
+              const allStaffed = cfg.coverageSlots.every(s => Boolean(getSlotMember(cycle.assignments, w.saturday, s.id, cfg)));
               return \`
                 <tr>
                   <td class="matrix-print-hide">Weekend \${w.index + 1}</td>
@@ -1920,13 +2185,9 @@ const htmlContent = `<!DOCTYPE html>
                     <span class="matrix-screen-only">\${w.friday} &rarr; \${w.sunday}</span>
                     <span class="matrix-print-only">\${esc(printDate)}</span>
                   </td>
-                  <td>
-                    <span class="matrix-screen-only"><strong>\${mem ? esc(printName) : '<span style="color:var(--danger)">UNASSIGNED</span>'}</strong></span>
-                    <span class="matrix-print-only">\${mem ? esc(printName) : 'UNASSIGNED'}</span>
-                  </td>
-                  <td class="matrix-print-hide"><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${mem?.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${mem?.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'}">\${mem?.role || '-'}</span></td>
+                  \${slotCells}
                   <td class="matrix-print-hide">\${hol}</td>
-                  <td class="matrix-print-hide">\${mem ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
+                  <td class="matrix-print-hide">\${allStaffed ? '<span style="color:var(--success); font-weight:600;">&#10003; Staffed</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}</td>
                 </tr>
               \`;
             }).join('')}
@@ -1940,11 +2201,18 @@ const htmlContent = `<!DOCTYPE html>
       const cycle = getActiveCycle();
       if (!cycle) return;
       syncCycleAssignments(cycle.year);
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const multiSlot = isMultiSlotConfig(cfg);
 
       const container = document.getElementById('breakdown-table-container');
       const baseRoster = getCycleRoster();
       const roster = [...baseRoster];
-      const assignedIds = new Set(Object.values(cycle.assignments || {}));
+      const assignedIds = new Set();
+      Object.keys(cycle.assignments || {}).forEach(d => {
+        getDayAssignedEntries(cycle.assignments, d, cfg).forEach(e => {
+          if (e.memberId) assignedIds.add(e.memberId);
+        });
+      });
       assignedIds.forEach(id => {
         if (id && !roster.some(m => m.id === id)) {
           const found = window.appState.roster.find(m => m.id === id) ||
@@ -1965,82 +2233,83 @@ const htmlContent = `<!DOCTYPE html>
         mc = new Date(mc.getFullYear(), mc.getMonth() + 1, 1);
       }
 
-      // Filter out any invalid observed holidays (e.g. July 4th observed)
       const cycleHolidays = (window.appState.holidays || []).filter(h => {
         return h.date >= cycle.startDate && h.date <= cycle.endDate && h.name !== 'Independence Day (Observed)' && !(h.date === '2027-07-05' && h.name.includes('Independence Day'));
       }).sort((a, b) => a.date.localeCompare(b.date));
 
       const stats = {};
       roster.forEach(m => {
+        const slotCounts = {};
+        cfg.coverageSlots.forEach(s => { slotCounts[s.id] = 0; });
         stats[m.id] = {
           total: 0,
           weekday: 0,
           sat: 0,
           sun: 0,
           hol: 0,
+          slotCounts,
           holidaysWorked: [],
           months: months.map(() => 0)
         };
       });
       let unassigned = 0;
-      let totalDays = 0;
 
       for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-        totalDays++;
         const dStr = formatDate(d);
-        const id = cycle.assignments[dStr];
-        if (!id || !stats[id]) { unassigned++; continue; }
-        const s = stats[id];
         const dow = d.getDay();
-        s.total++;
-        if (dow === 6) s.sat++; else if (dow === 0) s.sun++; else s.weekday++;
-
+        const activeSlots = getActiveSlotsForDate(dStr, cfg, window.appState.holidays);
         const hol = cycleHolidays.find(h => h.date === dStr);
-        if (hol) {
-          s.hol++;
-          s.holidaysWorked.push({
-            date: dStr,
-            name: hol.name,
-            dow: dayNames[dow]
-          });
-        }
-
         const mi = months.findIndex(x => x.y === d.getFullYear() && x.m === d.getMonth());
-        if (mi >= 0) s.months[mi]++;
+
+        activeSlots.forEach(slot => {
+          const id = getSlotMember(cycle.assignments, dStr, slot.id, cfg);
+          if (!id || !stats[id]) { unassigned++; return; }
+          const s = stats[id];
+          s.total++;
+          if (s.slotCounts[slot.id] !== undefined) s.slotCounts[slot.id]++;
+          if (dow === 6) s.sat++; else if (dow === 0) s.sun++; else s.weekday++;
+          if (hol) {
+            s.hol++;
+            s.holidaysWorked.push({
+              date: dStr,
+              name: multiSlot ? \`\${hol.name} (\${slot.id.toUpperCase()})\` : hol.name,
+              dow: dayNames[dow]
+            });
+          }
+          if (mi >= 0) s.months[mi]++;
+        });
       }
 
-      // Equity analysis segmented by role
-      const fullFtMembers = roster.filter(m => m.role === 'FT' && (!m.activeEnd || m.activeEnd >= cycle.endDate) && (!m.activeStart || m.activeStart <= cycle.startDate));
+      // Dynamic equity analysis grouped by configured roles
       const partialMembers = roster.filter(m => (m.activeEnd && m.activeEnd < cycle.endDate) || (m.activeStart && m.activeStart > cycle.startDate));
-      const altMembers = roster.filter(m => m.role === 'ALT');
-
-      const ftTotals = fullFtMembers.map(m => stats[m.id].total);
-      const ftMax = ftTotals.length ? Math.max(...ftTotals) : 0;
-      const ftMin = ftTotals.length ? Math.min(...ftTotals) : 0;
-      const ftAvg = ftTotals.length ? (ftTotals.reduce((a, b) => a + b, 0) / ftTotals.length) : 0;
-      const ftSpread = ftMax - ftMin;
-      const ftBalanced = ftSpread <= (cycle.blockType === 'FULL' ? 3 : 2);
-
-      const altTotals = altMembers.map(m => stats[m.id].total);
-      const altMax = altTotals.length ? Math.max(...altTotals) : 0;
-      const altMin = altTotals.length ? Math.min(...altTotals) : 0;
-      const altAvg = altTotals.length ? (altTotals.reduce((a, b) => a + b, 0) / altTotals.length) : 0;
-      const altSpread = altMax - altMin;
-      const altBalanced = altSpread <= 2;
+      const roleSummaries = {};
+      let allBalanced = unassigned === 0;
+      (cfg.roles || []).forEach(roleCfg => {
+        const fullRoleMembers = roster.filter(m => m.role === roleCfg.id && (!m.activeEnd || m.activeEnd >= cycle.endDate) && (!m.activeStart || m.activeStart <= cycle.startDate));
+        const totals = fullRoleMembers.map(m => stats[m.id].total);
+        const max = totals.length ? Math.max(...totals) : 0;
+        const min = totals.length ? Math.min(...totals) : 0;
+        const avg = totals.length ? (totals.reduce((a, b) => a + b, 0) / totals.length) : 0;
+        const spread = max - min;
+        const balanced = totals.length <= 1 || spread <= (cycle.blockType === 'FULL' ? 3 : 2);
+        if (!balanced) allBalanced = false;
+        roleSummaries[roleCfg.id] = { roleCfg, count: fullRoleMembers.length, avg, min, max, spread };
+      });
 
       const allTotals = roster.map(m => stats[m.id].total);
       const maxOverall = allTotals.length ? Math.max(...allTotals) : 0;
-      const isOverallBalanced = ftBalanced && altBalanced && unassigned === 0;
+      const isOverallBalanced = allBalanced && roster.length > 0;
 
       container.innerHTML = \`
         <div style="margin-bottom:16px; padding:12px 16px; border-radius:8px; font-size:13px; background:\${isOverallBalanced ? 'var(--success-soft)' : 'var(--warning-soft)'}; color:\${isOverallBalanced ? 'var(--success-text)' : 'var(--warning-text)'}; border:1px solid \${isOverallBalanced ? 'var(--success-border)' : 'var(--warning-soft-border)'};">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
-            <span>\${isOverallBalanced ? '&#10003; Shifts are evenly distributed across all active investigators' : '&#9888; Shift Distribution Summary'}</span>
-            \${unassigned > 0 ? \`<span style="background:var(--danger-soft); color:var(--danger-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">\${unassigned} Unassigned Days</span>\` : '<span style="background:var(--success-soft); color:var(--success-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">100% Fully Staffed</span>'}
+            <span>\${isOverallBalanced ? '&#10003; Shifts are evenly distributed across all active members' : '&#9888; Shift Distribution Summary'}</span>
+            \${unassigned > 0 ? \`<span style="background:var(--danger-soft); color:var(--danger-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">\${unassigned} Unassigned Shifts</span>\` : '<span style="background:var(--success-soft); color:var(--success-text); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">100% Fully Staffed</span>'}
           </div>
           <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12px;">
-            <div><strong>Full-Time (FT):</strong> Avg \${ftAvg.toFixed(1)} shifts &bull; Min: \${ftMin} &bull; Max: \${ftMax} &bull; Spread: \${ftSpread}</div>
-            <div><strong>Alternates (ALT):</strong> Avg \${altAvg.toFixed(1)} shifts &bull; Min: \${altMin} &bull; Max: \${altMax} &bull; Spread: \${altSpread}</div>
+            \${Object.values(roleSummaries).filter(rs => rs.count > 0).map(rs => \`
+              <div><strong>\${esc(rs.roleCfg.label)} (\${esc(rs.roleCfg.shortCode)}):</strong> Avg \${rs.avg.toFixed(1)} shifts &bull; Min: \${rs.min} &bull; Max: \${rs.max} &bull; Spread: \${rs.spread}</div>
+            \`).join('')}
             \${partialMembers.length ? \`<div><em>Note: \${partialMembers.map(p => esc(p.name) + ' partial tenure').join(', ')}</em></div>\` : ''}
           </div>
         </div>
@@ -2052,6 +2321,7 @@ const htmlContent = `<!DOCTYPE html>
                 <th>Member</th>
                 <th>Role</th>
                 <th>Total Shifts</th>
+                \${multiSlot ? cfg.coverageSlots.map(s => \`<th>\${esc(s.label)}</th>\`).join('') : ''}
                 <th>Weekday</th>
                 <th>Saturday</th>
                 <th>Sunday</th>
@@ -2063,24 +2333,25 @@ const htmlContent = `<!DOCTYPE html>
             <tbody>
               \${roster.map(m => {
                 const s = stats[m.id];
-                const isFt = m.role === 'FT';
                 const isPartial = partialMembers.some(p => p.id === m.id);
-                const targetAvg = isFt ? ftAvg : altAvg;
-                const diff = isPartial ? null : (s.total - targetAvg);
+                const rs = roleSummaries[m.role];
+                const targetAvg = rs ? rs.avg : 0;
+                const diff = isPartial || !rs ? null : (s.total - targetAvg);
                 const diffColor = diff === null ? 'var(--text-muted)' : (Math.abs(diff) <= 1.5 ? 'var(--success)' : 'var(--danger)');
                 const diffStr = diff === null ? 'N/A' : ((diff > 0 ? '+' : '') + diff.toFixed(1));
                 const w = maxOverall ? Math.round((s.total / maxOverall) * 70) : 0;
                 return \`<tr>
                   <td><strong>\${esc(m.name)}</strong></td>
-                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">\${m.role}</span></td>
+                  <td><span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px; background:\${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">\${esc(m.role)}</span></td>
                   <td style="text-align:left;"><span class="bd-bar" style="width:\${w}px; background:\${m.color};"></span><strong>\${s.total}</strong></td>
+                  \${multiSlot ? cfg.coverageSlots.map(sl => \`<td>\${s.slotCounts[sl.id] || 0}</td>\`).join('') : ''}
                   <td>\${s.weekday}</td>
                   <td>\${s.sat}</td>
                   <td>\${s.sun}</td>
                   <td style="text-align:left;">
                     <div style="display:flex; align-items:center; gap:6px; margin-bottom:\${s.holidaysWorked.length ? '4px' : '0'};">
                       <strong>\${s.hol}</strong>
-                      <span style="font-size:11px; color:var(--text-muted);">\${s.hol === 1 ? 'day' : 'days'}</span>
+                      <span style="font-size:11px; color:var(--text-muted);">\${s.hol === 1 ? 'shift' : 'shifts'}</span>
                     </div>
                     \${s.holidaysWorked.length > 0 ? \`
                       <div style="display:flex; flex-wrap:wrap; gap:3px;">
@@ -2100,6 +2371,7 @@ const htmlContent = `<!DOCTYPE html>
                 <td>Total</td>
                 <td></td>
                 <td>\${allTotals.reduce((a, b) => a + b, 0)}</td>
+                \${multiSlot ? cfg.coverageSlots.map(sl => \`<td>\${roster.reduce((a, m) => a + (stats[m.id].slotCounts[sl.id] || 0), 0)}</td>\`).join('') : ''}
                 <td>\${roster.reduce((a, m) => a + stats[m.id].weekday, 0)}</td>
                 <td>\${roster.reduce((a, m) => a + stats[m.id].sat, 0)}</td>
                 <td>\${roster.reduce((a, m) => a + stats[m.id].sun, 0)}</td>
@@ -2116,14 +2388,13 @@ const htmlContent = `<!DOCTYPE html>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
             <div>
               <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:2px;">Official Holidays Coverage Breakdown</h3>
-              <div style="font-size:12px; color:var(--text-muted);">List of members and holidays worked for active block (\${cycle.year} \${cycle.blockType === 'FULL' ? 'Full Year' : cycle.blockType}). July 4th is celebrated strictly on July 4th.</div>
+              <div style="font-size:12px; color:var(--text-muted);">List of members and holidays worked for active block (\${cycle.year} \${cycle.blockType === 'FULL' ? 'Full Year' : cycle.blockType}).</div>
             </div>
             <div style="font-size:12px; font-weight:600; background:var(--color-paper-2); padding:4px 10px; border-radius:6px;">
               \${cycleHolidays.length} Official Holidays in Block
             </div>
           </div>
 
-          <!-- Member Holiday Cards -->
           <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-bottom:20px;">
             \${roster.map(m => {
               const s = stats[m.id];
@@ -2133,7 +2404,7 @@ const htmlContent = `<!DOCTYPE html>
                     <div style="display:flex; align-items:center; gap:8px;">
                       <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:\${m.color};"></span>
                       <strong style="font-size:13px;">\${esc(m.name)}</strong>
-                      <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:\${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">\${m.role}</span>
+                      <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; background:\${m.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${m.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">\${esc(m.role)}</span>
                     </div>
                     <span style="font-size:12px; font-weight:700; color:\${s.hol > 0 ? 'var(--primary)' : 'var(--text-muted)'};">
                       \${s.hol} \${s.hol === 1 ? 'Holiday' : 'Holidays'}
@@ -2154,7 +2425,6 @@ const htmlContent = `<!DOCTYPE html>
             }).join('')}
           </div>
 
-          <!-- Master Holiday Schedule Table -->
           <h4 style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-main);">Master Holiday Schedule</h4>
           <div style="overflow-x:auto;">
             <table class="breakdown-table" style="font-size:12px; min-width:600px;">
@@ -2163,35 +2433,30 @@ const htmlContent = `<!DOCTYPE html>
                   <th style="width:120px;">Holiday Date</th>
                   <th style="width:90px;">Day</th>
                   <th>Holiday Name</th>
-                  <th>Assigned Investigator</th>
-                  <th style="width:70px;">Role</th>
+                  <th>Assigned Member(s)</th>
                   <th style="width:100px;">Status</th>
                 </tr>
               </thead>
               <tbody>
                 \${cycleHolidays.map(h => {
-                  const workerId = cycle.assignments[h.date];
-                  const worker = roster.find(m => m.id === workerId);
+                  const entries = getDayAssignedEntries(cycle.assignments, h.date, cfg);
                   const dObj = parseDate(h.date);
                   const dowStr = dayNames[dObj.getDay()];
+                  const namesHtml = entries.length > 0
+                    ? entries.map(e => {
+                        const w = roster.find(m => m.id === e.memberId);
+                        const prefix = multiSlot ? \`[\${esc(e.slotId.toUpperCase())}] \` : '';
+                        return w ? \`<span style="display:inline-flex; align-items:center; gap:5px; margin-right:8px;"><span style="width:8px; height:8px; border-radius:50%; background:\${w.color}; display:inline-block;"></span><strong>\${prefix}\${esc(w.name)}</strong> (\${esc(w.role)})</span>\` : '';
+                      }).join('')
+                    : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>';
                   return \`
                     <tr>
                       <td><strong>\${h.date}</strong></td>
                       <td>\${dowStr}</td>
                       <td><strong>\${esc(h.name)}</strong></td>
+                      <td style="text-align:left;">\${namesHtml}</td>
                       <td>
-                        \${worker ? \`
-                          <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:\${worker.color};"></span>
-                            <strong>\${esc(worker.name)}</strong>
-                          </div>
-                        \` : '<span style="color:var(--danger); font-weight:700;">UNASSIGNED</span>'}
-                      </td>
-                      <td>
-                        \${worker ? \`<span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; background:\${worker.role === 'FT' ? 'var(--color-accent-soft)' : 'var(--warning-soft)'}; color:\${worker.role === 'FT' ? 'var(--info-text)' : 'var(--warning-border)'};">\${worker.role}</span>\` : '-'}
-                      </td>
-                      <td>
-                        \${worker ? '<span style="color:var(--success); font-weight:600;">&#10003; Assigned</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}
+                        \${entries.length > 0 ? '<span style="color:var(--success); font-weight:600;">&#10003; Assigned</span>' : '<span style="color:var(--danger); font-weight:600;">Action Required</span>'}
                       </td>
                     </tr>
                   \`;
@@ -2223,39 +2488,43 @@ const htmlContent = `<!DOCTYPE html>
     tabBreakdownView.addEventListener('click', () => showView('breakdown'));
     // Auto-Generate Schedule
     document.getElementById('btn-solve').addEventListener('click', () => {
+      const cycleRoster = getCycleRoster();
+      if (cycleRoster.length === 0) {
+        alert('Please add at least one member in the Roster (or load a sample roster in Schedule Rules & Setup) before generating a schedule.');
+        openRosterModal();
+        return;
+      }
+
       storage.pushUndo();
       const cycle = getActiveCycle();
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const lockedShifts = {};
 
       if (cycle.blockType === 'FULL') {
-        // Requirement 1: In FULL year, preserve all existing assignments already input
-        // on H1, H2, or FULL unless cleared by the user
-        Object.entries(cycle.assignments || {}).forEach(([d, memberId]) => {
-          if (memberId) lockedShifts[d] = memberId;
+        Object.entries(cycle.assignments || {}).forEach(([d, val]) => {
+          if (val) lockedShifts[d] = JSON.parse(JSON.stringify(val));
         });
       } else {
-        // In H1 or H2, preserve manual overrides
         Object.keys(cycle.manualOverrides || {}).forEach(d => {
-          const memberId = cycle.assignments[d];
-          if (memberId) lockedShifts[d] = memberId;
+          const val = cycle.assignments[d];
+          if (val) lockedShifts[d] = JSON.parse(JSON.stringify(val));
         });
       }
 
-      // Requirement 2: When generating the second half (H2), look at the 1st half (H1)
-      // to balance weekends, holidays, weekdays, and rest across the June/July boundary.
-      // Similarly, when generating H1 or FULL, look at the prior year's H2 or FULL to
-      // respect New Year's on-call coverage and post-weekend rest days across the year boundary.
-      const context = {};
+      const context = {
+        unitConfig: cfg,
+        preferredDates: cyclePreferredDates()
+      };
       if (cycle.blockType === 'H2') {
         const h1 = window.appState.cycles[\`\${cycle.year}-H1\`];
         if (h1 && h1.assignments && Object.keys(h1.assignments).length > 0) {
-          context.priorAssignments = { ...h1.assignments };
+          context.priorAssignments = JSON.parse(JSON.stringify(h1.assignments));
         }
       } else if (cycle.blockType === 'H1' || cycle.blockType === 'FULL') {
         const prevYear = cycle.year - 1;
         const priorCycle = window.appState.cycles[\`\${prevYear}-H2\`] || window.appState.cycles[\`\${prevYear}-FULL\`];
         if (priorCycle && priorCycle.assignments && Object.keys(priorCycle.assignments).length > 0) {
-          context.priorAssignments = { ...priorCycle.assignments };
+          context.priorAssignments = JSON.parse(JSON.stringify(priorCycle.assignments));
         }
       }
 
@@ -2269,19 +2538,19 @@ const htmlContent = `<!DOCTYPE html>
         const full = window.appState.cycles[\`\${cycle.year}-FULL\`];
         if (full) {
           if (!full.assignments) full.assignments = {};
-          Object.assign(full.assignments, cycle.assignments);
+          Object.assign(full.assignments, JSON.parse(JSON.stringify(cycle.assignments)));
         }
       } else if (cycle.blockType === 'FULL') {
         const h1 = window.appState.cycles[\`\${cycle.year}-H1\`];
         const h2 = window.appState.cycles[\`\${cycle.year}-H2\`];
-        for (const [d, memId] of Object.entries(cycle.assignments)) {
+        for (const [d, val] of Object.entries(cycle.assignments)) {
           if (h1 && d >= h1.startDate && d <= h1.endDate) {
             if (!h1.assignments) h1.assignments = {};
-            h1.assignments[d] = memId;
+            h1.assignments[d] = JSON.parse(JSON.stringify(val));
           }
           if (h2 && d >= h2.startDate && d <= h2.endDate) {
             if (!h2.assignments) h2.assignments = {};
-            h2.assignments[d] = memId;
+            h2.assignments[d] = JSON.parse(JSON.stringify(val));
           }
         }
       }
@@ -2291,11 +2560,11 @@ const htmlContent = `<!DOCTYPE html>
       const prefWarn = result.preferenceWarnings || [];
       if (notices.length || prefWarn.length) {
         let msg = 'Schedule generated.';
-        if (prefWarn.length) msg += '\\n\\nThese requested weekends could not be honored:\\n' + prefWarn.join('\\n');
+        if (prefWarn.length) msg += '\\n\\nThese requests could not be honored:\\n' + prefWarn.join('\\n');
         if (notices.length) msg += '\\n\\nNeeds your attention:\\n' + notices.join('\\n\\n');
         openScheduleAttentionModal(msg);
       } else {
-        showToast('Schedule successfully generated! Requested weekends honored; all fatigue, rest, and quota rules applied.');
+        showToast('Schedule successfully generated! All configured unit rules and rest constraints applied.');
       }
     });
 
@@ -2505,14 +2774,390 @@ const htmlContent = `<!DOCTYPE html>
 
     // -------------------------------------------------------------
 
-    // Guide and Rules Modals
+    // Guide and Rules & Unit Setup Modals
     document.getElementById('btn-open-guide').addEventListener('click', () => {
       closeAllModals();
       modalGuide.style.display = 'flex';
       modalOverlay.classList.add('open');
     });
 
+    // Working copy of unitConfig edited inside the Setup modal until Saved
+    let draftUnitConfig = null;
+
+    function switchRulesTab(tab) {
+      const cfgPanel = document.getElementById('rules-config-panel');
+      const sumPanel = document.getElementById('rules-summary-panel');
+      const btnCfg = document.getElementById('btn-rules-tab-config');
+      const btnSum = document.getElementById('btn-rules-tab-summary');
+      const saveBtn = document.getElementById('btn-save-unit-config');
+      if (tab === 'summary') {
+        const activeCfg = draftUnitConfig ? collectSetupFormConfig() : (window.appState.unitConfig || createUnitConfig('blank_psp'));
+        const cycle = getActiveCycle();
+        const cycleHols = (window.appState.holidays || []).filter(h => h.date >= cycle.startDate && h.date <= cycle.endDate);
+        sumPanel.innerHTML = generateRulesSummaryHtml(activeCfg, cycleHols);
+        cfgPanel.style.display = 'none';
+        sumPanel.style.display = 'block';
+        btnCfg.className = 'btn btn-outline-dark';
+        btnSum.className = 'btn btn-primary';
+        if (saveBtn) saveBtn.style.display = 'inline-flex';
+      } else {
+        cfgPanel.style.display = 'block';
+        sumPanel.style.display = 'none';
+        btnCfg.className = 'btn btn-primary';
+        btnSum.className = 'btn btn-outline-dark';
+        if (saveBtn) saveBtn.style.display = 'inline-flex';
+      }
+    }
+
+    document.getElementById('btn-rules-tab-config').addEventListener('click', () => switchRulesTab('config'));
+    document.getElementById('btn-rules-tab-summary').addEventListener('click', () => switchRulesTab('summary'));
+
+    function renderSetupSlotsEditor() {
+      const container = document.getElementById('setup-slots-editor');
+      const isAmPm = document.getElementById('setup-slot-mode-ampm').checked;
+      document.getElementById('setup-same-ampm-wrap').style.display = isAmPm ? 'flex' : 'none';
+
+      if (isAmPm && draftUnitConfig.coverageSlots.length < 2) {
+        draftUnitConfig.coverageSlots = JSON.parse(JSON.stringify(UNIT_PRESETS.am_pm_split.coverageSlots));
+      } else if (!isAmPm && draftUnitConfig.coverageSlots.length > 1) {
+        draftUnitConfig.coverageSlots = [JSON.parse(JSON.stringify(draftUnitConfig.coverageSlots[0] || UNIT_PRESETS.blank_psp.coverageSlots[0]))];
+      }
+
+      container.innerHTML = draftUnitConfig.coverageSlots.map((slot, idx) => \`
+        <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:6px; padding:10px 12px; margin-bottom:8px;">
+          <div class="form-row" style="margin-bottom:6px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Shift Label</label>
+              <input type="text" class="form-input setup-slot-label" data-idx="\${idx}" value="\${esc(slot.label)}">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Start Time</label>
+              <input type="time" class="form-input setup-slot-start" data-idx="\${idx}" value="\${esc(slot.startTime)}">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">End Time</label>
+              <input type="time" class="form-input setup-slot-end" data-idx="\${idx}" value="\${esc(slot.endTime)}">
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px;">
+            <strong>Active Days:</strong>
+            \${[1,2,3,4,5,6,0].map(d => \`
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
+                <input type="checkbox" class="setup-slot-dow" data-idx="\${idx}" value="\${d}" \${slot.activeDays.includes(d) ? 'checked' : ''}> \${DAY_SHORT[d]}
+              </label>
+            \`).join('')}
+            <label style="margin-left:auto; display:flex; align-items:center; gap:4px; cursor:pointer; font-weight:600;">
+              <input type="checkbox" class="setup-slot-hol" data-idx="\${idx}" \${slot.activeOnHolidays ? 'checked' : ''}> Active on Holidays
+            </label>
+          </div>
+        </div>
+      \`).join('');
+    }
+
+    function renderSetupRolesEditor() {
+      const container = document.getElementById('setup-roles-editor');
+      container.innerHTML = draftUnitConfig.roles.map((r, idx) => \`
+        <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; margin-bottom:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:12px;">
+          <input type="text" class="form-input setup-role-label" data-idx="\${idx}" value="\${esc(r.label)}" style="width:130px; padding:4px 8px;" placeholder="Role Name">
+          <input type="text" class="form-input setup-role-code" data-idx="\${idx}" value="\${esc(r.shortCode)}" style="width:68px; padding:4px 8px; text-transform:uppercase;" placeholder="Code">
+          <label><input type="checkbox" class="setup-role-wd" data-idx="\${idx}" \${r.canWorkWeekdays ? 'checked' : ''}> Weekdays</label>
+          <label><input type="checkbox" class="setup-role-we" data-idx="\${idx}" \${r.canWorkWeekends ? 'checked' : ''}> Weekends</label>
+          <label><input type="checkbox" class="setup-role-hol" data-idx="\${idx}" \${r.canWorkHolidays ? 'checked' : ''}> Holidays</label>
+          <label><input type="checkbox" class="setup-role-quota-on" data-idx="\${idx}" \${r.quotaEnabled ? 'checked' : ''}> Quota/6mo:</label>
+          <input type="number" class="form-input setup-role-quota-val" data-idx="\${idx}" value="\${r.defaultQuotaPerSixMonths ?? 3}" min="0" max="26" style="width:58px; padding:4px 6px;" \${r.quotaEnabled ? '' : 'disabled'}>
+          \${draftUnitConfig.roles.length > 1 ? \`<button type="button" class="btn btn-outline-dark setup-role-del" data-idx="\${idx}" style="margin-left:auto; padding:2px 8px; font-size:11px; color:var(--danger);">Remove</button>\` : ''}
+        </div>
+      \`).join('');
+
+      container.querySelectorAll('.setup-role-quota-on').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const i = parseInt(cb.getAttribute('data-idx'), 10);
+          const input = container.querySelector(\`.setup-role-quota-val[data-idx="\${i}"]\`);
+          if (input) input.disabled = !cb.checked;
+        });
+      });
+      container.querySelectorAll('.setup-role-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = parseInt(btn.getAttribute('data-idx'), 10);
+          draftUnitConfig.roles.splice(i, 1);
+          renderSetupRolesEditor();
+        });
+      });
+    }
+
+    function renderSetupHolidaysEditor() {
+      const container = document.getElementById('setup-holidays-editor');
+      const cycle = getActiveCycle();
+      const targetYear = cycle ? cycle.year : 2027;
+      const nonPremSet = new Set(draftUnitConfig.holidayRules.nonPremiumHolidays || []);
+      const hols = (window.appState.holidays || [])
+        .filter(h => !h.year || h.year === targetYear || h.date.startsWith(String(targetYear)))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (hols.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); padding:8px; font-size:12px;">No holidays configured for ' + targetYear + '. Click "Reset Official PSP Holidays" to populate.</div>';
+        return;
+      }
+
+      container.innerHTML = '<table class="matrix-table" style="font-size:12px;"><thead><tr><th>Date</th><th>Holiday</th><th>Type</th><th>Weight</th><th></th></tr></thead><tbody>' +
+        hols.map(h => \`
+          <tr>
+            <td>\${esc(h.date)}</td>
+            <td><strong>\${esc(h.name)}</strong></td>
+            <td>\${esc(h.type || 'midweek')}</td>
+            <td>
+              <label style="cursor:pointer;">
+                <input type="checkbox" class="setup-hol-premium" data-name="\${esc(h.name)}" \${!nonPremSet.has(h.name) ? 'checked' : ''}> Premium (1.0)
+              </label>
+            </td>
+            <td><button type="button" class="btn btn-outline-dark setup-hol-del" data-date="\${esc(h.date)}" data-name="\${esc(h.name)}" style="padding:2px 6px; font-size:11px; color:var(--danger);">Remove</button></td>
+          </tr>
+        \`).join('') + '</tbody></table>';
+
+      container.querySelectorAll('.setup-hol-premium').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const name = cb.getAttribute('data-name');
+          const list = new Set(draftUnitConfig.holidayRules.nonPremiumHolidays || []);
+          if (cb.checked) list.delete(name);
+          else list.add(name);
+          draftUnitConfig.holidayRules.nonPremiumHolidays = Array.from(list);
+        });
+      });
+
+      container.querySelectorAll('.setup-hol-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dt = btn.getAttribute('data-date');
+          const nm = btn.getAttribute('data-name');
+          window.appState.holidays = window.appState.holidays.filter(h => !(h.date === dt && h.name === nm));
+          renderSetupHolidaysEditor();
+        });
+      });
+    }
+
+    function populateSetupForm(cfg) {
+      draftUnitConfig = normalizeUnitConfig(JSON.parse(JSON.stringify(cfg)));
+      document.getElementById('setup-preset-select').value = draftUnitConfig.presetId || 'blank_psp';
+      document.getElementById('setup-agency').value = draftUnitConfig.agency || '';
+      document.getElementById('setup-unit-name').value = draftUnitConfig.unitName || '';
+      document.getElementById('setup-schedule-title').value = draftUnitConfig.scheduleTitle || '';
+      document.getElementById('setup-member-label').value = draftUnitConfig.memberLabel || '';
+      document.getElementById('setup-default-rank').value = draftUnitConfig.defaultRank !== undefined ? draftUnitConfig.defaultRank : 'Trooper';
+      document.getElementById('setup-week-start').value = String(draftUnitConfig.weekStartDay === 0 ? 0 : 1);
+      document.getElementById('setup-footer-note').value = draftUnitConfig.footerNote || '';
+
+      const isAmPm = isMultiSlotConfig(draftUnitConfig);
+      document.getElementById('setup-slot-mode-single').checked = !isAmPm;
+      document.getElementById('setup-slot-mode-ampm').checked = isAmPm;
+      document.getElementById('setup-allow-same-ampm').checked = Boolean(draftUnitConfig.rules.allowSamePersonAmPm);
+
+      document.getElementById('setup-block-pattern').value = draftUnitConfig.rules.blockPattern || 'fri_sun';
+      document.getElementById('setup-weekday-mode').value = draftUnitConfig.rules.weekdayMode || 'dynamic_equity';
+      document.getElementById('setup-rest-pattern').value = draftUnitConfig.rules.restPattern || 'none';
+      document.getElementById('setup-min-weekend-gap').value = String(draftUnitConfig.rules.minWeekendGap ?? 1);
+      document.getElementById('setup-enforce-80hr').checked = Boolean(draftUnitConfig.rules.enforce80HourCap);
+      document.getElementById('setup-pay-anchor').value = draftUnitConfig.rules.payPeriodAnchorMonday || '2027-01-04';
+      document.getElementById('setup-preweekend-shaping').checked = Boolean(draftUnitConfig.rules.preWeekendShaping);
+      document.getElementById('setup-proactive-lookahead').checked = Boolean(draftUnitConfig.rules.proactiveAltLookahead);
+
+      const customWrap = document.getElementById('setup-custom-rest-wrap');
+      customWrap.style.display = draftUnitConfig.rules.restPattern === 'custom' ? 'block' : 'none';
+      const customSet = new Set((draftUnitConfig.rules.customRestDows || []).map(Number));
+      document.querySelectorAll('.setup-custom-rest-dow').forEach(cb => {
+        cb.checked = customSet.has(parseInt(cb.value, 10));
+      });
+
+      document.getElementById('setup-attach-hol').checked = draftUnitConfig.holidayRules.attachFriMonHolidaysToWeekend !== false;
+      document.getElementById('setup-balance-hol').checked = draftUnitConfig.holidayRules.balanceHolidays !== false;
+
+      renderSetupSlotsEditor();
+      renderSetupRolesEditor();
+      renderSetupHolidaysEditor();
+    }
+
+    function collectSetupFormConfig() {
+      const cfg = normalizeUnitConfig(draftUnitConfig || window.appState.unitConfig);
+      cfg.agency = document.getElementById('setup-agency').value.trim() || 'Pennsylvania State Police';
+      cfg.unitName = document.getElementById('setup-unit-name').value.trim() || 'PSP Specialty Unit';
+      cfg.scheduleTitle = document.getElementById('setup-schedule-title').value.trim() || 'On-Call Schedule';
+      cfg.memberLabel = document.getElementById('setup-member-label').value.trim() || 'Member';
+      cfg.defaultRank = document.getElementById('setup-default-rank').value;
+      cfg.weekStartDay = parseInt(document.getElementById('setup-week-start').value, 10) === 0 ? 0 : 1;
+      cfg.footerNote = document.getElementById('setup-footer-note').value.trim();
+
+      cfg.rules.allowSamePersonAmPm = document.getElementById('setup-allow-same-ampm').checked;
+      cfg.rules.blockPattern = document.getElementById('setup-block-pattern').value;
+      cfg.rules.weekdayMode = document.getElementById('setup-weekday-mode').value;
+      cfg.rules.restPattern = document.getElementById('setup-rest-pattern').value;
+      cfg.rules.minWeekendGap = Math.max(0, parseInt(document.getElementById('setup-min-weekend-gap').value, 10) || 0);
+      cfg.rules.enforce80HourCap = document.getElementById('setup-enforce-80hr').checked;
+      cfg.rules.payPeriodAnchorMonday = document.getElementById('setup-pay-anchor').value || '2027-01-04';
+      cfg.rules.preWeekendShaping = document.getElementById('setup-preweekend-shaping').checked;
+      cfg.rules.proactiveAltLookahead = document.getElementById('setup-proactive-lookahead').checked;
+      cfg.rules.customRestDows = Array.from(document.querySelectorAll('.setup-custom-rest-dow:checked')).map(cb => parseInt(cb.value, 10));
+
+      // Collect slots
+      const slotsEditor = document.getElementById('setup-slots-editor');
+      cfg.coverageSlots.forEach((slot, idx) => {
+        const lbl = slotsEditor.querySelector(\`.setup-slot-label[data-idx="\${idx}"]\`);
+        const st = slotsEditor.querySelector(\`.setup-slot-start[data-idx="\${idx}"]\`);
+        const en = slotsEditor.querySelector(\`.setup-slot-end[data-idx="\${idx}"]\`);
+        const holCb = slotsEditor.querySelector(\`.setup-slot-hol[data-idx="\${idx}"]\`);
+        const dows = Array.from(slotsEditor.querySelectorAll(\`.setup-slot-dow[data-idx="\${idx}"]:checked\`)).map(x => parseInt(x.value, 10));
+        if (lbl) slot.label = lbl.value.trim() || slot.label;
+        if (st) slot.startTime = st.value || slot.startTime;
+        if (en) slot.endTime = en.value || slot.endTime;
+        if (holCb) slot.activeOnHolidays = holCb.checked;
+        if (dows.length > 0) slot.activeDays = dows;
+      });
+
+      // Collect roles
+      const rolesEditor = document.getElementById('setup-roles-editor');
+      cfg.roles.forEach((role, idx) => {
+        const lbl = rolesEditor.querySelector(\`.setup-role-label[data-idx="\${idx}"]\`);
+        const code = rolesEditor.querySelector(\`.setup-role-code[data-idx="\${idx}"]\`);
+        const wd = rolesEditor.querySelector(\`.setup-role-wd[data-idx="\${idx}"]\`);
+        const we = rolesEditor.querySelector(\`.setup-role-we[data-idx="\${idx}"]\`);
+        const hol = rolesEditor.querySelector(\`.setup-role-hol[data-idx="\${idx}"]\`);
+        const qOn = rolesEditor.querySelector(\`.setup-role-quota-on[data-idx="\${idx}"]\`);
+        const qVal = rolesEditor.querySelector(\`.setup-role-quota-val[data-idx="\${idx}"]\`);
+        if (lbl) role.label = lbl.value.trim() || role.label;
+        if (code) {
+          const cleanCode = code.value.trim().toUpperCase() || role.shortCode;
+          role.shortCode = cleanCode;
+          role.id = cleanCode;
+        }
+        if (wd) role.canWorkWeekdays = wd.checked;
+        if (we) role.canWorkWeekends = we.checked;
+        if (hol) role.canWorkHolidays = hol.checked;
+        if (qOn) role.quotaEnabled = qOn.checked;
+        if (qVal) role.defaultQuotaPerSixMonths = role.quotaEnabled ? Math.max(0, parseInt(qVal.value, 10) || 0) : null;
+      });
+
+      cfg.holidayRules.attachFriMonHolidaysToWeekend = document.getElementById('setup-attach-hol').checked;
+      cfg.holidayRules.balanceHolidays = document.getElementById('setup-balance-hol').checked;
+
+      return normalizeUnitConfig(cfg);
+    }
+
+    document.getElementById('setup-slot-mode-single').addEventListener('change', renderSetupSlotsEditor);
+    document.getElementById('setup-slot-mode-ampm').addEventListener('change', renderSetupSlotsEditor);
+    document.getElementById('setup-rest-pattern').addEventListener('change', (e) => {
+      document.getElementById('setup-custom-rest-wrap').style.display = e.target.value === 'custom' ? 'block' : 'none';
+    });
+
+    document.getElementById('btn-add-setup-role').addEventListener('click', () => {
+      const idx = draftUnitConfig.roles.length + 1;
+      draftUnitConfig.roles.push({
+        id: 'ROLE' + idx,
+        label: 'Custom Role ' + idx,
+        shortCode: 'R' + idx,
+        canWorkWeekdays: true,
+        canWorkWeekends: true,
+        canWorkHolidays: true,
+        allowedSlotIds: null,
+        quotaEnabled: false,
+        defaultQuotaPerSixMonths: null
+      });
+      renderSetupRolesEditor();
+    });
+
+    document.getElementById('btn-apply-preset').addEventListener('click', () => {
+      const presetId = document.getElementById('setup-preset-select').value;
+      const preset = createUnitConfig(presetId);
+      populateSetupForm(preset);
+      showToast('Loaded preset: ' + preset.presetName + '. Click "Save & Apply Unit Rules" to apply.');
+    });
+
+    document.getElementById('btn-load-fm-sample').addEventListener('click', () => {
+      if (window.appState.roster.length > 0 && !confirm('Load the 2027 Troop H Fire Marshal sample roster and blackouts? This replaces your current roster and blackouts.')) {
+        return;
+      }
+      const fmState = createInitialAppState();
+      window.appState.roster = fmState.roster;
+      window.appState.blackouts = fmState.blackouts;
+      window.appState.holidays = fmState.holidays;
+      populateSetupForm(fmState.unitConfig);
+      window.appState.unitConfig = fmState.unitConfig;
+      storage.saveState();
+      renderApp();
+      showToast('Loaded Fire Marshal 2027 sample roster & rules.');
+    });
+
+    document.getElementById('btn-reset-psp-holidays').addEventListener('click', () => {
+      const cycle = getActiveCycle();
+      const yr = cycle ? cycle.year : 2027;
+      const generated = generateOfficialPSPHolidays(yr);
+      window.appState.holidays = (window.appState.holidays || []).filter(h => h.year !== yr && !h.date.startsWith(String(yr))).concat(generated);
+      storage.saveState();
+      renderSetupHolidaysEditor();
+      showToast('Reset official PSP holidays for ' + yr + '.');
+    });
+
+    document.getElementById('btn-add-custom-holiday').addEventListener('click', () => {
+      const dt = document.getElementById('setup-new-hol-date').value;
+      const name = document.getElementById('setup-new-hol-name').value.trim();
+      const type = document.getElementById('setup-new-hol-type').value;
+      if (!dt || !name) { alert('Enter both a holiday date and name.'); return; }
+      const yr = parseInt(dt.slice(0, 4), 10);
+      window.appState.holidays.push({ date: dt, year: yr, name, type });
+      document.getElementById('setup-new-hol-name').value = '';
+      renderSetupHolidaysEditor();
+      showToast('Added holiday: ' + name);
+    });
+
+    document.getElementById('btn-save-unit-config').addEventListener('click', () => {
+      const nextCfg = collectSetupFormConfig();
+      window.appState.unitConfig = nextCfg;
+      Object.values(window.appState.cycles || {}).forEach(c => {
+        if (c && c.assignments) c.assignments = normalizeAssignmentsForConfig(c.assignments, nextCfg);
+        if (c && c.manualOverrides) c.manualOverrides = normalizeAssignmentsForConfig(c.manualOverrides, nextCfg);
+      });
+      storage.saveState();
+      closeAllModals();
+      renderApp();
+      showToast('Unit configuration & schedule rules saved.');
+    });
+
+    document.getElementById('btn-export-config-template').addEventListener('click', () => {
+      const activeCfg = collectSetupFormConfig();
+      window.appState.unitConfig = activeCfg;
+      const json = storage.exportConfigTemplateJSON();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = (activeCfg.unitName || 'PSP_Unit').replace(/[^a-zA-Z0-9_-]+/g, '_');
+      a.href = url;
+      a.download = safeName + '_Config_Template.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Unit config template exported.');
+    });
+
+    const configTemplateInput = document.getElementById('config-template-file-input');
+    document.getElementById('btn-import-config-template').addEventListener('click', () => configTemplateInput.click());
+    configTemplateInput.addEventListener('change', () => {
+      const file = configTemplateInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (storage.importConfigTemplateJSON(evt.target.result)) {
+          window.appState = storage.state;
+          populateSetupForm(window.appState.unitConfig);
+          renderApp();
+          showToast('Unit config template imported and applied.');
+        } else {
+          alert('That file is not a valid Unit Config Template JSON.');
+        }
+        configTemplateInput.value = '';
+      };
+      reader.readAsText(file);
+    });
+
     document.getElementById('btn-open-rules').addEventListener('click', () => {
+      populateSetupForm(window.appState.unitConfig || createUnitConfig('blank_psp'));
+      switchRulesTab('config');
       closeAllModals();
       modalRules.style.display = 'flex';
       modalOverlay.classList.add('open');
@@ -2525,7 +3170,13 @@ const htmlContent = `<!DOCTYPE html>
     });
 
     function openRosterModal() {
-      const cycle = getActiveCycle();
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const roleSelect = document.getElementById('member-role-input');
+      if (roleSelect && Array.isArray(cfg.roles) && cfg.roles.length > 0) {
+        const prev = roleSelect.value;
+        roleSelect.innerHTML = cfg.roles.map(r => \`<option value="\${esc(r.id)}">\${esc(r.label)} (\${esc(r.shortCode)})</option>\`).join('');
+        if (cfg.roles.some(r => r.id === prev)) roleSelect.value = prev;
+      }
       resetMemberForm();
       renderRosterList();
       closeAllModals();
@@ -2597,10 +3248,12 @@ const htmlContent = `<!DOCTYPE html>
 
       list.innerHTML = html;
 
-      // Render Alternate Fire Marshal Weekends Per 6 Months block
+      // Render Quota-Based Members Weekends Per 6 Months block (only if unit uses quota roles & members)
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const altListEl = document.getElementById('alt-quota-controls-list');
       const altBlockEl = document.getElementById('alt-weekends-manager-block');
-      const altMembersInRoster = window.appState.roster.filter(m => m.role === 'ALT');
+      const quotaRoleIds = new Set((cfg.roles || []).filter(r => r.quotaEnabled).map(r => r.id));
+      const altMembersInRoster = window.appState.roster.filter(m => quotaRoleIds.has(m.role));
       if (altBlockEl && altListEl) {
         if (altMembersInRoster.length === 0) {
           altBlockEl.style.display = 'none';
@@ -2609,7 +3262,7 @@ const htmlContent = `<!DOCTYPE html>
           const countCycle = getActiveCycle();
           const countWeekends = identifyWeekends(countCycle.startDate, countCycle.endDate, window.appState.holidays);
           const scheduledIn = (altId, half) => countWeekends.filter(w =>
-            (countCycle.assignments || {})[w.saturday] === altId &&
+            getDayAssignedEntries(countCycle.assignments || {}, w.saturday, cfg).some(e => e.memberId === altId) &&
             (half === null || (w.friday.slice(5) < '07-01') === (half === 'H1'))).length;
           const hasH1 = countWeekends.some(w => w.friday.slice(5) < '07-01');
           const hasH2 = countWeekends.some(w => w.friday.slice(5) >= '07-01');
@@ -2675,30 +3328,34 @@ const htmlContent = `<!DOCTYPE html>
     let editingMemberId = null;
 
     function syncPrefDayVisibility() {
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const role = document.getElementById('member-role-input').value;
-      const rotational = !document.getElementById('member-weekday-input').value && role === 'FT';
+      const roleCfg = getRoleConfig(cfg, role);
+      const rotational = !document.getElementById('member-weekday-input').value && roleCfg.canWorkWeekdays;
       document.getElementById('member-prefday-group').style.display = rotational ? 'block' : 'none';
       if (!rotational) document.getElementById('member-prefday-input').value = '';
       const altGroup = document.getElementById('member-alt-quota-group');
-      if (altGroup) altGroup.style.display = role === 'ALT' ? 'block' : 'none';
+      if (altGroup) altGroup.style.display = roleCfg.quotaEnabled ? 'block' : 'none';
     }
     document.getElementById('member-weekday-input').addEventListener('change', syncPrefDayVisibility);
     document.getElementById('member-role-input').addEventListener('change', syncPrefDayVisibility);
 
     function resetMemberForm() {
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const memberLabel = cfg.memberLabel || 'Member';
       editingMemberId = null;
-      document.getElementById('member-rank-input').value = 'Trooper';
+      document.getElementById('member-rank-input').value = cfg.defaultRank !== undefined ? cfg.defaultRank : 'Trooper';
       document.getElementById('member-firstname-input').value = '';
       document.getElementById('member-name-input').value = '';
-      document.getElementById('member-role-input').value = 'FT';
+      document.getElementById('member-role-input').value = (cfg.roles && cfg.roles[0]) ? cfg.roles[0].id : 'FT';
       document.getElementById('member-weekday-input').value = '';
       document.getElementById('member-prefday-input').value = '';
       document.getElementById('member-alt-quota-input').value = '3';
       document.getElementById('member-color-input').value = '#1e3a8a';
       document.getElementById('member-start-input').value = getActiveCycle().startDate;
       document.getElementById('member-end-input').value = '';
-      document.getElementById('member-form-title').textContent = '+ Add Investigator to Roster';
-      document.getElementById('btn-save-new-member').textContent = '+ Add Investigator to Active Roster';
+      document.getElementById('member-form-title').textContent = '+ Add ' + memberLabel + ' to Roster';
+      document.getElementById('btn-save-new-member').textContent = '+ Add ' + memberLabel + ' to Active Roster';
       document.getElementById('btn-cancel-edit').style.display = 'none';
       syncPrefDayVisibility();
     }
@@ -2920,7 +3577,7 @@ const htmlContent = `<!DOCTYPE html>
       const c = getActiveCycle();
       if (!c) return [];
       const cYear = c.year || (c.startDate ? parseInt(c.startDate.slice(0, 4), 10) : 2027);
-      return window.appState.preferredWeekends.filter(p => {
+      return (window.appState.preferredWeekends || []).filter(p => {
         const pYear = p.year || (p.weekendFriday ? parseInt(p.weekendFriday.slice(0, 4), 10) : cYear);
         if (pYear !== cYear) return false;
         if (c.blockType === 'FULL') return true;
@@ -2931,9 +3588,26 @@ const htmlContent = `<!DOCTYPE html>
       });
     }
 
+    function cyclePreferredDates() {
+      const c = getActiveCycle();
+      if (!c) return [];
+      return (window.appState.preferredDates || []).filter(pd => pd.date >= c.startDate && pd.date <= c.endDate);
+    }
+
     document.getElementById('btn-open-prefs').addEventListener('click', () => {
       const cycle = getActiveCycle();
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
       const cycleRoster = getCycleRoster();
+      const dateMemberSel = document.getElementById('pref-date-member-select');
+      if (dateMemberSel) {
+        dateMemberSel.innerHTML = cycleRoster.map(m => \`<option value="\${m.id}">\${esc(m.name)} (\${esc(m.role)})</option>\`).join('');
+      }
+      const dateInput = document.getElementById('pref-date-input');
+      if (dateInput && cycle) dateInput.value = cycle.startDate;
+      const slotSel = document.getElementById('pref-slot-select');
+      if (slotSel) {
+        slotSel.innerHTML = (cfg.coverageSlots || []).map(s => \`<option value="\${esc(s.id)}">\${esc(s.label)} (\${esc(s.startTime)}–\${esc(s.endTime)})</option>\`).join('');
+      }
       refreshPrefWeekendSelect();
       renderPrefsList();
       closeAllModals();
@@ -2989,13 +3663,15 @@ const htmlContent = `<!DOCTYPE html>
       refreshPrefWeekendSelect();
       const list = document.getElementById('pref-items-container');
       const prefs = cyclePrefs().sort((a, b) => a.weekendFriday.localeCompare(b.weekendFriday));
-      document.getElementById('modal-pref-count').textContent = prefs.length;
-      document.getElementById('pref-count').textContent = prefs.length;
-      if (prefs.length === 0) {
-        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No requested weekends for this block.</div>';
+      const datePrefs = cyclePreferredDates().sort((a, b) => a.date.localeCompare(b.date));
+      const totalCount = prefs.length + datePrefs.length;
+      document.getElementById('modal-pref-count').textContent = totalCount;
+      document.getElementById('pref-count').textContent = totalCount;
+      if (totalCount === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center;">No requested weekends or dates for this block.</div>';
         return;
       }
-      list.innerHTML = prefs.map(p => {
+      const wkHtml = prefs.map(p => {
         const mem = window.appState.roster.find(m => m.id === p.memberId);
         return \`
           <div class="item-card">
@@ -3007,6 +3683,18 @@ const htmlContent = `<!DOCTYPE html>
             <button class="btn btn-outline-dark btn-delete-pref" data-id="\${p.id}" style="color:var(--danger); border-color:var(--danger-border); padding:4px 8px; font-size:11px;">Delete</button>
           </div>\`;
       }).join('');
+      const dtHtml = datePrefs.map(pd => {
+        const mem = window.appState.roster.find(m => m.id === pd.memberId);
+        return \`
+          <div class="item-card">
+            <div>
+              <div style="font-weight:700; font-size:13px;">&#128197; \${esc(mem ? mem.name : pd.memberId)}</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Specific Date: \${esc(pd.date)} (\${esc(pd.slotId || 'primary')})</div>
+            </div>
+            <button class="btn btn-outline-dark btn-delete-pref-date" data-id="\${pd.id}" style="color:var(--danger); border-color:var(--danger-border); padding:4px 8px; font-size:11px;">Delete</button>
+          </div>\`;
+      }).join('');
+      list.innerHTML = wkHtml + dtHtml;
 
       list.querySelectorAll('.btn-delete-pref').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -3017,7 +3705,36 @@ const htmlContent = `<!DOCTYPE html>
           showToast('Requested weekend removed. Re-run Auto-Generate to apply.');
         });
       });
+
+      list.querySelectorAll('.btn-delete-pref-date').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window.appState.preferredDates = (window.appState.preferredDates || []).filter(p => p.id !== btn.getAttribute('data-id'));
+          storage.saveState();
+          renderPrefsList();
+          renderApp();
+          showToast('Specific date request removed.');
+        });
+      });
     }
+
+    document.getElementById('btn-save-new-pref-date').addEventListener('click', () => {
+      const memberId = document.getElementById('pref-date-member-select').value;
+      const date = document.getElementById('pref-date-input').value;
+      const slotId = document.getElementById('pref-slot-select').value;
+      if (!memberId || !date) { alert('Choose a member and a date.'); return; }
+      if (!window.appState.preferredDates) window.appState.preferredDates = [];
+      window.appState.preferredDates.push({
+        id: \`pd_\${Date.now()}\`,
+        memberId,
+        date,
+        slotId,
+        year: parseInt(date.slice(0, 4), 10)
+      });
+      storage.saveState();
+      renderPrefsList();
+      renderApp();
+      showToast('Specific date request added.');
+    });
 
     document.getElementById('btn-save-new-pref').addEventListener('click', () => {
       const memberId = document.getElementById('pref-member-select').value;
@@ -3258,57 +3975,96 @@ const htmlContent = `<!DOCTYPE html>
       return violations;
     }
 
-    function openReassignModal(dateStr) {
+    function checkManualAssignmentRuleViolations(dateStr, memberId, slotId = null) {
+      if (!memberId) return [];
+      const cycle = getActiveCycle();
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const targetSlotId = slotId || getPrimarySlotId(cfg);
+      return evaluateManualSlotAssignment(dateStr, targetSlotId, memberId, cycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cfg);
+    }
+
+    function openReassignModal(dateStr, focusSlotId = null) {
       selectedDateForReassign = dateStr;
       const cycle = getActiveCycle();
-      const currentAssigned = cycle.assignments[dateStr];
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const activeSlots = getActiveSlotsForDate(dateStr, cfg, window.appState.holidays);
+      const slotsToRender = activeSlots.length > 0 ? activeSlots : [cfg.coverageSlots[0]];
 
       document.getElementById('reassign-date-title').textContent = \`Duty Assignment: \${dateStr}\`;
-      const select = document.getElementById('reassign-member-select');
-      
+      const container = document.getElementById('reassign-slots-container');
+
       const availableMembers = window.appState.roster.filter(m => {
         if (m.activeStart && dateStr < m.activeStart) return false;
         if (m.activeEnd && dateStr > m.activeEnd) return false;
         return true;
       });
 
-      select.innerHTML = '<option value="">-- UNASSIGNED --</option>' +
-        availableMembers.map(m => \`
-          <option value="\${m.id}" \${m.id === currentAssigned ? 'selected' : ''}>
-            \${esc(m.name)} (\${m.role})
-          </option>
-        \`).join('');
+      container.innerHTML = slotsToRender.map((slot, idx) => {
+        const currentAssigned = getSlotMember(cycle.assignments, dateStr, slot.id, cfg);
+        const selectId = idx === 0 ? 'reassign-member-select' : \`reassign-member-select-\${slot.id}\`;
+        return \`
+          <div class="form-group">
+            <label class="form-label">\${esc(slot.label)} (\${esc(slot.startTime)}–\${esc(slot.endTime)})</label>
+            <select id="\${selectId}" class="form-select reassign-slot-select" data-slot="\${esc(slot.id)}">
+              <option value="">-- UNASSIGNED --</option>
+              \${availableMembers.map(m => \`
+                <option value="\${m.id}" \${m.id === currentAssigned ? 'selected' : ''}>
+                  \${esc(m.name)} (\${esc(m.role)})
+                </option>
+              \`).join('')}
+            </select>
+          </div>
+        \`;
+      }).join('');
 
       function updatePreview() {
         const preview = document.getElementById('reassign-conflict-preview');
-        const selectedId = select.value;
-        if (!selectedId) {
-          preview.innerHTML = '<span style="color:var(--text-muted)">Shift will be marked Unassigned.</span>';
+        const selects = Array.from(container.querySelectorAll('.reassign-slot-select'));
+        const allViolations = [];
+        const testCycle = { ...cycle, assignments: JSON.parse(JSON.stringify(cycle.assignments || {})) };
+
+        selects.forEach(sel => {
+          const sid = sel.getAttribute('data-slot');
+          setSlotMember(testCycle.assignments, dateStr, sid, sel.value || null, cfg);
+        });
+
+        selects.forEach(sel => {
+          const sid = sel.getAttribute('data-slot');
+          const mId = sel.value;
+          if (!mId) return;
+          const viols = evaluateManualSlotAssignment(dateStr, sid, mId, testCycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cfg);
+          viols.forEach(v => allViolations.push({ ...v, slotId: sid }));
+        });
+
+        const hasAnySelected = selects.some(s => Boolean(s.value));
+        if (!hasAnySelected) {
+          preview.innerHTML = '<span style="color:var(--text-muted)">Shift(s) will be marked Unassigned.</span>';
           return;
         }
-        const mem = window.appState.roster.find(m => m.id === selectedId);
-        const violations = checkManualAssignmentRuleViolations(dateStr, selectedId);
-        if (violations.length > 0) {
-          preview.innerHTML = violations.map(v => \`
+        if (allViolations.length > 0) {
+          preview.innerHTML = allViolations.map(v => \`
             <div style="color:\${v.severity === 'ERROR' ? 'var(--danger)' : 'var(--warning)'}; font-weight:700; margin-top:4px;">
               &#9888; \${esc(v.message)}
             </div>
           \`).join('');
         } else {
-          preview.innerHTML = \`<span style="color:var(--success); font-weight:600;">&#10003; No rule conflicts for \${esc(mem?.name)}.</span>\`;
+          preview.innerHTML = \`<span style="color:var(--success); font-weight:600;">&#10003; No rule conflicts for selected assignment(s).</span>\`;
         }
       }
 
-      select.onchange = updatePreview;
-      select.oninput = updatePreview;
-      select.onkeyup = updatePreview;
+      container.querySelectorAll('.reassign-slot-select').forEach(sel => {
+        sel.onchange = updatePreview;
+        sel.oninput = updatePreview;
+        sel.onkeyup = updatePreview;
+      });
       updatePreview();
 
       closeAllModals();
       modalOverlay.classList.add('open');
       modalReassign.style.display = 'flex';
       setTimeout(() => {
-        select.focus();
+        const focusEl = (focusSlotId && container.querySelector(\`.reassign-slot-select[data-slot="\${focusSlotId}"]\`)) || container.querySelector('.reassign-slot-select');
+        if (focusEl) focusEl.focus();
       }, 0);
     }
 
@@ -3398,95 +4154,135 @@ const htmlContent = `<!DOCTYPE html>
 
     document.getElementById('btn-save-shift').addEventListener('click', () => {
       if (!selectedDateForReassign) return;
-      const newMemberId = document.getElementById('reassign-member-select').value;
       const cycle = getActiveCycle();
-      const currentAssigned = cycle.assignments[selectedDateForReassign];
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const multiSlot = isMultiSlotConfig(cfg);
+      const container = document.getElementById('reassign-slots-container');
+      const selects = Array.from(container.querySelectorAll('.reassign-slot-select'));
 
-      if (newMemberId) {
-        const violations = checkManualAssignmentRuleViolations(selectedDateForReassign, newMemberId);
-        const blockingViolations = violations.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
-        if (blockingViolations.length > 0) {
-          const mem = window.appState.roster.find(m => m.id === newMemberId);
-          const name = mem ? (getMemberPrintName(mem) || mem.name) : 'this investigator';
-          const details = blockingViolations.map(v => \`• \${v.message}\`).join('\\n');
-          if (!confirm(\`Rule Violation Notification:\\n\\n\${details}\\n\\nDo you want to manually overwrite this rule and assign \${name}?\`)) {
-            return;
-          }
-        }
-      }
+      // Single-slot path preserves Friday weekend-fill & ALT quota confirmation
+      if (!multiSlot && selects.length === 1) {
+        const slotId = selects[0].getAttribute('data-slot');
+        const newMemberId = selects[0].value;
+        const currentAssigned = getSlotMember(cycle.assignments, selectedDateForReassign, slotId, cfg);
 
-      // Check if clicked date is Friday and member was changed or added to unscheduled day
-      const d = parseDate(selectedDateForReassign);
-      const isFriday = d.getDay() === 5;
-      const isChangingOrAdding = Boolean(newMemberId && (!currentAssigned || currentAssigned !== newMemberId));
-
-      if (isFriday && isChangingOrAdding) {
-        const mem = window.appState.roster.find(m => m.id === newMemberId);
-        const memDisplayName = getMemberPrintName(mem);
-        if (confirm(\`Would you like to fill the weekend with '\${memDisplayName}'?\`)) {
-          const sat = formatDate(addDays(d, 1));
-          const sun = formatDate(addDays(d, 2));
-          const mon = formatDate(addDays(d, 3));
-          const holidays = window.appState.holidays || [];
-          const attachedMon = holidays.find(h => h.date === mon && h.type === 'attached_mon');
-          const weekendDays = [selectedDateForReassign, sat, sun];
-          if (attachedMon) weekendDays.push(mon);
-
-          let weekendViolations = [];
-          weekendDays.slice(1).forEach(dStr => {
-            const viols = checkManualAssignmentRuleViolations(dStr, newMemberId);
-            const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
-            if (blocking.length > 0) {
-              weekendViolations.push(...blocking);
-            }
-          });
-
-          if (weekendViolations.length > 0) {
-            const details = weekendViolations.map(v => \`• \${v.message}\`).join('\\n');
-            if (!confirm(\`Rule Violation Notification for weekend dates:\\n\\n\${details}\\n\\nDo you want to manually overwrite these rules and assign \${memDisplayName} to the rest of the weekend?\`)) {
+        if (newMemberId) {
+          const violations = checkManualAssignmentRuleViolations(selectedDateForReassign, newMemberId, slotId);
+          const blockingViolations = violations.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
+          if (blockingViolations.length > 0) {
+            const mem = window.appState.roster.find(m => m.id === newMemberId);
+            const name = mem ? (getMemberPrintName(mem, cfg) || mem.name) : 'this member';
+            const details = blockingViolations.map(v => \`• \${v.message}\`).join('\\n');
+            if (!confirm(\`Rule Violation Notification:\\n\\n\${details}\\n\\nDo you want to manually overwrite this rule and assign \${name}?\`)) {
               return;
             }
           }
+        }
 
-          // Check Alternate quota prior to filling
-          if (!checkAndConfirmAltQuota(weekendDays, newMemberId, cycle)) {
+        const d = parseDate(selectedDateForReassign);
+        const isFriday = d.getDay() === 5;
+        const isWeekendBlock = cfg.rules.blockPattern === 'fri_sun' || cfg.rules.blockPattern === 'fri_mon_ft';
+        const isChangingOrAdding = Boolean(newMemberId && (!currentAssigned || currentAssigned !== newMemberId));
+
+        if (isFriday && isWeekendBlock && isChangingOrAdding) {
+          const mem = window.appState.roster.find(m => m.id === newMemberId);
+          const memDisplayName = getMemberPrintName(mem, cfg);
+          if (confirm(\`Would you like to fill the weekend with '\${memDisplayName}'?\`)) {
+            const sat = formatDate(addDays(d, 1));
+            const sun = formatDate(addDays(d, 2));
+            const mon = formatDate(addDays(d, 3));
+            const holidays = window.appState.holidays || [];
+            const attachedMon = holidays.find(h => h.date === mon && h.type === 'attached_mon');
+            const weekendDays = [selectedDateForReassign, sat, sun];
+            if (attachedMon) weekendDays.push(mon);
+
+            let weekendViolations = [];
+            weekendDays.slice(1).forEach(dStr => {
+              const viols = checkManualAssignmentRuleViolations(dStr, newMemberId, slotId);
+              const blocking = viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND');
+              if (blocking.length > 0) weekendViolations.push(...blocking);
+            });
+
+            if (weekendViolations.length > 0) {
+              const details = weekendViolations.map(v => \`• \${v.message}\`).join('\\n');
+              if (!confirm(\`Rule Violation Notification for weekend dates:\\n\\n\${details}\\n\\nDo you want to manually overwrite these rules and assign \${memDisplayName} to the rest of the weekend?\`)) {
+                return;
+              }
+            }
+
+            if (!checkAndConfirmAltQuota(weekendDays, newMemberId, cycle)) return;
+
+            storage.pushUndo();
+            weekendDays.forEach(dStr => {
+              cycle.assignments[dStr] = newMemberId;
+              cycle.manualOverrides[dStr] = true;
+              syncShiftToSiblings(dStr, newMemberId);
+            });
+            cycle.updatedAt = Date.now();
+            storage.saveState();
+            closeAllModals();
+            renderApp();
+            showToast(\`Weekend (\${selectedDateForReassign} to \${weekendDays[weekendDays.length - 1]}) assigned to \${memDisplayName}.\`);
             return;
           }
+        }
 
-          storage.pushUndo();
-          weekendDays.forEach(dStr => {
-            cycle.assignments[dStr] = newMemberId;
-            cycle.manualOverrides[dStr] = true;
-            syncShiftToSiblings(dStr, newMemberId);
-          });
-          cycle.updatedAt = Date.now();
-          storage.saveState();
-          closeAllModals();
-          renderApp();
-          showToast(\`Weekend (\${selectedDateForReassign} to \${weekendDays[weekendDays.length - 1]}) assigned to \${memDisplayName}.\`);
+        if (newMemberId && !checkAndConfirmAltQuota([selectedDateForReassign], newMemberId, cycle)) return;
+
+        storage.pushUndo();
+        if (newMemberId) {
+          cycle.assignments[selectedDateForReassign] = newMemberId;
+          cycle.manualOverrides[selectedDateForReassign] = true;
+        } else {
+          delete cycle.assignments[selectedDateForReassign];
+          delete cycle.manualOverrides[selectedDateForReassign];
+        }
+        cycle.updatedAt = Date.now();
+        syncShiftToSiblings(selectedDateForReassign, newMemberId);
+        storage.saveState();
+        closeAllModals();
+        renderApp();
+        showToast(\`Shift for \${selectedDateForReassign} updated.\`);
+        return;
+      }
+
+      // Multi-slot (AM/PM) save path
+      const testCycle = { ...cycle, assignments: JSON.parse(JSON.stringify(cycle.assignments || {})) };
+      selects.forEach(sel => {
+        const sid = sel.getAttribute('data-slot');
+        setSlotMember(testCycle.assignments, selectedDateForReassign, sid, sel.value || null, cfg);
+      });
+      const multiBlocking = [];
+      selects.forEach(sel => {
+        const sid = sel.getAttribute('data-slot');
+        if (!sel.value) return;
+        const viols = evaluateManualSlotAssignment(selectedDateForReassign, sid, sel.value, testCycle, window.appState.roster, cycleBlackouts(), window.appState.holidays, cfg);
+        viols.filter(v => v.severity === 'ERROR' || v.type === 'CONSECUTIVE_WEEKEND').forEach(v => multiBlocking.push(v));
+      });
+      if (multiBlocking.length > 0) {
+        const details = multiBlocking.map(v => \`• \${v.message}\`).join('\\n');
+        if (!confirm(\`Rule Violation Notification:\\n\\n\${details}\\n\\nDo you want to manually overwrite and save?\`)) {
           return;
         }
       }
 
-      // Check Alternate quota prior to filling single date
-      if (newMemberId && !checkAndConfirmAltQuota([selectedDateForReassign], newMemberId, cycle)) {
-        return;
-      }
-
       storage.pushUndo();
-      if (newMemberId) {
-        cycle.assignments[selectedDateForReassign] = newMemberId;
-        cycle.manualOverrides[selectedDateForReassign] = true;
-      } else {
-        delete cycle.assignments[selectedDateForReassign];
-        delete cycle.manualOverrides[selectedDateForReassign];
-      }
+      selects.forEach(sel => {
+        const sid = sel.getAttribute('data-slot');
+        const mId = sel.value || null;
+        setSlotMember(cycle.assignments, selectedDateForReassign, sid, mId, cfg);
+        if (mId) {
+          setSlotMember(cycle.manualOverrides, selectedDateForReassign, sid, mId, cfg);
+        } else {
+          setSlotMember(cycle.manualOverrides, selectedDateForReassign, sid, null, cfg);
+        }
+      });
       cycle.updatedAt = Date.now();
-      syncShiftToSiblings(selectedDateForReassign, newMemberId);
+      syncShiftToSiblings(selectedDateForReassign, cycle.assignments[selectedDateForReassign] || null);
       storage.saveState();
       closeAllModals();
       renderApp();
-      showToast(\`Shift for \${selectedDateForReassign} updated.\`);
+      showToast(\`Shifts for \${selectedDateForReassign} updated.\`);
     });
 
     document.getElementById('btn-clear-shift').addEventListener('click', () => {
@@ -3625,8 +4421,10 @@ const htmlContent = `<!DOCTYPE html>
     // Export to Excel
     document.getElementById('btn-export-excel').addEventListener('click', () => {
       const cycle = getActiveCycle();
-      const wb = generateExcelWorkbook(window.XLSX, cycle, window.appState.roster, cycle.assignments);
-      window.XLSX.writeFile(wb, \`\${cycle.year}_\${cycle.blockType}_Fire_Marshal_OnCall_Schedule.xlsx\`);
+      const cfg = window.appState.unitConfig || createUnitConfig('blank_psp');
+      const wb = generateExcelWorkbook(window.XLSX, cycle, window.appState.roster, cycle.assignments, cfg);
+      const safeUnit = (cfg.unitName || 'PSP_Unit').replace(/[^a-zA-Z0-9_-]+/g, '_');
+      window.XLSX.writeFile(wb, \`\${cycle.year}_\${cycle.blockType}_\${safeUnit}_Schedule.xlsx\`);
       showToast('Excel workbook exported.');
     });
 
@@ -3681,8 +4479,9 @@ const htmlContent = `<!DOCTYPE html>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const stamp = new Date().toISOString().slice(0, 10);
+      const safeUnit = (window.appState.unitConfig?.unitName || 'PSP_Scheduler').replace(/[^a-zA-Z0-9_-]+/g, '_');
       a.href = url;
-      a.download = 'PSP_FireMarshal_Backup_' + stamp + '.json';
+      a.download = safeUnit + '_Backup_' + stamp + '.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
